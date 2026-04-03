@@ -79,7 +79,7 @@ export default function ConferenceSection() {
               </div>
               <Link to="/register" className="btn-solid-custom text-[10px] px-5 py-2.5">
                 Register Free
-              </a>
+              </Link>
             </div>
           </div>
         </div>
