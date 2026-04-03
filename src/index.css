@@ -2,87 +2,104 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,400;1,500&family=Lato:wght@300;400;700&family=Cinzel:wght@400;600&display=swap');
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 30 20% 100%;
+    --foreground: 20 30% 8%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 20 30% 8%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 20 30% 8%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 22 90% 48%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 30 25% 95%;
+    --secondary-foreground: 20 30% 8%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 30 18% 95%;
+    --muted-foreground: 20 12% 42%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 30 25% 95%;
+    --accent-foreground: 20 30% 8%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 25 18% 88%;
+    --input: 25 18% 88%;
+    --ring: 22 90% 48%;
 
-    --radius: 0.5rem;
+    --radius: 0.25rem;
+
+    /* Brand tokens */
+    --orange: 22 90% 48%;
+    --orange-hover: 22 90% 41%;
+    --gold: 36 53% 45%;
+    --bg-alt: 30 25% 97%;
+    --bg-subtle: 30 18% 93%;
+    --text-mid: 20 18% 25%;
+    --text-light: 20 8% 60%;
+    --border-mid: 25 14% 82%;
+    --orange-soft: 22 90% 48% / 0.1;
+    --orange-border: 22 90% 48% / 0.25;
+    --nav-bg: 0 0% 100% / 0.96;
+    --shadow-base: 0 2px 20px rgba(0,0,0,.07);
+    --shadow-lg: 0 8px 40px rgba(0,0,0,.10);
 
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 20 18% 5%;
+    --foreground: 30 20% 92%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 20 18% 8%;
+    --card-foreground: 30 20% 92%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 20 18% 8%;
+    --popover-foreground: 30 20% 92%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 22 90% 48%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 20 15% 12%;
+    --secondary-foreground: 30 20% 92%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 20 15% 12%;
+    --muted-foreground: 20 12% 55%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 20 15% 12%;
+    --accent-foreground: 30 20% 92%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --border: 20 15% 15%;
+    --input: 20 15% 15%;
+    --ring: 22 90% 48%;
+
+    --bg-alt: 20 18% 7%;
+    --bg-subtle: 20 14% 11%;
+    --text-mid: 30 14% 76%;
+    --text-light: 20 8% 38%;
+    --border-mid: 20 12% 19%;
+    --gold: 36 53% 53%;
+    --nav-bg: 20 18% 5% / 0.97;
+    --shadow-base: 0 2px 20px rgba(0,0,0,.35);
+    --shadow-lg: 0 8px 40px rgba(0,0,0,.45);
+
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -99,7 +116,121 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     @apply bg-background text-foreground;
+    font-family: 'Lato', sans-serif;
+    overflow-x: hidden;
+    transition: background 0.35s, color 0.35s;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: 'Playfair Display', serif;
+    line-height: 1.15;
+  }
+}
+
+@layer components {
+  .eyebrow {
+    @apply inline-flex items-center gap-2.5 text-[11px] font-bold tracking-[4px] uppercase text-primary;
+  }
+  .eyebrow::before {
+    content: '';
+    @apply block w-[22px] h-[1.5px] bg-primary;
+  }
+
+  .section-title {
+    font-size: clamp(30px, 4vw, 50px);
+    @apply font-normal leading-tight;
+    margin: 0.8rem 0 1.5rem;
+  }
+  .section-title em {
+    @apply italic text-primary;
+  }
+
+  .body-text {
+    @apply text-[15px] font-light leading-[1.95] text-muted-foreground;
+  }
+
+  .btn-primary-custom {
+    @apply inline-block px-8 py-3.5 rounded-sm bg-primary text-primary-foreground text-[11px] font-bold tracking-[2.5px] uppercase transition-all duration-250;
+  }
+  .btn-primary-custom:hover {
+    @apply bg-primary/90;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 28px hsl(var(--orange) / 0.4);
+  }
+
+  .btn-ghost-custom {
+    @apply inline-block px-8 py-3 rounded-sm text-[11px] font-bold tracking-[2.5px] uppercase transition-all duration-250;
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.3);
+  }
+  .btn-ghost-custom:hover {
+    background: rgba(255,255,255,0.2);
+    border-color: rgba(255,255,255,0.6);
+  }
+
+  .btn-solid-custom {
+    @apply inline-block px-7 py-3 rounded-sm bg-primary text-primary-foreground text-[11px] font-bold tracking-[2px] uppercase transition-all duration-250;
+  }
+  .btn-solid-custom:hover {
+    @apply bg-primary/90;
+    transform: translateY(-1px);
+  }
+
+  .btn-outline-custom {
+    @apply inline-block px-7 py-3 rounded-sm border-[1.5px] border-primary text-primary text-[11px] font-bold tracking-[2px] uppercase transition-all duration-250;
+  }
+  .btn-outline-custom:hover {
+    @apply bg-primary text-primary-foreground;
+  }
+
+  /* Reveal animations */
+  .reveal {
+    opacity: 0;
+    transform: translateY(26px);
+    transition: opacity 0.7s ease, transform 0.7s ease;
+  }
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Card hover lift */
+  .card-lift {
+    @apply transition-all duration-300;
+  }
+  .card-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* Nav link underline */
+  .nav-link-underline {
+    @apply relative;
+  }
+  .nav-link-underline::after {
+    content: '';
+    @apply absolute bottom-0 left-0 w-full h-[1.5px] bg-primary origin-bottom-right transition-transform duration-300 scale-x-0;
+  }
+  .nav-link-underline:hover::after {
+    @apply origin-bottom-left scale-x-100;
+  }
+}
+
+@layer utilities {
+  .font-heading {
+    font-family: 'Playfair Display', serif;
+  }
+  .font-display {
+    font-family: 'Cinzel', serif;
+  }
+  .font-body {
+    font-family: 'Lato', sans-serif;
   }
 }
