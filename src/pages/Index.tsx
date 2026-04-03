@@ -5,6 +5,7 @@ import InfoStrip from '@/components/InfoStrip';
 import ConferenceSection from '@/components/ConferenceSection';
 import EventsPreview from '@/components/EventsPreview';
 import Footer from '@/components/Footer';
+import ScrollToTop from '@/components/ScrollToTop';
 
 const Index = () => {
   return (
@@ -16,6 +17,7 @@ const Index = () => {
       <ConferenceSection />
       <EventsPreview />
       <Footer />
+      <ScrollToTop />
     </>
   );
 };

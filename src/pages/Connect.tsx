@@ -3,6 +3,7 @@ import { Mail, Phone, MapPin } from 'lucide-react';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import ScrollToTop from '@/components/ScrollToTop';
 
 const contactItems = [
   { icon: <Mail size={18} />, label: 'Email', value: 'info@cherubscove.org' },
@@ -50,8 +51,8 @@ export default function ConnectPage() {
   return (
     <>
       <Navbar />
-      <div className="pt-[70px] min-h-screen bg-bg-alt" ref={ref}>
-        <div className="py-16 px-8 bg-background border-b border-border">
+      <div className="pt-[70px] min-h-screen bg-background" ref={ref}>
+        <div className="page-header">
           <div className="container">
             <div className="eyebrow reveal">Get in Touch</div>
             <h1 className="section-title reveal">
@@ -70,13 +71,13 @@ export default function ConnectPage() {
               </p>
               <div className="flex flex-col gap-4">
                 {contactItems.map((item, i) => (
-                  <div key={i} className="flex items-center gap-4">
-                    <div className="w-[42px] h-[42px] rounded-[10px] bg-orange-soft border border-primary/25 flex items-center justify-center text-primary flex-shrink-0">
+                  <div key={i} className="flex items-center gap-4 p-4 rounded-lg bg-card border border-border card-lift">
+                    <div className="w-[42px] h-[42px] rounded-lg bg-orange-soft border border-primary/20 flex items-center justify-center text-primary flex-shrink-0">
                       {item.icon}
                     </div>
                     <div>
-                      <div className="text-[9.5px] font-bold tracking-[2px] uppercase text-text-light">{item.label}</div>
-                      <div className="text-sm">{item.value}</div>
+                      <div className="text-[9.5px] font-bold tracking-[2px] uppercase text-muted-foreground">{item.label}</div>
+                      <div className="text-sm text-foreground">{item.value}</div>
                     </div>
                   </div>
                 ))}
@@ -85,14 +86,14 @@ export default function ConnectPage() {
 
             {/* Newsletter */}
             <div className="reveal">
-              <div className="bg-card border border-border rounded p-8">
-                <h3 className="font-heading text-2xl font-medium mb-1.5">Stay in the Loop</h3>
+              <div className="bg-card border border-border rounded-lg p-8 card-lift">
+                <h3 className="font-heading text-2xl font-medium mb-1.5 text-foreground">Stay in the Loop</h3>
                 <p className="text-[13px] text-muted-foreground leading-relaxed mb-6">
                   Subscribe for conference updates, ministry resources, and devotional content delivered straight to your inbox.
                 </p>
-                <form onSubmit={handleNewsletter} className="flex border-[1.5px] border-border rounded-sm overflow-hidden transition-colors focus-within:border-primary">
-                  <input type="email" placeholder="Enter your email address" required className="flex-1 px-3.5 py-3 bg-transparent border-none outline-none text-sm" />
-                  <button type="submit" className={`px-5 py-3 font-body text-[10.5px] font-bold tracking-[1.5px] uppercase transition-colors border-none cursor-pointer ${nlStatus === 'success' ? 'bg-emerald-600' : 'bg-primary hover:bg-primary/90'}`} style={{ color: '#fff' }}>
+                <form onSubmit={handleNewsletter} className="flex border-[1.5px] border-border rounded-md overflow-hidden transition-colors focus-within:border-primary">
+                  <input type="email" placeholder="Enter your email address" required className="flex-1 px-3.5 py-3 bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground" />
+                  <button type="submit" className={`px-5 py-3 font-body text-[10.5px] font-bold tracking-[1.5px] uppercase transition-colors border-none cursor-pointer text-white ${nlStatus === 'success' ? 'bg-emerald-600' : 'bg-primary hover:bg-primary/90'}`}>
                     {nlStatus === 'success' ? 'Subscribed ✓' : 'Subscribe'}
                   </button>
                 </form>
@@ -109,6 +110,7 @@ export default function ConnectPage() {
         </div>
       </div>
       <Footer />
+      <ScrollToTop />
     </>
   );
 }

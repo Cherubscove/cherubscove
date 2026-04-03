@@ -1,6 +1,9 @@
 import { useScrollReveal } from '@/hooks/useScrollReveal';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import ScrollToTop from '@/components/ScrollToTop';
+import welcomeImg from '@/assets/welcome.jpg';
+import logo from '@/assets/logo/logo.png';
 
 const tags = [
   { label: 'Ministry President', highlight: true },
@@ -21,9 +24,9 @@ export default function AboutJessePage() {
       <Navbar />
       <div className="pt-[70px] min-h-screen bg-background" ref={ref}>
         {/* Hero Banner */}
-        <div className="py-16 px-8 bg-bg-alt border-b border-border">
+        <div className="page-header">
           <div className="container">
-            <div className="eyebrow reveal">About Our President</div>
+            <div className="eyebrow reveal">Meet Our President</div>
             <h1 className="section-title reveal">
               A Voice. A <em>Vision.</em><br />A Commission.
             </h1>
@@ -34,20 +37,29 @@ export default function AboutJessePage() {
           <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-12 lg:gap-20 items-start">
             {/* Photo */}
             <div className="reveal lg:sticky lg:top-[90px]">
-              <div className="aspect-[3/4] rounded-sm overflow-hidden bg-bg-subtle shadow-[var(--shadow-lg)]">
-                <div className="w-full h-full bg-gradient-to-br from-bg-subtle to-border flex flex-col items-center justify-center gap-3">
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" className="text-text-light opacity-20">
-                    <circle cx="12" cy="8" r="4" />
-                    <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-                  </svg>
-                  <span className="text-[11px] tracking-[3px] uppercase text-text-light">Jesse Falodun</span>
-                </div>
+              <div className="aspect-[3/4] rounded-lg overflow-hidden bg-bg-subtle shadow-lg">
+                <img
+                  src={welcomeImg}
+                  alt="Jesse Falodun — President of Cherubs Cove Ministry"
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
               </div>
               <div className="mt-5 text-center">
-                <h3 className="font-heading text-[22px] font-medium">Jesse Falodun</h3>
+                <h3 className="font-heading text-[22px] font-medium text-foreground">Jesse Falodun</h3>
                 <p className="text-[10.5px] tracking-[2.5px] uppercase text-primary mt-1">
                   President, Cherubs Cove
                 </p>
+              </div>
+              {/* Logo */}
+              <div className="mt-6 flex justify-center">
+                <div className="flex items-center gap-3 px-5 py-3 rounded-lg bg-card border border-border">
+                  <img src={logo} alt="Cherubs Cove logo" className="h-8 w-8 rounded-full object-contain" />
+                  <div>
+                    <div className="font-display text-[11px] font-semibold tracking-[1.5px] uppercase text-foreground">Cherubs Cove</div>
+                    <div className="text-[8px] tracking-[3px] uppercase text-gold">The Making Place</div>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -84,10 +96,10 @@ export default function AboutJessePage() {
                 {tags.map((tag, i) => (
                   <span
                     key={i}
-                    className={`px-3.5 py-1.5 rounded-full border text-[11px] font-bold tracking-[1.5px] uppercase ${
+                    className={`px-3.5 py-1.5 rounded-full border text-[11px] font-bold tracking-[1.5px] uppercase transition-colors duration-200 ${
                       tag.highlight
                         ? 'bg-orange-soft border-primary/25 text-primary'
-                        : 'border-border-mid text-muted-foreground'
+                        : 'border-border text-muted-foreground hover:border-primary/25 hover:text-primary'
                     }`}
                   >
                     {tag.label}
@@ -96,8 +108,8 @@ export default function AboutJessePage() {
               </div>
 
               {/* CTA */}
-              <div className="mt-12 p-8 bg-bg-alt border border-border rounded reveal">
-                <h3 className="font-heading text-xl font-medium mb-2">Connect with Jesse</h3>
+              <div className="mt-12 p-8 bg-card border border-border rounded-lg reveal card-lift">
+                <h3 className="font-heading text-xl font-medium mb-2 text-foreground">Connect with Jesse</h3>
                 <p className="body-text mb-6">Want to invite Jesse to speak at your event or learn more about Cherubs Cove Ministry?</p>
                 <div className="flex gap-4 flex-wrap">
                   <a href="/connect" className="btn-solid-custom">Get in Touch</a>
@@ -109,6 +121,7 @@ export default function AboutJessePage() {
         </div>
       </div>
       <Footer />
+      <ScrollToTop />
     </>
   );
 }

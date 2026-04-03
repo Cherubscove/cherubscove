@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
-import welcomeImg from '@/assets/welcome.jpg';
+import logo from '@/assets/logo/logo.png';
 
 export default function WelcomeSection() {
   const ref = useScrollReveal();
@@ -9,13 +9,19 @@ export default function WelcomeSection() {
     <section id="welcome" className="bg-background py-24" ref={ref}>
       <div className="container">
         <div className="grid grid-cols-1 md:grid-cols-[1fr_1.1fr] gap-12 md:gap-20 items-center">
-          <div className="reveal aspect-[4/5] rounded-sm overflow-hidden bg-bg-subtle">
-            <img
-              src={welcomeImg}
-              alt="Cherubs Cove Ministry gathering"
-              className="w-full h-full object-cover"
-              loading="lazy"
-            />
+          <div className="reveal flex flex-col items-center gap-6">
+            <div className="w-32 h-32 rounded-full overflow-hidden bg-bg-subtle shadow-lg border-4 border-primary/20">
+              <img
+                src={logo}
+                alt="Cherubs Cove Ministry logo"
+                className="w-full h-full object-contain p-2"
+                loading="lazy"
+              />
+            </div>
+            <div className="text-center">
+              <div className="font-display text-lg font-semibold tracking-[2px] uppercase text-foreground">Cherubs Cove</div>
+              <div className="text-[10px] tracking-[4px] uppercase text-gold mt-1">The Making Place</div>
+            </div>
           </div>
           <div>
             <div className="eyebrow reveal">Who We Are</div>
@@ -36,7 +42,7 @@ export default function WelcomeSection() {
             </p>
             <div className="mt-8 flex gap-4 flex-wrap reveal">
               <a href="#conference" className="btn-solid-custom">
-                Quiver's Conference
+                Events & Conferences
               </a>
               <Link to="/about-jesse" className="btn-outline-custom">
                 Our President

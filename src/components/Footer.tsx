@@ -3,8 +3,8 @@ import logoWhite from '@/assets/logo/logo-white.png';
 
 const footerLinks = [
   { label: 'Home', href: '/' },
-  { label: 'Conference', href: '/#conference' },
-  { label: 'Resources', href: '/resources' },
+  { label: 'Events & Conferences', href: '/#conference' },
+  { label: 'Downloads', href: '/downloads' },
   { label: 'Register', href: '/register' },
   { label: 'Contact', href: '/connect' },
 ];
@@ -47,7 +47,7 @@ const socialIcons = [
 
 export default function Footer() {
   return (
-    <footer className="bg-foreground border-t border-border py-12">
+    <footer className="bg-foreground border-t border-border py-14">
       <div className="container">
         <div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-8 mb-10">
           {/* Logo + Tagline */}
@@ -55,7 +55,7 @@ export default function Footer() {
             <div className="flex items-center gap-3">
               <img src={logoWhite} alt="Cherubs Cove logo" className="h-10 w-10 rounded-full object-contain" />
               <div>
-                <div className="font-display text-sm font-semibold tracking-[1.5px] uppercase" style={{ color: '#fff' }}>
+                <div className="font-display text-sm font-semibold tracking-[1.5px] uppercase text-white">
                   Cherubs Cove
                 </div>
                 <div className="text-[9.5px] tracking-[3.5px] uppercase text-primary">
@@ -63,7 +63,7 @@ export default function Footer() {
                 </div>
               </div>
             </div>
-            <p className="text-xs max-w-[280px] text-center md:text-left" style={{ color: 'rgba(255,255,255,0.45)' }}>
+            <p className="text-xs max-w-[280px] text-center md:text-left text-white/45">
               An interdenominational ministry raising burning youths for the Lord.
             </p>
           </div>
@@ -74,8 +74,7 @@ export default function Footer() {
               <Link
                 key={i}
                 to={link.href}
-                className="text-[11px] font-bold tracking-[1.5px] uppercase transition-colors duration-250 hover:text-primary"
-                style={{ color: 'rgba(255,255,255,0.45)' }}
+                className="text-[11px] font-bold tracking-[1.5px] uppercase transition-colors duration-250 text-white/45 hover:text-primary"
               >
                 {link.label}
               </Link>
@@ -89,8 +88,7 @@ export default function Footer() {
                 key={i}
                 href="#"
                 aria-label={s.label}
-                className="w-8 h-8 rounded-lg border border-white/15 flex items-center justify-center transition-all duration-250 hover:border-primary hover:text-primary"
-                style={{ color: 'rgba(255,255,255,0.4)' }}
+                className="w-9 h-9 rounded-lg border border-white/15 flex items-center justify-center text-white/40 transition-all duration-250 hover:border-primary hover:bg-primary/10 hover:text-primary"
               >
                 {s.icon}
               </a>
@@ -99,7 +97,7 @@ export default function Footer() {
         </div>
 
         <div className="border-t border-white/10 pt-6 text-center">
-          <p className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
+          <p className="text-xs text-white/35">
             © 2025 <span className="text-primary">Cherubs Cove Ministry</span>. All rights reserved. The Making Place.
           </p>
         </div>

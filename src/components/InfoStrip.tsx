@@ -9,7 +9,7 @@ const items = [
   },
   {
     icon: <Globe size={22} className="text-primary" />,
-    label: 'Flagship Event',
+    label: 'Events & Conferences',
     value: 'International Quivers Conf.',
     sub: 'Annual gathering',
   },
@@ -37,7 +37,7 @@ export default function InfoStrip() {
               <div className="text-[9.5px] font-bold tracking-[3px] uppercase text-primary">
                 {item.label}
               </div>
-              <div className="font-heading text-[17px]">{item.value}</div>
+              <div className="font-heading text-[17px] text-foreground">{item.value}</div>
               <div className="text-xs text-muted-foreground">{item.sub}</div>
             </div>
           ))}
