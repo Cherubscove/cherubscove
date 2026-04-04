@@ -43,7 +43,7 @@ export default function WelcomeSection() {
             <div className="mt-8 flex gap-4 flex-wrap reveal">
               <Link to="/events-conferences" className="btn-solid-custom">
                 Events & Conferences
-              </a>
+              </Link>
               <Link to="/about-jesse" className="btn-outline-custom">
                 Our President
               </Link>
