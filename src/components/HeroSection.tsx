@@ -6,8 +6,10 @@ import hero3 from '@/assets/hero/hero3.jpg';
 import hero4 from '@/assets/hero/hero4.jpg';
 import hero5 from '@/assets/hero/hero5.jpg';
 import welcomeImg from '@/assets/welcome.jpg';
+import logo from '@/assets/logo/logo.png';
 
-const slides = [hero1, hero2, hero3, hero4, hero5, welcomeImg];
+// Moved hero1 to second-to-last position
+const slides = [hero2, hero3, hero4, hero5, hero1, welcomeImg];
 
 export default function HeroSection() {
   const [current, setCurrent] = useState(0);
@@ -56,13 +58,8 @@ export default function HeroSection() {
             <br />
             Place.
           </h1>
-          <p className="font-heading text-[clamp(16px,2vw,21px)] font-normal italic mb-4 text-white/65">
+          <p className="font-heading text-[clamp(16px,2vw,21px)] font-normal italic mb-8 text-white/65">
             An interdenominational ministry raising burning youths for the Lord.
-          </p>
-          <p className="text-[13px] font-light leading-[1.8] mb-10 max-w-[480px] border-l-2 border-primary pl-4 text-white/50">
-            "Each will be like a refuge from the wind and a shelter from the storm."
-            <br />
-            <span className="text-[11px] tracking-[1.5px] opacity-70 font-body">Isaiah 32:2</span>
           </p>
           <div className="flex gap-4 flex-wrap">
             <Link to="/register" className="btn-primary-custom">
@@ -88,13 +85,19 @@ export default function HeroSection() {
         </div>
       </div>
 
-      <div className="bg-primary py-3.5 px-8 text-center">
-        <p className="font-heading text-[13.5px] italic leading-relaxed text-white">
-          "Each will be like a refuge from the wind and a shelter from the storm."{' '}
-          <span className="font-body not-italic text-[10px] tracking-[2px] ml-2 opacity-80">
-            — Isaiah 32:2
-          </span>
-        </p>
+      {/* Scripture strip — bold quote styling with logo */}
+      <div className="bg-[#1A1008] py-6 px-8">
+        <div className="max-w-[800px] mx-auto flex items-center gap-5 justify-center">
+          <img src={logo} alt="Cherubs Cove" className="h-12 w-12 rounded-full object-contain hidden sm:block flex-shrink-0" />
+          <div className="text-center sm:text-left">
+            <p className="font-heading text-[clamp(16px,2.2vw,22px)] italic leading-snug text-white/90 font-medium">
+              "Each will be like a refuge from the wind and a shelter from the storm."
+            </p>
+            <p className="font-display text-[11px] tracking-[3px] uppercase mt-2 text-primary font-semibold">
+              — Isaiah 32:2
+            </p>
+          </div>
+        </div>
       </div>
     </section>
   );

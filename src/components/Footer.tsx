@@ -3,7 +3,7 @@ import logoWhite from '@/assets/logo/logo-white.png';
 
 const footerLinks = [
   { label: 'Home', href: '/' },
-  { label: 'Events & Conferences', href: '/#conference' },
+  { label: 'Events & Conferences', href: '/events-conferences' },
   { label: 'Downloads', href: '/downloads' },
   { label: 'Register', href: '/register' },
   { label: 'Contact', href: '/connect' },
@@ -47,10 +47,9 @@ const socialIcons = [
 
 export default function Footer() {
   return (
-    <footer className="bg-foreground border-t border-border py-14">
+    <footer className="bg-[#0F0D0A] border-t border-white/10 py-14">
       <div className="container">
         <div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-8 mb-10">
-          {/* Logo + Tagline */}
           <div className="flex flex-col items-center md:items-start gap-3">
             <div className="flex items-center gap-3">
               <img src={logoWhite} alt="Cherubs Cove logo" className="h-10 w-10 rounded-full object-contain" />
@@ -68,7 +67,6 @@ export default function Footer() {
             </p>
           </div>
 
-          {/* Links */}
           <div className="flex gap-6 flex-wrap justify-center">
             {footerLinks.map((link, i) => (
               <Link
@@ -81,7 +79,6 @@ export default function Footer() {
             ))}
           </div>
 
-          {/* Social */}
           <div className="flex gap-2">
             {socialIcons.map((s, i) => (
               <a

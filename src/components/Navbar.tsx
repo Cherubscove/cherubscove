@@ -7,7 +7,7 @@ import logoWhite from '@/assets/logo/logo-white.png';
 
 const navLinks = [
   { label: 'Home', href: '/' },
-  { label: 'Events & Conferences', href: '/#conference' },
+  { label: 'Events & Conferences', href: '/events-conferences' },
   { label: 'Jesse Falodun', href: '/about-jesse' },
   { label: 'Downloads', href: '/downloads' },
   { label: 'Connect', href: '/connect' },

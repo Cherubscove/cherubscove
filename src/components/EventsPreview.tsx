@@ -68,12 +68,45 @@ export default function EventsPreview() {
                 <div className="text-xs text-muted-foreground mt-1">{ev.sub}</div>
               </div>
             ))}
-            <Link
-              to="/register"
-              className="btn-outline-custom text-center py-3"
-            >
-              View All & Register
+            <Link to="/events-conferences" className="btn-outline-custom text-center py-3">
+              View All Events →
             </Link>
+          </div>
+        </div>
+
+        {/* Past Conferences carousel teaser */}
+        <div className="mt-16 reveal">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="font-heading text-[22px] font-normal italic text-foreground">
+              Past <em className="text-primary">Conferences</em>
+            </h3>
+            <Link to="/past-conferences" className="text-[11px] font-bold tracking-[1.5px] uppercase text-primary hover:underline inline-flex items-center gap-1">
+              View Full Archive <ArrowRight size={12} />
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[
+              { year: '2023', theme: 'Arrows' },
+              { year: '2023', theme: 'Awakening' },
+              { year: '2024', theme: 'Forge' },
+              { year: '2025', theme: 'Immersion' },
+            ].map((ed, i) => (
+              <Link
+                key={i}
+                to="/past-conferences"
+                className="rounded-lg overflow-hidden relative group cursor-pointer min-h-[140px] block"
+              >
+                <div className="w-full h-full bg-gradient-to-br from-[hsl(var(--bg-subtle))] to-[hsl(var(--border))] flex items-center justify-center transition-transform duration-500 group-hover:scale-105 absolute inset-0">
+                  <span className="text-[10px] tracking-[3px] uppercase text-muted-foreground">
+                    Gallery
+                  </span>
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent z-[1]">
+                  <p className="text-[10px] tracking-[2px] uppercase text-white/70">{ed.year}</p>
+                  <h4 className="font-heading text-[14px] italic text-white">"{ed.theme}"</h4>
+                </div>
+              </Link>
+            ))}
           </div>
         </div>
       </div>
