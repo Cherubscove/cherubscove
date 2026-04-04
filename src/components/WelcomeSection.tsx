@@ -41,7 +41,7 @@ export default function WelcomeSection() {
               this is the making place.
             </p>
             <div className="mt-8 flex gap-4 flex-wrap reveal">
-              <a href="#conference" className="btn-solid-custom">
+              <Link to="/events-conferences" className="btn-solid-custom">
                 Events & Conferences
               </a>
               <Link to="/about-jesse" className="btn-outline-custom">
