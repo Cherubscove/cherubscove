@@ -3,22 +3,57 @@ import { useScrollReveal } from '@/hooks/useScrollReveal';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ScrollToTop from '@/components/ScrollToTop';
+import { supabase } from '@/lib/supabaseClient';
 
 export default function RegisterPage() {
   const ref = useScrollReveal();
-  const [regStatus, setRegStatus] = useState<'idle' | 'success'>('idle');
+  const [regStatus, setRegStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [message, setMessage] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [program, setProgram] = useState('');
+  const [location, setLocation] = useState('');
+  const [note, setNote] = useState('');
   const formRef = useRef<HTMLFormElement>(null);
 
-  const handleRegister = (e: FormEvent) => {
+  const handleRegister = async (e: FormEvent) => {
     e.preventDefault();
+    setRegStatus('idle');
+    setMessage('');
+
+    const { error } = await supabase.from('registrations').insert({
+      first_name: firstName,
+      last_name: lastName,
+      email,
+      phone,
+      program,
+      location,
+      note,
+      created_at: new Date().toISOString(),
+    });
+
+    if (error) {
+      setRegStatus('error');
+      setMessage(error.message ?? 'Registration failed.');
+      return;
+    }
+
     setRegStatus('success');
-    setTimeout(() => {
-      setRegStatus('idle');
-      formRef.current?.reset();
-    }, 3500);
+    setMessage('Registration submitted successfully. Thank you!');
+    setFirstName('');
+    setLastName('');
+    setEmail('');
+    setPhone('');
+    setProgram('');
+    setLocation('');
+    setNote('');
+    formRef.current?.reset();
   };
 
-  const inputClass = "w-full px-3.5 py-2.5 rounded-md border-[1.5px] border-border bg-card text-sm text-foreground outline-none transition-all focus:border-primary focus:shadow-[0_0_0_3px_hsl(var(--orange)/0.1)] placeholder:text-muted-foreground";
+  const inputClass =
+    'w-full px-3.5 py-2.5 rounded-md border-[1.5px] border-border bg-card text-sm text-foreground outline-none transition-all focus:border-primary focus:shadow-[0_0_0_3px_hsl(var(--orange)/0.1)] placeholder:text-muted-foreground';
 
   return (
     <>
@@ -74,7 +109,8 @@ export default function RegisterPage() {
                     lives, ignited faith, and released voices across generations. Under the theme "Envoys of
                     Light," this edition calls every believer to step into their divine mandate as carriers of
                     God's glory into every sphere of influence.
-                    <br /><br />
+                    <br />
+                    <br />
                     Speakers and full schedule will be announced. Register early to secure your place.
                   </div>
                 </div>
@@ -114,26 +150,58 @@ export default function RegisterPage() {
                     <label className="text-[9.5px] font-bold tracking-[2px] uppercase text-muted-foreground">
                       First Name
                     </label>
-                    <input type="text" placeholder="First name" required className={inputClass} />
+                    <input
+                      type="text"
+                      placeholder="First name"
+                      required
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      className={inputClass}
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[9.5px] font-bold tracking-[2px] uppercase text-muted-foreground">
                       Last Name
                     </label>
-                    <input type="text" placeholder="Last name" required className={inputClass} />
+                    <input
+                      type="text"
+                      placeholder="Last name"
+                      required
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      className={inputClass}
+                    />
                   </div>
                 </div>
                 <div className="mt-4 space-y-1.5">
                   <label className="text-[9.5px] font-bold tracking-[2px] uppercase text-muted-foreground">Email Address</label>
-                  <input type="email" placeholder="your@email.com" required className={inputClass} />
+                  <input
+                    type="email"
+                    placeholder="your@email.com"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className={inputClass}
+                  />
                 </div>
                 <div className="mt-4 space-y-1.5">
                   <label className="text-[9.5px] font-bold tracking-[2px] uppercase text-muted-foreground">Phone Number</label>
-                  <input type="tel" placeholder="+234 000 000 0000" className={inputClass} />
+                  <input
+                    type="tel"
+                    placeholder="+234 000 000 0000"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className={inputClass}
+                  />
                 </div>
                 <div className="mt-4 space-y-1.5">
                   <label className="text-[9.5px] font-bold tracking-[2px] uppercase text-muted-foreground">Program</label>
-                  <select className={`${inputClass} appearance-none`}>
+                  <select
+                    value={program}
+                    onChange={(e) => setProgram(e.target.value)}
+                    className={`${inputClass} appearance-none`}
+                    required
+                  >
                     <option value="">Select a program...</option>
                     <option>International Quivers Conference 2026 — Envoys of Light</option>
                     <option>First Saturday Service</option>
@@ -143,11 +211,22 @@ export default function RegisterPage() {
                 </div>
                 <div className="mt-4 space-y-1.5">
                   <label className="text-[9.5px] font-bold tracking-[2px] uppercase text-muted-foreground">State / City</label>
-                  <input type="text" placeholder="Where are you joining from?" className={inputClass} />
+                  <input
+                    type="text"
+                    placeholder="Where are you joining from?"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    className={inputClass}
+                  />
                 </div>
                 <div className="mt-4 space-y-1.5">
                   <label className="text-[9.5px] font-bold tracking-[2px] uppercase text-muted-foreground">Prayer Request or Note (optional)</label>
-                  <textarea placeholder="Anything you'd like us to pray about or know..." className={`${inputClass} resize-y min-h-[75px]`} />
+                  <textarea
+                    placeholder="Anything you'd like us to pray about or know..."
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    className={`${inputClass} resize-y min-h-[75px]`}
+                  />
                 </div>
                 <button
                   type="submit"
@@ -159,9 +238,11 @@ export default function RegisterPage() {
                 >
                   {regStatus === 'success' ? 'Registered! ✓' : 'Complete Registration →'}
                 </button>
-                <p className="text-[11px] text-muted-foreground text-center mt-3">
-                  Registration is free. Your information is kept private.
-                </p>
+                {message && (
+                  <p className={`text-[11px] text-center mt-3 ${regStatus === 'error' ? 'text-rose-400' : 'text-emerald-400'}`}>
+                    {message}
+                  </p>
+                )}
               </form>
             </div>
           </div>

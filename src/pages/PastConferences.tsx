@@ -1,10 +1,19 @@
+import { useEffect, useState } from 'react';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ScrollToTop from '@/components/ScrollToTop';
+import { supabase } from '@/lib/supabaseClient';
 
-const galleryItems = [
-  { label: "Quiver's 2024", title: 'Forge — Main Sessions', span: true },
+type GalleryItem = {
+  label: string;
+  title: string;
+  image_url?: string;
+  active?: boolean;
+};
+
+const fallbackGalleryItems: GalleryItem[] = [
+  { label: "Quiver's 2024", title: 'Forge — Main Sessions' },
   { label: "Quiver's 2024", title: 'Worship Night' },
   { label: "Quiver's 2023", title: 'Arrows — Opening Night' },
   { label: "Quiver's 2023", title: 'Northern Edition — Awakening' },
@@ -16,6 +25,25 @@ const galleryItems = [
 
 export default function PastConferencesPage() {
   const ref = useScrollReveal();
+  const [galleryItems, setGalleryItems] = useState<GalleryItem[]>(fallbackGalleryItems);
+
+  useEffect(() => {
+    const loadGallery = async () => {
+      const { data, error } = await supabase.from('gallery').select('event_label,title,image_url,active').order('title');
+      if (!error && data?.length) {
+        setGalleryItems(
+          data.map((item: any) => ({
+            label: item.event_label || 'Gallery item',
+            title: item.title || 'Photo',
+            image_url: item.image_url,
+            active: item.active ?? true,
+          }))
+        );
+      }
+    };
+
+    loadGallery();
+  }, []);
 
   return (
     <>
@@ -81,9 +109,7 @@ export default function PastConferencesPage() {
                   <p className="text-[10.5px] tracking-[2px] uppercase text-white/80">
                     {item.label}
                   </p>
-                  <h4 className="font-heading text-[15px] italic text-white">
-                    {item.title}
-                  </h4>
+                  <h4 className="font-heading text-[15px] italic text-white">{item.title}</h4>
                 </div>
               </div>
             ))}

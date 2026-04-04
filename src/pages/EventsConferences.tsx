@@ -1,11 +1,20 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
 import { Calendar, MapPin, Users, Sparkles, ArrowRight } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ScrollToTop from '@/components/ScrollToTop';
+import { supabase } from '@/lib/supabaseClient';
 
-const editions = [
+type Edition = {
+  year: string;
+  theme: string;
+  type: string;
+  upcoming?: boolean;
+};
+
+const fallbackEditions: Edition[] = [
   { year: '2023', theme: '"Arrows"', type: 'Main Edition' },
   { year: '2023', theme: '"Awakening"', type: 'Northern Edition' },
   { year: '2024', theme: '"Forge"', type: 'Annual Conference' },
@@ -15,6 +24,29 @@ const editions = [
 
 export default function EventsConferencesPage() {
   const ref = useScrollReveal();
+  const [editions, setEditions] = useState<Edition[]>(fallbackEditions);
+
+  useEffect(() => {
+    const loadEvents = async () => {
+      const { data, error } = await supabase
+        .from('events')
+        .select('theme,type,status,date')
+        .order('date', { ascending: false });
+
+      if (!error && data?.length) {
+        setEditions(
+          data.map((item: any) => ({
+            year: item.date ? item.date.slice(0, 4) : 'TBA',
+            theme: item.theme || 'Upcoming event',
+            type: item.type || 'Conference',
+            upcoming: item.status === 'upcoming',
+          }))
+        );
+      }
+    };
+
+    loadEvents();
+  }, []);
 
   return (
     <>

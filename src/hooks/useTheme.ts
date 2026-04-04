@@ -3,9 +3,10 @@ import { useState, useEffect } from 'react';
 export function useTheme() {
   const [isDark, setIsDark] = useState(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('cc-theme') === 'dark';
+      const stored = localStorage.getItem('cc-theme');
+      return stored ? stored === 'dark' : true;
     }
-    return false;
+    return true;
   });
 
   useEffect(() => {

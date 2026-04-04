@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Headphones, Video, FileText, ArrowRight, Download } from 'lucide-react';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ScrollToTop from '@/components/ScrollToTop';
+import { supabase } from '@/lib/supabaseClient';
 
 type ResType = 'audio' | 'video' | 'pdf';
 
@@ -12,15 +13,16 @@ interface Resource {
   title: string;
   speaker: string;
   action: string;
+  href: string;
 }
 
-const resources: Resource[] = [
-  { type: 'audio', title: 'Walking in Your Kingdom Identity', speaker: "Jesse Falodun — Quiver's Immersion 2025", action: 'Download' },
-  { type: 'video', title: 'Arise: Walking Into Your Appointed Season', speaker: "Jesse Falodun — Quiver's Forge 2024", action: 'Watch / Download' },
-  { type: 'audio', title: 'The Sound That Changes Atmospheres', speaker: "Guest Minister — Quiver's Arrows 2023", action: 'Download' },
-  { type: 'audio', title: 'Positioned for Overflow', speaker: 'Guest Minister — Awakening 2023', action: 'Download' },
-  { type: 'pdf', title: 'Forge Conference Notes 2024', speaker: "Quiver's Conference Programme Manual", action: 'Download PDF' },
-  { type: 'video', title: 'He Who Calls Is Faithful', speaker: 'Jesse Falodun — Weekly Teaching', action: 'Watch / Download' },
+const fallbackResources: Resource[] = [
+  { type: 'audio', title: 'Walking in Your Kingdom Identity', speaker: "Jesse Falodun — Quiver's Immersion 2025", action: 'Download', href: '#' },
+  { type: 'video', title: 'Arise: Walking Into Your Appointed Season', speaker: "Jesse Falodun — Quiver's Forge 2024", action: 'Watch / Download', href: '#' },
+  { type: 'audio', title: 'The Sound That Changes Atmospheres', speaker: "Guest Minister — Quiver's Arrows 2023", action: 'Download', href: '#' },
+  { type: 'audio', title: 'Positioned for Overflow', speaker: 'Guest Minister — Awakening 2023', action: 'Download', href: '#' },
+  { type: 'pdf', title: 'Forge Conference Notes 2024', speaker: "Quiver's Conference Programme Manual", action: 'Download PDF', href: '#' },
+  { type: 'video', title: 'He Who Calls Is Faithful', speaker: 'Jesse Falodun — Weekly Teaching', action: 'Watch / Download', href: '#' },
 ];
 
 const iconMap = {
@@ -33,7 +35,33 @@ const tagLabelMap = { audio: 'Audio Sermon', video: 'Video Message', pdf: 'Study
 
 export default function ResourcesPage() {
   const [filter, setFilter] = useState<'all' | ResType>('all');
+  const [resources, setResources] = useState<Resource[]>(fallbackResources);
   const ref = useScrollReveal();
+
+  useEffect(() => {
+    const loadDownloads = async () => {
+      const { data, error } = await supabase.from('downloads').select('*').order('label');
+      if (!error && data?.length) {
+        setResources(
+          data.map((item: any) => ({
+            type: (item.type as ResType) || 'pdf',
+            title: item.label || 'Resource',
+            speaker: item.description || 'Updated content',
+            action:
+              item.type === 'video'
+                ? 'Watch / Download'
+                : item.type === 'pdf'
+                ? 'Download PDF'
+                : 'Download',
+            href: item.url || '#',
+          }))
+        );
+      }
+    };
+
+    loadDownloads();
+  }, []);
+
   const filtered = filter === 'all' ? resources : resources.filter((r) => r.type === filter);
 
   return (
@@ -70,7 +98,7 @@ export default function ResourcesPage() {
             {filtered.map((res, i) => {
               const { icon: Icon, color } = iconMap[res.type];
               return (
-                <div key={i} className="bg-card border border-border rounded-lg p-6 flex flex-col gap-3 card-lift cursor-pointer group">
+                <div key={i} className="bg-card border border-border rounded-lg p-6 flex flex-col gap-3 card-lift group">
                   <div className="flex items-center justify-between">
                     <div className={`w-10 h-10 rounded-lg bg-orange-soft flex items-center justify-center ${color}`}>
                       <Icon size={18} />
@@ -82,7 +110,12 @@ export default function ResourcesPage() {
                   </span>
                   <div className="font-heading text-lg font-medium leading-snug text-foreground">{res.title}</div>
                   <div className="text-xs text-gold">{res.speaker}</div>
-                  <a href="#" className="mt-auto pt-4 border-t border-border text-[10.5px] font-bold tracking-[2px] uppercase text-primary inline-flex items-center gap-1.5 hover:gap-3 transition-all duration-200">
+                  <a
+                    href={res.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-auto pt-4 border-t border-border text-[10.5px] font-bold tracking-[2px] uppercase text-primary inline-flex items-center gap-1.5 hover:gap-3 transition-all duration-200"
+                  >
                     {res.action} <ArrowRight size={12} />
                   </a>
                 </div>
