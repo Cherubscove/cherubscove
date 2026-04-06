@@ -1,139 +1,112 @@
-import { useEffect, useMemo, useState } from 'react';
-import {
-  ArrowRight,
-  CheckCircle2,
-  Edit3,
-  LogIn,
-  LogOut,
-  Plus,
-  ShieldCheck,
-  Trash2,
-  UploadCloud,
-} from 'lucide-react';
-import { useScrollReveal } from '@/hooks/useScrollReveal';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabaseClient';
+import { Session } from '@supabase/supabase-js';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ScrollToTop from '@/components/ScrollToTop';
-import { supabase } from '@/lib/supabaseClient';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { toast } from 'sonner';
+import {
+  Calendar, Download, Image, Settings, Users, LogOut, Plus, Trash2, Edit2, Save, X, Eye, EyeOff,
+} from 'lucide-react';
+
+/* ── Types ──────────────────────────────────────────────────────────────── */
 
 interface EventRecord {
-  id: string;
+  id?: string;
   title: string;
-  theme: string;
-  type: string;
   status: string;
   date: string;
-  external_link: string;
   image_url: string;
   description: string;
+  location: string;
+  time: string;
 }
 
 interface DownloadRecord {
-  id: string;
-  label: string;
-  type: string;
+  id?: string;
+  title: string;
   url: string;
   description: string;
+  category: string;
+  type: string;
 }
 
 interface GalleryRecord {
-  id: string;
+  id?: string;
   title: string;
-  event_label: string;
   image_url: string;
-  active: boolean;
+  caption: string;
+  category: string;
 }
 
-const inputClass =
-  'w-full px-3.5 py-2.5 rounded-md border-[1.5px] border-border bg-card text-sm text-foreground outline-none transition-all focus:border-primary focus:shadow-[0_0_0_3px_hsl(var(--orange)/0.1)] placeholder:text-muted-foreground';
+const emptyEvent: EventRecord = { title: '', status: 'upcoming', date: '', image_url: '', description: '', location: '', time: '' };
+const emptyDownload: DownloadRecord = { title: '', url: '', description: '', category: '', type: '' };
+const emptyGallery: GalleryRecord = { title: '', image_url: '', caption: '', category: '' };
+
+/* ── Component ──────────────────────────────────────────────────────────── */
 
 export default function AdminPage() {
-  const ref = useScrollReveal();
-  const [session, setSession] = useState<any>(null);
+  // Auth
+  const [session, setSession] = useState<Session | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [authNotice, setAuthNotice] = useState('');
+  const [showPw, setShowPw] = useState(false);
+  const [authMode, setAuthMode] = useState<'signIn' | 'signUp'>('signIn');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Data
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [downloads, setDownloads] = useState<DownloadRecord[]>([]);
-  const [galleryItems, setGalleryItems] = useState<GalleryRecord[]>([]);
+  const [gallery, setGallery] = useState<GalleryRecord[]>([]);
   const [siteSettings, setSiteSettings] = useState<Record<string, string>>({});
+  const [settingsMeta, setSettingsMeta] = useState<{ id: string; key: string; label: string; type: string }[]>([]);
 
-  const [activeEvent, setActiveEvent] = useState<Partial<EventRecord>>({ status: 'upcoming', type: 'Conference' });
-  const [activeDownload, setActiveDownload] = useState<Partial<DownloadRecord>>({ type: 'audio' });
-  const [activeGallery, setActiveGallery] = useState<Partial<GalleryRecord>>({ active: true });
+  // Editing state
+  const [editEvent, setEditEvent] = useState<EventRecord | null>(null);
+  const [editDownload, setEditDownload] = useState<DownloadRecord | null>(null);
+  const [editGallery, setEditGallery] = useState<GalleryRecord | null>(null);
 
-  const [showSignUp, setShowSignUp] = useState(false);
+  // Admin invite
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [invitePassword, setInvitePassword] = useState('');
 
-  const loadAdminData = async () => {
-    try {
-      setIsLoading(true);
-      const [{ data: eventsData }, { data: downloadsData }, { data: galleryData }, { data: settingsData }] =
-        await Promise.all([
-          supabase.from('events').select('*').order('date', { ascending: false }),
-          supabase.from('downloads').select('*').order('label'),
-          supabase.from('gallery').select('*').order('title'),
-          supabase.from('site_settings').select('*'),
-        ]);
-
-      setEvents(eventsData ?? []);
-      setDownloads(downloadsData ?? []);
-      setGalleryItems(galleryData ?? []);
-      setSiteSettings(
-        (settingsData ?? []).reduce((acc: Record<string, string>, row: any) => {
-          if (row.key) acc[row.key] = row.value ?? '';
-          return acc;
-        }, {})
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  /* ── Auth ─────────────────────────────────────────────────────────────── */
 
   useEffect(() => {
-    const init = async () => {
-      const { data } = await supabase.auth.getSession();
-      setSession(data.session);
-      if (data.session) {
-        await loadAdminData();
-      }
-    };
-
-    init();
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session) {
-        loadAdminData();
-      }
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession(s);
+      if (s) loadAllData();
     });
-
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      if (data.session) loadAllData();
+    });
     return () => listener?.subscription?.unsubscribe();
   }, []);
 
-  const handleAuth = async (mode: 'signIn' | 'signUp') => {
-    setAuthNotice('');
-
+  const handleAuth = async () => {
     if (!email.trim() || !password.trim()) {
-      setAuthNotice('Please enter both email and password.');
+      toast.error('Please enter both email and password.');
       return;
     }
-
     setIsLoading(true);
-
     try {
-      if (mode === 'signIn') {
+      if (authMode === 'signIn') {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        setAuthNotice('Signed in successfully.');
+        toast.success('Signed in successfully.');
       } else {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        setAuthNotice('Sign-up request sent. Check your email if verification is required.');
+        toast.success('Account created. Check your email for verification if required.');
       }
-    } catch (error: any) {
-      setAuthNotice(error.message ?? 'Unable to sign in.');
+    } catch (err: any) {
+      toast.error(err.message ?? 'Authentication failed.');
     } finally {
       setIsLoading(false);
     }
@@ -142,564 +115,427 @@ export default function AdminPage() {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     setSession(null);
-    setAuthNotice('Logged out successfully.');
+    toast.info('Signed out.');
   };
 
-  const persistEvent = async () => {
-    if (!activeEvent.title || !activeEvent.theme) {
-      setAuthNotice('Event title and theme are required.');
-      return;
+  /* ── Data Loading ────────────────────────────────────────────────────── */
+
+  const loadAllData = async () => {
+    setIsLoading(true);
+    try {
+      const [ev, dl, gal, st] = await Promise.all([
+        supabase.from('events').select('*').order('date', { ascending: false }),
+        supabase.from('downloads').select('*').order('title'),
+        supabase.from('gallery').select('*').order('created_at', { ascending: false }),
+        supabase.from('site_settings').select('*'),
+      ]);
+      setEvents(ev.data ?? []);
+      setDownloads(dl.data ?? []);
+      setGallery(gal.data ?? []);
+      const settings = st.data ?? [];
+      setSettingsMeta(settings.map((r: any) => ({ id: r.id, key: r.key, label: r.label, type: r.type })));
+      setSiteSettings(settings.reduce((acc: Record<string, string>, r: any) => { acc[r.key] = r.value ?? ''; return acc; }, {}));
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    const payload = {
-      title: activeEvent.title,
-      theme: activeEvent.theme,
-      type: activeEvent.type,
-      status: activeEvent.status,
-      date: activeEvent.date,
-      external_link: activeEvent.external_link,
-      image_url: activeEvent.image_url,
-      description: activeEvent.description,
-    };
+  /* ── CRUD: Events ────────────────────────────────────────────────────── */
 
-    if (activeEvent.id) {
-      await supabase.from('events').update(payload).eq('id', activeEvent.id);
-      setAuthNotice('Event updated successfully.');
+  const saveEvent = async () => {
+    if (!editEvent) return;
+    if (!editEvent.title) { toast.error('Event title is required.'); return; }
+    const payload = { title: editEvent.title, status: editEvent.status, date: editEvent.date, image_url: editEvent.image_url, description: editEvent.description, location: editEvent.location, time: editEvent.time };
+    if (editEvent.id) {
+      const { error } = await supabase.from('events').update(payload).eq('id', editEvent.id);
+      if (error) { toast.error(error.message); return; }
+      toast.success('Event updated.');
     } else {
-      await supabase.from('events').insert(payload);
-      setAuthNotice('Event created successfully.');
+      const { error } = await supabase.from('events').insert(payload);
+      if (error) { toast.error(error.message); return; }
+      toast.success('Event created.');
     }
-
-    setActiveEvent({ status: 'upcoming', type: 'Conference' });
-    await loadAdminData();
+    setEditEvent(null);
+    loadAllData();
   };
 
-  const removeEvent = async (id: string) => {
+  const deleteEvent = async (id: string) => {
+    if (!confirm('Delete this event?')) return;
     await supabase.from('events').delete().eq('id', id);
-    setAuthNotice('Event deleted.');
-    await loadAdminData();
+    toast.success('Event deleted.');
+    loadAllData();
   };
 
-  const persistDownload = async () => {
-    if (!activeDownload.label || !activeDownload.url) {
-      setAuthNotice('Download label and URL are required.');
-      return;
-    }
+  /* ── CRUD: Downloads ─────────────────────────────────────────────────── */
 
-    const payload = {
-      label: activeDownload.label,
-      type: activeDownload.type,
-      url: activeDownload.url,
-      description: activeDownload.description,
-    };
-
-    if (activeDownload.id) {
-      await supabase.from('downloads').update(payload).eq('id', activeDownload.id);
-      setAuthNotice('Download updated successfully.');
+  const saveDownload = async () => {
+    if (!editDownload) return;
+    if (!editDownload.title || !editDownload.url) { toast.error('Title and URL are required.'); return; }
+    const payload = { title: editDownload.title, url: editDownload.url, description: editDownload.description, category: editDownload.category, type: editDownload.type };
+    if (editDownload.id) {
+      const { error } = await supabase.from('downloads').update(payload).eq('id', editDownload.id);
+      if (error) { toast.error(error.message); return; }
+      toast.success('Download updated.');
     } else {
-      await supabase.from('downloads').insert(payload);
-      setAuthNotice('Download added successfully.');
+      const { error } = await supabase.from('downloads').insert(payload);
+      if (error) { toast.error(error.message); return; }
+      toast.success('Download created.');
     }
-
-    setActiveDownload({ type: 'audio' });
-    await loadAdminData();
+    setEditDownload(null);
+    loadAllData();
   };
 
-  const removeDownload = async (id: string) => {
+  const deleteDownload = async (id: string) => {
+    if (!confirm('Delete this download?')) return;
     await supabase.from('downloads').delete().eq('id', id);
-    setAuthNotice('Download removed.');
-    await loadAdminData();
+    toast.success('Download deleted.');
+    loadAllData();
   };
 
-  const persistGallery = async () => {
-    if (!activeGallery.title || !activeGallery.image_url) {
-      setAuthNotice('Gallery title and image URL are required.');
-      return;
-    }
+  /* ── CRUD: Gallery ───────────────────────────────────────────────────── */
 
-    const payload = {
-      title: activeGallery.title,
-      event_label: activeGallery.event_label,
-      image_url: activeGallery.image_url,
-      active: activeGallery.active,
-    };
-
-    if (activeGallery.id) {
-      await supabase.from('gallery').update(payload).eq('id', activeGallery.id);
-      setAuthNotice('Gallery item updated.');
+  const saveGallery = async () => {
+    if (!editGallery) return;
+    if (!editGallery.title || !editGallery.image_url) { toast.error('Title and image URL are required.'); return; }
+    const payload = { title: editGallery.title, image_url: editGallery.image_url, caption: editGallery.caption, category: editGallery.category };
+    if (editGallery.id) {
+      const { error } = await supabase.from('gallery').update(payload).eq('id', editGallery.id);
+      if (error) { toast.error(error.message); return; }
+      toast.success('Gallery item updated.');
     } else {
-      await supabase.from('gallery').insert(payload);
-      setAuthNotice('Gallery item added.');
+      const { error } = await supabase.from('gallery').insert(payload);
+      if (error) { toast.error(error.message); return; }
+      toast.success('Gallery item created.');
     }
-
-    setActiveGallery({ active: true });
-    await loadAdminData();
+    setEditGallery(null);
+    loadAllData();
   };
 
-  const persistSetting = async (key: string, value: string) => {
-    const record = await supabase.from('site_settings').select('id').eq('key', key).single();
-    if (record.error) {
-      await supabase.from('site_settings').insert({ key, value });
-    } else {
-      await supabase.from('site_settings').update({ value }).eq('id', record.data.id);
-    }
-    setSiteSettings((prev) => ({ ...prev, [key]: value }));
-    setAuthNotice('Site content saved.');
+  const deleteGallery = async (id: string) => {
+    if (!confirm('Delete this gallery item?')) return;
+    await supabase.from('gallery').delete().eq('id', id);
+    toast.success('Gallery item deleted.');
+    loadAllData();
   };
 
-  const hasSession = Boolean(session?.user?.email);
+  /* ── Site Settings ───────────────────────────────────────────────────── */
 
-  const quickStats = useMemo(
-    () => ({
-      events: events.length,
-      downloads: downloads.length,
-      gallery: galleryItems.length,
-    }),
-    [events, downloads, galleryItems]
-  );
+  const saveSetting = async (key: string) => {
+    const meta = settingsMeta.find(s => s.key === key);
+    if (!meta) return;
+    const { error } = await supabase.from('site_settings').update({ value: siteSettings[key] }).eq('id', meta.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`${meta.label} saved.`);
+  };
+
+  /* ── Admin Invite ────────────────────────────────────────────────────── */
+
+  const inviteAdmin = async () => {
+    if (!inviteEmail.trim() || !invitePassword.trim()) { toast.error('Enter email and password for the new admin.'); return; }
+    const { error } = await supabase.auth.signUp({ email: inviteEmail, password: invitePassword });
+    if (error) { toast.error(error.message); return; }
+    toast.success(`Invite sent to ${inviteEmail}. They should check their email for verification.`);
+    setInviteEmail('');
+    setInvitePassword('');
+  };
+
+  /* ── Render: Auth Screen ─────────────────────────────────────────────── */
+
+  if (!session) {
+    return (
+      <div className="min-h-screen bg-[#0F0D0A] flex items-center justify-center px-4">
+        <Card className="w-full max-w-md bg-[#1A1814] border-[#E8620A]/20">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl font-['Playfair_Display'] text-white">
+              Admin Login
+            </CardTitle>
+            <p className="text-sm text-[#B5A898] mt-1">Cherubs Cove Ministry</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Input
+              placeholder="Email"
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              className="bg-[#0F0D0A] border-[#2A2520] text-white placeholder:text-[#6B5E50]"
+            />
+            <div className="relative">
+              <Input
+                placeholder="Password"
+                type={showPw ? 'text' : 'password'}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleAuth()}
+                className="bg-[#0F0D0A] border-[#2A2520] text-white placeholder:text-[#6B5E50] pr-10"
+              />
+              <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B5E50] hover:text-white">
+                {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+            <Button onClick={handleAuth} disabled={isLoading} className="w-full bg-[#E8620A] hover:bg-[#cf5709] text-white font-semibold">
+              {isLoading ? 'Please wait…' : authMode === 'signIn' ? 'Sign In' : 'Sign Up'}
+            </Button>
+            <p className="text-center text-sm text-[#6B5E50]">
+              {authMode === 'signIn' ? "Don't have an account? " : 'Already have an account? '}
+              <button onClick={() => setAuthMode(authMode === 'signIn' ? 'signUp' : 'signIn')} className="text-[#E8620A] hover:underline">
+                {authMode === 'signIn' ? 'Sign Up' : 'Sign In'}
+              </button>
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  /* ── Render: Dashboard ───────────────────────────────────────────────── */
+
+  const inputCls = "bg-[#0F0D0A] border-[#2A2520] text-white placeholder:text-[#6B5E50] focus:border-[#E8620A]";
 
   return (
-    <>
+    <div className="min-h-screen bg-[#0F0D0A] text-white">
       <Navbar />
-      <div className="pt-[70px] min-h-screen bg-background" ref={ref}>
-        <div className="py-20 px-8 text-center" style={{ background: 'linear-gradient(135deg, #1A1008, #2E1C0A)' }}>
-          <div className="max-w-[700px] mx-auto">
-            <div className="eyebrow justify-center text-primary/80 reveal">Cherubs Cove Admin</div>
-            <h1 className="font-heading text-[clamp(32px,5vw,56px)] font-normal leading-tight mt-4 text-white reveal">
-              Admin <em className="italic text-primary">Dashboard</em>
-            </h1>
-            <p className="text-[14px] font-light leading-[1.8] mt-4 text-white/65 reveal">
-              Manage events, uploads, gallery links, and site content from Supabase. No hosted file storage is required — admins update external links directly.
-            </p>
+      <div className="pt-24 pb-16 px-4 max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-['Playfair_Display'] text-white">Admin Dashboard</h1>
+            <p className="text-[#B5A898] text-sm mt-1">{session.user.email}</p>
           </div>
+          <Button variant="outline" onClick={handleSignOut} className="border-[#2A2520] text-[#B5A898] hover:bg-[#1A1814] hover:text-white">
+            <LogOut size={16} className="mr-2" /> Sign Out
+          </Button>
         </div>
 
-        <div className="container py-16">
-          {!hasSession ? (
-            <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-8">
-              <div className="rounded-xl border border-border bg-card p-8 shadow-lg">
-                <h2 className="font-heading text-2xl mb-4 text-foreground">Admin sign in</h2>
-                <p className="text-sm text-muted-foreground mb-6">
-                  Use your Supabase credentials to manage event data, downloads, gallery items, and more.
-                </p>
-                <div className="grid gap-4">
-                  <label className="space-y-2 text-[10px] uppercase tracking-[3px] text-muted-foreground">
-                    Email
-                    <input
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      type="email"
-                      required
-                      className={inputClass}
-                    />
-                  </label>
-                  <label className="space-y-2 text-[10px] uppercase tracking-[3px] text-muted-foreground">
-                    Password
-                    <input
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      type="password"
-                      required
-                      className={inputClass}
-                    />
-                  </label>
+        {/* Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          {[
+            { icon: Calendar, label: 'Events', count: events.length, color: '#E8620A' },
+            { icon: Download, label: 'Downloads', count: downloads.length, color: '#B07D35' },
+            { icon: Image, label: 'Gallery', count: gallery.length, color: '#6B8F71' },
+            { icon: Settings, label: 'Settings', count: settingsMeta.length, color: '#7B68AE' },
+          ].map(s => (
+            <Card key={s.label} className="bg-[#1A1814] border-[#2A2520]">
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="p-2 rounded-lg" style={{ backgroundColor: s.color + '20' }}>
+                  <s.icon size={20} style={{ color: s.color }} />
                 </div>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mt-6">
-                  <button
-                    type="button"
-                    onClick={() => handleAuth('signIn')}
-                    disabled={isLoading}
-                    className="btn-solid-custom inline-flex items-center justify-center gap-2"
-                  >
-                    <LogIn size={16} /> Sign In
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowSignUp((state) => !state)}
-                    className="text-[11px] uppercase tracking-[2px] text-primary hover:text-primary-foreground"
-                  >
-                    {showSignUp ? 'Back to sign in' : 'Need an account?'}
-                  </button>
+                <div>
+                  <p className="text-2xl font-bold text-white">{s.count}</p>
+                  <p className="text-xs text-[#6B5E50]">{s.label}</p>
                 </div>
-                {showSignUp && (
-                  <div className="mt-6 rounded-xl border border-border bg-background/80 p-5">
-                    <p className="text-sm text-muted-foreground mb-3">Create a new admin user.</p>
-                    <button
-                      type="button"
-                      onClick={() => handleAuth('signUp')}
-                      disabled={isLoading}
-                      className="btn-outline-custom inline-flex items-center gap-2"
-                    >
-                      <ShieldCheck size={16} /> Sign Up
-                    </button>
-                  </div>
-                )}
-                {authNotice && <div className="mt-4 text-sm text-primary">{authNotice}</div>}
-              </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
 
-              <div className="rounded-xl border border-border bg-card p-8 shadow-lg">
-                <h3 className="font-heading text-xl mb-4">Quick Summary</h3>
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div className="rounded-xl bg-background/80 p-4">
-                    <div className="text-3xl font-semibold text-foreground">{quickStats.events}</div>
-                    <div className="text-[11px] uppercase tracking-[2px] text-muted-foreground">Events</div>
-                  </div>
-                  <div className="rounded-xl bg-background/80 p-4">
-                    <div className="text-3xl font-semibold text-foreground">{quickStats.downloads}</div>
-                    <div className="text-[11px] uppercase tracking-[2px] text-muted-foreground">Downloads</div>
-                  </div>
-                  <div className="rounded-xl bg-background/80 p-4">
-                    <div className="text-3xl font-semibold text-foreground">{quickStats.gallery}</div>
-                    <div className="text-[11px] uppercase tracking-[2px] text-muted-foreground">Gallery</div>
-                  </div>
-                </div>
-              </div>
+        {/* Tabs */}
+        <Tabs defaultValue="events" className="space-y-6">
+          <TabsList className="bg-[#1A1814] border border-[#2A2520] p-1 flex flex-wrap h-auto gap-1">
+            <TabsTrigger value="events" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><Calendar size={14} className="mr-1.5" />Events</TabsTrigger>
+            <TabsTrigger value="downloads" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><Download size={14} className="mr-1.5" />Downloads</TabsTrigger>
+            <TabsTrigger value="gallery" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><Image size={14} className="mr-1.5" />Gallery</TabsTrigger>
+            <TabsTrigger value="settings" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><Settings size={14} className="mr-1.5" />Settings</TabsTrigger>
+            <TabsTrigger value="admins" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><Users size={14} className="mr-1.5" />Admins</TabsTrigger>
+          </TabsList>
+
+          {/* ── Events Tab ───────────────────────────────────────────────── */}
+          <TabsContent value="events" className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Events</h2>
+              <Button onClick={() => setEditEvent({ ...emptyEvent })} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><Plus size={16} className="mr-1" /> Add Event</Button>
             </div>
-          ) : (
-            <div className="space-y-12">
-              <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
-                <div className="rounded-xl border border-border bg-card p-8 shadow-lg">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-[13px] uppercase tracking-[3px] text-primary">Connected as admin</p>
-                      <h2 className="font-heading text-3xl mt-3 text-foreground">Welcome back!</h2>
-                      <p className="mt-4 text-sm text-muted-foreground">
-                        Manage events, external downloads, gallery links, and site settings from one dashboard.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleSignOut}
-                      className="btn-outline-custom inline-flex items-center gap-2"
-                    >
-                      <LogOut size={16} /> Log out
-                    </button>
+
+            {editEvent && (
+              <Card className="bg-[#1A1814] border-[#E8620A]/30">
+                <CardContent className="p-5 space-y-3">
+                  <h3 className="font-semibold text-[#E8620A]">{editEvent.id ? 'Edit Event' : 'New Event'}</h3>
+                  <div className="grid md:grid-cols-2 gap-3">
+                    <Input placeholder="Title *" value={editEvent.title} onChange={e => setEditEvent({ ...editEvent, title: e.target.value })} className={inputCls} />
+                    <Input placeholder="Status (upcoming/past)" value={editEvent.status} onChange={e => setEditEvent({ ...editEvent, status: e.target.value })} className={inputCls} />
+                    <Input placeholder="Date (YYYY-MM-DD)" type="date" value={editEvent.date} onChange={e => setEditEvent({ ...editEvent, date: e.target.value })} className={inputCls} />
+                    <Input placeholder="Time" value={editEvent.time} onChange={e => setEditEvent({ ...editEvent, time: e.target.value })} className={inputCls} />
+                    <Input placeholder="Location" value={editEvent.location} onChange={e => setEditEvent({ ...editEvent, location: e.target.value })} className={inputCls} />
+                    <Input placeholder="Image URL" value={editEvent.image_url} onChange={e => setEditEvent({ ...editEvent, image_url: e.target.value })} className={inputCls} />
                   </div>
-                </div>
-
-                <div className="rounded-xl border border-border bg-card p-8 shadow-lg">
-                  <div className="text-[11px] uppercase tracking-[3px] text-muted-foreground mb-3">Latest updates</div>
-                  <div className="space-y-3 text-sm text-foreground">
-                    <p>• Use the forms below to create or edit events and set their current status.</p>
-                    <p>• Upload external links, not files directly. External file hosting is expected.</p>
-                    <p>• Site content is saved in Supabase site_settings for future editing.</p>
+                  <Textarea placeholder="Description" value={editEvent.description} onChange={e => setEditEvent({ ...editEvent, description: e.target.value })} className={inputCls} rows={3} />
+                  <div className="flex gap-2">
+                    <Button onClick={saveEvent} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><Save size={14} className="mr-1" /> Save</Button>
+                    <Button variant="outline" onClick={() => setEditEvent(null)} className="border-[#2A2520] text-[#B5A898]"><X size={14} className="mr-1" /> Cancel</Button>
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
+            )}
 
-              <div className="grid gap-8 xl:grid-cols-[1.1fr_0.9fr]">
-                <section className="rounded-xl border border-border bg-card p-8 shadow-lg">
-                  <div className="flex items-center justify-between gap-4 mb-6">
-                    <div>
-                      <h3 className="font-heading text-2xl text-foreground">Events</h3>
-                      <p className="text-sm text-muted-foreground">Create and manage event records with status, links, and dates.</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setActiveEvent({ status: 'upcoming', type: 'Conference' })}
-                      className="btn-outline-custom inline-flex items-center gap-2"
-                    >
-                      <Plus size={16} /> New event
-                    </button>
-                  </div>
+            {events.length === 0 && !editEvent && <p className="text-[#6B5E50] text-center py-8">No events yet. Click "Add Event" to create one.</p>}
 
-                  <div className="grid gap-6 lg:grid-cols-[1fr_440px]">
-                    <div className="space-y-3">
-                      {events.map((item) => (
-                        <div key={item.id} className="rounded-xl border border-border bg-background/80 p-4 flex flex-col gap-3">
-                          <div className="flex items-center justify-between gap-3">
-                            <div>
-                              <div className="font-semibold text-foreground">{item.title}</div>
-                              <div className="text-[11px] uppercase tracking-[2px] text-muted-foreground">{item.theme}</div>
-                            </div>
-                            <div className="text-[11px] uppercase tracking-[2px] text-primary">{item.status}</div>
-                          </div>
-                          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                            <span>{item.type}</span>
-                            <span>{item.date || 'No date set'}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => setActiveEvent(item)}
-                              className="btn-outline-custom inline-flex items-center gap-2"
-                            >
-                              <Edit3 size={14} /> Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => removeEvent(item.id)}
-                              className="btn-ghost-custom inline-flex items-center gap-2"
-                            >
-                              <Trash2 size={14} /> Delete
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="rounded-xl border border-border bg-background/80 p-6">
-                      <div className="font-semibold text-foreground mb-3">Event editor</div>
-                      <div className="space-y-4">
-                        {[
-                          { label: 'Title', key: 'title', type: 'text' },
-                          { label: 'Theme', key: 'theme', type: 'text' },
-                          { label: 'Type', key: 'type', type: 'text' },
-                          { label: 'Status', key: 'status', type: 'select', options: ['upcoming', 'active', 'done'] },
-                          { label: 'Date', key: 'date', type: 'date' },
-                          { label: 'External link', key: 'external_link', type: 'text' },
-                          { label: 'Image URL', key: 'image_url', type: 'text' },
-                        ].map((field) => (
-                          <label key={field.key} className="space-y-2 text-[10px] uppercase tracking-[3px] text-muted-foreground">
-                            {field.label}
-                            {field.type === 'select' ? (
-                              <select
-                                value={activeEvent[field.key as keyof EventRecord] ?? ''}
-                                onChange={(e) => setActiveEvent((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                                className={inputClass}
-                              >
-                                {field.options?.map((option) => (
-                                  <option key={option} value={option}>{option}</option>
-                                ))}
-                              </select>
-                            ) : (
-                              <input
-                                value={activeEvent[field.key as keyof EventRecord] ?? ''}
-                                onChange={(e) => setActiveEvent((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                                type={field.type}
-                                className={inputClass}
-                              />
-                            )}
-                          </label>
-                        ))}
-
-                        <label className="space-y-2 text-[10px] uppercase tracking-[3px] text-muted-foreground">
-                          Description
-                          <textarea
-                            value={activeEvent.description ?? ''}
-                            onChange={(e) => setActiveEvent((prev) => ({ ...prev, description: e.target.value }))}
-                            className={`${inputClass} min-h-[110px] resize-y`}
-                          />
-                        </label>
-                        <button type="button" onClick={persistEvent} className="btn-solid-custom w-full inline-flex items-center justify-center gap-2">
-                          <UploadCloud size={16} /> Save event
-                        </button>
+            <div className="space-y-3">
+              {events.map(ev => (
+                <Card key={ev.id} className="bg-[#1A1814] border-[#2A2520]">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="font-semibold text-white truncate">{ev.title}</h4>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${ev.status === 'upcoming' ? 'bg-green-900/40 text-green-400' : 'bg-gray-800 text-gray-400'}`}>{ev.status}</span>
                       </div>
+                      <p className="text-sm text-[#6B5E50] mt-0.5">{ev.date} {ev.time && `• ${ev.time}`} {ev.location && `• ${ev.location}`}</p>
                     </div>
+                    <div className="flex gap-1 ml-2">
+                      <Button size="sm" variant="ghost" onClick={() => setEditEvent({ ...ev })} className="text-[#B5A898] hover:text-white"><Edit2 size={14} /></Button>
+                      <Button size="sm" variant="ghost" onClick={() => deleteEvent(ev.id!)} className="text-red-400 hover:text-red-300"><Trash2 size={14} /></Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+
+          {/* ── Downloads Tab ────────────────────────────────────────────── */}
+          <TabsContent value="downloads" className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Downloads</h2>
+              <Button onClick={() => setEditDownload({ ...emptyDownload })} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><Plus size={16} className="mr-1" /> Add Download</Button>
+            </div>
+
+            {editDownload && (
+              <Card className="bg-[#1A1814] border-[#E8620A]/30">
+                <CardContent className="p-5 space-y-3">
+                  <h3 className="font-semibold text-[#E8620A]">{editDownload.id ? 'Edit Download' : 'New Download'}</h3>
+                  <div className="grid md:grid-cols-2 gap-3">
+                    <Input placeholder="Title *" value={editDownload.title} onChange={e => setEditDownload({ ...editDownload, title: e.target.value })} className={inputCls} />
+                    <Input placeholder="URL *" value={editDownload.url} onChange={e => setEditDownload({ ...editDownload, url: e.target.value })} className={inputCls} />
+                    <Input placeholder="Category" value={editDownload.category} onChange={e => setEditDownload({ ...editDownload, category: e.target.value })} className={inputCls} />
+                    <Input placeholder="Type (pdf, audio, etc.)" value={editDownload.type} onChange={e => setEditDownload({ ...editDownload, type: e.target.value })} className={inputCls} />
                   </div>
-                </section>
-
-                <section className="rounded-xl border border-border bg-card p-8 shadow-lg">
-                  <div className="flex items-center justify-between gap-4 mb-6">
-                    <div>
-                      <h3 className="font-heading text-2xl text-foreground">Downloads</h3>
-                      <p className="text-sm text-muted-foreground">Update download links and external media URLs for the resources page.</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setActiveDownload({ type: 'audio' })}
-                      className="btn-outline-custom inline-flex items-center gap-2"
-                    >
-                      <Plus size={16} /> Add link
-                    </button>
+                  <Textarea placeholder="Description" value={editDownload.description} onChange={e => setEditDownload({ ...editDownload, description: e.target.value })} className={inputCls} rows={2} />
+                  <div className="flex gap-2">
+                    <Button onClick={saveDownload} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><Save size={14} className="mr-1" /> Save</Button>
+                    <Button variant="outline" onClick={() => setEditDownload(null)} className="border-[#2A2520] text-[#B5A898]"><X size={14} className="mr-1" /> Cancel</Button>
                   </div>
+                </CardContent>
+              </Card>
+            )}
 
-                  <div className="grid gap-6 lg:grid-cols-[1fr_420px]">
-                    <div className="space-y-3">
-                      {downloads.map((item) => (
-                        <div key={item.id} className="rounded-xl border border-border bg-background/80 p-4 flex flex-col gap-3">
-                          <div className="flex items-center justify-between gap-3">
-                            <div>
-                              <div className="font-semibold text-foreground">{item.label}</div>
-                              <div className="text-[11px] uppercase tracking-[2px] text-muted-foreground">{item.type}</div>
-                            </div>
-                            <div className="text-[11px] text-primary">{item.url ? 'Link set' : 'No URL'}</div>
-                          </div>
-                          <div className="text-sm text-muted-foreground">{item.description}</div>
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => setActiveDownload(item)}
-                              className="btn-outline-custom inline-flex items-center gap-2"
-                            >
-                              <Edit3 size={14} /> Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => removeDownload(item.id)}
-                              className="btn-ghost-custom inline-flex items-center gap-2"
-                            >
-                              <Trash2 size={14} /> Delete
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+            {downloads.length === 0 && !editDownload && <p className="text-[#6B5E50] text-center py-8">No downloads yet. Click "Add Download" to create one.</p>}
 
-                    <div className="rounded-xl border border-border bg-background/80 p-6">
-                      <div className="font-semibold text-foreground mb-3">Download editor</div>
-                      <div className="space-y-4">
-                        <label className="space-y-2 text-[10px] uppercase tracking-[3px] text-muted-foreground">
-                          Label
-                          <input
-                            value={activeDownload.label ?? ''}
-                            onChange={(e) => setActiveDownload((prev) => ({ ...prev, label: e.target.value }))}
-                            className={inputClass}
-                          />
-                        </label>
-                        <label className="space-y-2 text-[10px] uppercase tracking-[3px] text-muted-foreground">
-                          URL
-                          <input
-                            value={activeDownload.url ?? ''}
-                            onChange={(e) => setActiveDownload((prev) => ({ ...prev, url: e.target.value }))}
-                            className={inputClass}
-                          />
-                        </label>
-                        <label className="space-y-2 text-[10px] uppercase tracking-[3px] text-muted-foreground">
-                          Type
-                          <select
-                            value={activeDownload.type ?? 'audio'}
-                            onChange={(e) => setActiveDownload((prev) => ({ ...prev, type: e.target.value }))}
-                            className={inputClass}
-                          >
-                            <option value="audio">Audio</option>
-                            <option value="video">Video</option>
-                            <option value="pdf">PDF</option>
-                          </select>
-                        </label>
-                        <label className="space-y-2 text-[10px] uppercase tracking-[3px] text-muted-foreground">
-                          Description
-                          <textarea
-                            value={activeDownload.description ?? ''}
-                            onChange={(e) => setActiveDownload((prev) => ({ ...prev, description: e.target.value }))}
-                            className={`${inputClass} min-h-[100px] resize-y`}
-                          />
-                        </label>
-                        <button type="button" onClick={persistDownload} className="btn-solid-custom w-full inline-flex items-center justify-center gap-2">
-                          <UploadCloud size={16} /> Save download link
-                        </button>
-                      </div>
+            <div className="space-y-3">
+              {downloads.map(dl => (
+                <Card key={dl.id} className="bg-[#1A1814] border-[#2A2520]">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-semibold text-white truncate">{dl.title}</h4>
+                      <p className="text-sm text-[#6B5E50]">{dl.category && `${dl.category} • `}{dl.type}</p>
                     </div>
+                    <div className="flex gap-1 ml-2">
+                      <Button size="sm" variant="ghost" onClick={() => setEditDownload({ ...dl })} className="text-[#B5A898] hover:text-white"><Edit2 size={14} /></Button>
+                      <Button size="sm" variant="ghost" onClick={() => deleteDownload(dl.id!)} className="text-red-400 hover:text-red-300"><Trash2 size={14} /></Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+
+          {/* ── Gallery Tab ──────────────────────────────────────────────── */}
+          <TabsContent value="gallery" className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Gallery</h2>
+              <Button onClick={() => setEditGallery({ ...emptyGallery })} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><Plus size={16} className="mr-1" /> Add Image</Button>
+            </div>
+
+            {editGallery && (
+              <Card className="bg-[#1A1814] border-[#E8620A]/30">
+                <CardContent className="p-5 space-y-3">
+                  <h3 className="font-semibold text-[#E8620A]">{editGallery.id ? 'Edit Image' : 'New Image'}</h3>
+                  <div className="grid md:grid-cols-2 gap-3">
+                    <Input placeholder="Title *" value={editGallery.title} onChange={e => setEditGallery({ ...editGallery, title: e.target.value })} className={inputCls} />
+                    <Input placeholder="Image URL *" value={editGallery.image_url} onChange={e => setEditGallery({ ...editGallery, image_url: e.target.value })} className={inputCls} />
+                    <Input placeholder="Category" value={editGallery.category} onChange={e => setEditGallery({ ...editGallery, category: e.target.value })} className={inputCls} />
+                    <Input placeholder="Caption" value={editGallery.caption} onChange={e => setEditGallery({ ...editGallery, caption: e.target.value })} className={inputCls} />
                   </div>
-                </section>
-
-                <section className="rounded-xl border border-border bg-card p-8 shadow-lg">
-                  <div className="flex items-center justify-between gap-4 mb-6">
-                    <div>
-                      <h3 className="font-heading text-2xl text-foreground">Gallery</h3>
-                      <p className="text-sm text-muted-foreground">Manage the gallery item titles and external image URLs used on the archive page.</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setActiveGallery({ active: true })}
-                      className="btn-outline-custom inline-flex items-center gap-2"
-                    >
-                      <Plus size={16} /> Add photo
-                    </button>
+                  {editGallery.image_url && (
+                    <img src={editGallery.image_url} alt="Preview" className="w-32 h-24 object-cover rounded-lg border border-[#2A2520]" />
+                  )}
+                  <div className="flex gap-2">
+                    <Button onClick={saveGallery} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><Save size={14} className="mr-1" /> Save</Button>
+                    <Button variant="outline" onClick={() => setEditGallery(null)} className="border-[#2A2520] text-[#B5A898]"><X size={14} className="mr-1" /> Cancel</Button>
                   </div>
+                </CardContent>
+              </Card>
+            )}
 
-                  <div className="grid gap-6 lg:grid-cols-[1fr_420px]">
-                    <div className="space-y-3">
-                      {galleryItems.map((item) => (
-                        <div key={item.id} className="rounded-xl border border-border bg-background/80 p-4 flex flex-col gap-3">
-                          <div className="flex items-center justify-between gap-3">
-                            <div>
-                              <div className="font-semibold text-foreground">{item.title}</div>
-                              <div className="text-[11px] uppercase tracking-[2px] text-muted-foreground">{item.event_label}</div>
-                            </div>
-                            <div className="text-[11px] uppercase tracking-[2px] text-primary">{item.active ? 'Active' : 'Inactive'}</div>
-                          </div>
-                          <div className="text-sm text-muted-foreground">{item.image_url}</div>
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => setActiveGallery(item)}
-                              className="btn-outline-custom inline-flex items-center gap-2"
-                            >
-                              <Edit3 size={14} /> Edit
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+            {gallery.length === 0 && !editGallery && <p className="text-[#6B5E50] text-center py-8">No gallery items yet. Click "Add Image" to create one.</p>}
 
-                    <div className="rounded-xl border border-border bg-background/80 p-6">
-                      <div className="font-semibold text-foreground mb-3">Gallery editor</div>
-                      <div className="space-y-4">
-                        <label className="space-y-2 text-[10px] uppercase tracking-[3px] text-muted-foreground">
-                          Title
-                          <input
-                            value={activeGallery.title ?? ''}
-                            onChange={(e) => setActiveGallery((prev) => ({ ...prev, title: e.target.value }))}
-                            className={inputClass}
-                          />
-                        </label>
-                        <label className="space-y-2 text-[10px] uppercase tracking-[3px] text-muted-foreground">
-                          Event Label
-                          <input
-                            value={activeGallery.event_label ?? ''}
-                            onChange={(e) => setActiveGallery((prev) => ({ ...prev, event_label: e.target.value }))}
-                            className={inputClass}
-                          />
-                        </label>
-                        <label className="space-y-2 text-[10px] uppercase tracking-[3px] text-muted-foreground">
-                          Image URL
-                          <input
-                            value={activeGallery.image_url ?? ''}
-                            onChange={(e) => setActiveGallery((prev) => ({ ...prev, image_url: e.target.value }))}
-                            className={inputClass}
-                          />
-                        </label>
-                        <label className="flex items-center gap-3 text-[10px] uppercase tracking-[3px] text-muted-foreground">
-                          <input
-                            type="checkbox"
-                            checked={activeGallery.active ?? false}
-                            onChange={(e) => setActiveGallery((prev) => ({ ...prev, active: e.target.checked }))}
-                            className="h-4 w-4 rounded border-border bg-card text-primary focus:ring-primary"
-                          />
-                          Active item
-                        </label>
-                        <button type="button" onClick={persistGallery} className="btn-solid-custom w-full inline-flex items-center justify-center gap-2">
-                          <UploadCloud size={16} /> Save gallery item
-                        </button>
-                      </div>
-                    </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {gallery.map(g => (
+                <Card key={g.id} className="bg-[#1A1814] border-[#2A2520] overflow-hidden">
+                  <div className="aspect-video bg-[#0F0D0A] relative">
+                    {g.image_url ? <img src={g.image_url} alt={g.title} className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full text-[#2A2520]"><Image size={32} /></div>}
                   </div>
-                </section>
+                  <CardContent className="p-3">
+                    <h4 className="text-sm font-semibold text-white truncate">{g.title}</h4>
+                    {g.category && <p className="text-xs text-[#6B5E50]">{g.category}</p>}
+                    <div className="flex gap-1 mt-2">
+                      <Button size="sm" variant="ghost" onClick={() => setEditGallery({ ...g })} className="text-[#B5A898] hover:text-white h-7 px-2"><Edit2 size={12} /></Button>
+                      <Button size="sm" variant="ghost" onClick={() => deleteGallery(g.id!)} className="text-red-400 hover:text-red-300 h-7 px-2"><Trash2 size={12} /></Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
 
-                <section className="rounded-xl border border-border bg-card p-8 shadow-lg">
-                  <div className="mb-6">
-                    <h3 className="font-heading text-2xl text-foreground">Site content</h3>
-                    <p className="text-sm text-muted-foreground">Simple site text and headline management for future pages.</p>
-                  </div>
-
-                  <div className="grid gap-4">
-                    {['homepage_hero', 'event_intro', 'download_description'].map((key) => (
-                      <label key={key} className="space-y-2 text-[10px] uppercase tracking-[3px] text-muted-foreground">
-                        {key.replace(/_/g, ' ')}
-                        <textarea
-                          value={siteSettings[key] ?? ''}
-                          onChange={(e) => setSiteSettings((prev) => ({ ...prev, [key]: e.target.value }))}
-                          className={`${inputClass} min-h-[90px] resize-y`}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => persistSetting(key, siteSettings[key] ?? '')}
-                          className="btn-outline-custom inline-flex items-center gap-2"
+          {/* ── Settings Tab ─────────────────────────────────────────────── */}
+          <TabsContent value="settings" className="space-y-4">
+            <h2 className="text-xl font-semibold">Site Settings</h2>
+            <div className="space-y-4">
+              {settingsMeta.map(meta => (
+                <Card key={meta.id} className="bg-[#1A1814] border-[#2A2520]">
+                  <CardContent className="p-4">
+                    <label className="text-sm font-medium text-[#B5A898] block mb-1.5">{meta.label}</label>
+                    <div className="flex gap-2">
+                      {meta.type === 'boolean' ? (
+                        <select
+                          value={siteSettings[meta.key] ?? ''}
+                          onChange={e => setSiteSettings(prev => ({ ...prev, [meta.key]: e.target.value }))}
+                          className={`flex-1 rounded-md px-3 py-2 ${inputCls} border`}
                         >
-                          <CheckCircle2 size={16} /> Save
-                        </button>
-                      </label>
-                    ))}
-                  </div>
-                </section>
-              </div>
+                          <option value="true">Yes</option>
+                          <option value="false">No</option>
+                        </select>
+                      ) : (
+                        <Input
+                          value={siteSettings[meta.key] ?? ''}
+                          onChange={e => setSiteSettings(prev => ({ ...prev, [meta.key]: e.target.value }))}
+                          className={`flex-1 ${inputCls}`}
+                          type={meta.type === 'email' ? 'email' : meta.type === 'url' ? 'url' : 'text'}
+                        />
+                      )}
+                      <Button onClick={() => saveSetting(meta.key)} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><Save size={14} /></Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-          )}
-        </div>
+          </TabsContent>
+
+          {/* ── Admins Tab ───────────────────────────────────────────────── */}
+          <TabsContent value="admins" className="space-y-4">
+            <h2 className="text-xl font-semibold">Invite New Admin</h2>
+            <Card className="bg-[#1A1814] border-[#2A2520]">
+              <CardContent className="p-5 space-y-3">
+                <p className="text-sm text-[#B5A898]">Create a new admin account. The new admin will receive a verification email.</p>
+                <div className="grid md:grid-cols-2 gap-3">
+                  <Input placeholder="Email" type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} className={inputCls} />
+                  <Input placeholder="Password" type="password" value={invitePassword} onChange={e => setInvitePassword(e.target.value)} className={inputCls} />
+                </div>
+                <Button onClick={inviteAdmin} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><Users size={14} className="mr-1" /> Create Admin</Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
       <Footer />
       <ScrollToTop />
-    </>
+    </div>
   );
 }
