@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { Session } from '@supabase/supabase-js';
 import Navbar from '@/components/Navbar';
@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import {
-  Calendar, Download, Image, Settings, Users, LogOut, Plus, Trash2, Edit2, Save, X, Eye, EyeOff,
+  Calendar, Download, Image, Settings, Users, LogOut, Plus, Trash2, Edit2, Save, X, Eye, EyeOff, FileDown, ArrowUpDown, ClipboardList,
 } from 'lucide-react';
 
 /* ── Types ──────────────────────────────────────────────────────────────── */
@@ -44,6 +44,18 @@ interface GalleryRecord {
   category: string;
 }
 
+interface RegistrationRecord {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  program: string;
+  location: string;
+  note: string;
+  created_at: string;
+}
+
 const emptyEvent: EventRecord = { title: '', status: 'upcoming', date: '', image_url: '', description: '', location: '', time: '' };
 const emptyDownload: DownloadRecord = { title: '', url: '', description: '', category: '', type: '' };
 const emptyGallery: GalleryRecord = { title: '', image_url: '', caption: '', category: '' };
@@ -65,6 +77,7 @@ export default function AdminPage() {
   const [gallery, setGallery] = useState<GalleryRecord[]>([]);
   const [siteSettings, setSiteSettings] = useState<Record<string, string>>({});
   const [settingsMeta, setSettingsMeta] = useState<{ id: string; key: string; label: string; type: string }[]>([]);
+  const [registrations, setRegistrations] = useState<RegistrationRecord[]>([]);
 
   // Editing state
   const [editEvent, setEditEvent] = useState<EventRecord | null>(null);
@@ -74,6 +87,10 @@ export default function AdminPage() {
   // Admin invite
   const [inviteEmail, setInviteEmail] = useState('');
   const [invitePassword, setInvitePassword] = useState('');
+
+  // Registration sorting
+  const [regSort, setRegSort] = useState<{ col: keyof RegistrationRecord; asc: boolean }>({ col: 'created_at', asc: false });
+  const [regSearch, setRegSearch] = useState('');
 
   /* ── Auth ─────────────────────────────────────────────────────────────── */
 
@@ -123,15 +140,17 @@ export default function AdminPage() {
   const loadAllData = async () => {
     setIsLoading(true);
     try {
-      const [ev, dl, gal, st] = await Promise.all([
+      const [ev, dl, gal, st, reg] = await Promise.all([
         supabase.from('events').select('*').order('date', { ascending: false }),
         supabase.from('downloads').select('*').order('title'),
         supabase.from('gallery').select('*').order('created_at', { ascending: false }),
         supabase.from('site_settings').select('*'),
+        supabase.from('registrations').select('*').order('created_at', { ascending: false }),
       ]);
       setEvents(ev.data ?? []);
       setDownloads(dl.data ?? []);
       setGallery(gal.data ?? []);
+      setRegistrations(reg.data ?? []);
       const settings = st.data ?? [];
       setSettingsMeta(settings.map((r: any) => ({ id: r.id, key: r.key, label: r.label, type: r.type })));
       setSiteSettings(settings.reduce((acc: Record<string, string>, r: any) => { acc[r.key] = r.value ?? ''; return acc; }, {}));
@@ -239,6 +258,53 @@ export default function AdminPage() {
     setInvitePassword('');
   };
 
+  /* ── Registrations: Sort & Filter ────────────────────────────────────── */
+
+  const sortedRegistrations = useMemo(() => {
+    let filtered = registrations;
+    if (regSearch.trim()) {
+      const q = regSearch.toLowerCase();
+      filtered = filtered.filter(r =>
+        `${r.first_name} ${r.last_name} ${r.email} ${r.program} ${r.location}`.toLowerCase().includes(q)
+      );
+    }
+    return [...filtered].sort((a, b) => {
+      const av = (a[regSort.col] ?? '') as string;
+      const bv = (b[regSort.col] ?? '') as string;
+      return regSort.asc ? av.localeCompare(bv) : bv.localeCompare(av);
+    });
+  }, [registrations, regSort, regSearch]);
+
+  const toggleSort = (col: keyof RegistrationRecord) => {
+    setRegSort(prev => prev.col === col ? { col, asc: !prev.asc } : { col, asc: true });
+  };
+
+  const exportCSV = () => {
+    if (!sortedRegistrations.length) { toast.error('No registrations to export.'); return; }
+    const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Program', 'Location', 'Note', 'Date'];
+    const rows = sortedRegistrations.map(r => [
+      r.first_name, r.last_name, r.email, r.phone, r.program, r.location,
+      `"${(r.note || '').replace(/"/g, '""')}"`,
+      new Date(r.created_at).toLocaleDateString(),
+    ]);
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `registrations-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('CSV exported.');
+  };
+
+  const deleteRegistration = async (id: string) => {
+    if (!confirm('Delete this registration?')) return;
+    await supabase.from('registrations').delete().eq('id', id);
+    toast.success('Registration deleted.');
+    loadAllData();
+  };
+
   /* ── Render: Auth Screen ─────────────────────────────────────────────── */
 
   if (!session) {
@@ -252,22 +318,9 @@ export default function AdminPage() {
             <p className="text-sm text-[#B5A898] mt-1">Cherubs Cove Ministry</p>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Input
-              placeholder="Email"
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              className="bg-[#0F0D0A] border-[#2A2520] text-white placeholder:text-[#6B5E50]"
-            />
+            <Input placeholder="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} className="bg-[#0F0D0A] border-[#2A2520] text-white placeholder:text-[#6B5E50]" />
             <div className="relative">
-              <Input
-                placeholder="Password"
-                type={showPw ? 'text' : 'password'}
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleAuth()}
-                className="bg-[#0F0D0A] border-[#2A2520] text-white placeholder:text-[#6B5E50] pr-10"
-              />
+              <Input placeholder="Password" type={showPw ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAuth()} className="bg-[#0F0D0A] border-[#2A2520] text-white placeholder:text-[#6B5E50] pr-10" />
               <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B5E50] hover:text-white">
                 {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
@@ -291,6 +344,12 @@ export default function AdminPage() {
 
   const inputCls = "bg-[#0F0D0A] border-[#2A2520] text-white placeholder:text-[#6B5E50] focus:border-[#E8620A]";
 
+  const SortBtn = ({ col, label }: { col: keyof RegistrationRecord; label: string }) => (
+    <button onClick={() => toggleSort(col)} className={`text-[10px] font-bold tracking-[1.5px] uppercase inline-flex items-center gap-1 ${regSort.col === col ? 'text-primary' : 'text-[#6B5E50]'}`}>
+      {label} <ArrowUpDown size={10} />
+    </button>
+  );
+
   return (
     <div className="min-h-screen bg-[#0F0D0A] text-white">
       <Navbar />
@@ -307,11 +366,12 @@ export default function AdminPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
           {[
             { icon: Calendar, label: 'Events', count: events.length, color: '#E8620A' },
             { icon: Download, label: 'Downloads', count: downloads.length, color: '#B07D35' },
             { icon: Image, label: 'Gallery', count: gallery.length, color: '#6B8F71' },
+            { icon: ClipboardList, label: 'Registrations', count: registrations.length, color: '#5B8DEF' },
             { icon: Settings, label: 'Settings', count: settingsMeta.length, color: '#7B68AE' },
           ].map(s => (
             <Card key={s.label} className="bg-[#1A1814] border-[#2A2520]">
@@ -334,6 +394,7 @@ export default function AdminPage() {
             <TabsTrigger value="events" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><Calendar size={14} className="mr-1.5" />Events</TabsTrigger>
             <TabsTrigger value="downloads" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><Download size={14} className="mr-1.5" />Downloads</TabsTrigger>
             <TabsTrigger value="gallery" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><Image size={14} className="mr-1.5" />Gallery</TabsTrigger>
+            <TabsTrigger value="registrations" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><ClipboardList size={14} className="mr-1.5" />Registrations</TabsTrigger>
             <TabsTrigger value="settings" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><Settings size={14} className="mr-1.5" />Settings</TabsTrigger>
             <TabsTrigger value="admins" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><Users size={14} className="mr-1.5" />Admins</TabsTrigger>
           </TabsList>
@@ -484,9 +545,56 @@ export default function AdminPage() {
             </div>
           </TabsContent>
 
+          {/* ── Registrations Tab ─────────────────────────────────────────── */}
+          <TabsContent value="registrations" className="space-y-4">
+            <div className="flex flex-wrap justify-between items-center gap-3">
+              <h2 className="text-xl font-semibold">Registrations ({sortedRegistrations.length})</h2>
+              <div className="flex gap-2">
+                <Input placeholder="Search registrations…" value={regSearch} onChange={e => setRegSearch(e.target.value)} className={`${inputCls} w-56`} />
+                <Button onClick={exportCSV} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><FileDown size={14} className="mr-1" /> Export CSV</Button>
+              </div>
+            </div>
+
+            {/* Sort controls */}
+            <div className="flex gap-4 flex-wrap">
+              <SortBtn col="created_at" label="Date" />
+              <SortBtn col="first_name" label="Name" />
+              <SortBtn col="program" label="Program" />
+              <SortBtn col="location" label="Location" />
+            </div>
+
+            {sortedRegistrations.length === 0 && <p className="text-[#6B5E50] text-center py-8">No registrations yet.</p>}
+
+            <div className="space-y-2">
+              {sortedRegistrations.map(r => (
+                <Card key={r.id} className="bg-[#1A1814] border-[#2A2520]">
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="font-semibold text-white">{r.first_name} {r.last_name}</h4>
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-[#E8620A]/20 text-[#E8620A]">{r.program || 'No program'}</span>
+                        </div>
+                        <div className="flex gap-4 flex-wrap mt-1.5 text-sm text-[#6B5E50]">
+                          <span>{r.email}</span>
+                          {r.phone && <span>{r.phone}</span>}
+                          {r.location && <span>{r.location}</span>}
+                        </div>
+                        {r.note && <p className="text-xs text-[#B5A898] mt-2 italic">"{r.note}"</p>}
+                        <p className="text-[10px] text-[#6B5E50] mt-1">{new Date(r.created_at).toLocaleString()}</p>
+                      </div>
+                      <Button size="sm" variant="ghost" onClick={() => deleteRegistration(r.id)} className="text-red-400 hover:text-red-300"><Trash2 size={14} /></Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+
           {/* ── Settings Tab ─────────────────────────────────────────────── */}
           <TabsContent value="settings" className="space-y-4">
             <h2 className="text-xl font-semibold">Site Settings</h2>
+            <p className="text-sm text-[#6B5E50]">Changes here update the website in real-time (contact info, hero scripture, social links, etc.)</p>
             <div className="space-y-4">
               {settingsMeta.map(meta => (
                 <Card key={meta.id} className="bg-[#1A1814] border-[#2A2520]">

@@ -1,9 +1,65 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Calendar, Clock } from 'lucide-react';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
+import { supabase } from '@/lib/supabaseClient';
+
+type MiniEvent = { lbl: string; val: string; sub: string };
+
+const fallbackMiniEvents: MiniEvent[] = [
+  { lbl: 'Monthly', val: 'First Saturday Service', sub: 'Every 1st Saturday · 10 AM' },
+  { lbl: 'Weekly', val: 'Mid-Week Gathering', sub: 'Every Wednesday · TBA' },
+];
+
+type PastConf = { year: string; theme: string };
+const fallbackPastConfs: PastConf[] = [
+  { year: '2023', theme: 'Arrows' },
+  { year: '2023', theme: 'Awakening' },
+  { year: '2024', theme: 'Forge' },
+  { year: '2025', theme: 'Immersion' },
+];
+
+type GalleryItem = { image_url?: string; category?: string; title?: string };
 
 export default function EventsPreview() {
   const ref = useScrollReveal();
+  const [miniEvents, setMiniEvents] = useState<MiniEvent[]>(fallbackMiniEvents);
+  const [pastConfs, setPastConfs] = useState<(PastConf & { image_url?: string })[]>(fallbackPastConfs);
+
+  useEffect(() => {
+    const loadEvents = async () => {
+      const { data } = await supabase.from('events').select('*').order('date', { ascending: false });
+      if (data?.length) {
+        const recurring = data.filter((e: any) => e.status !== 'upcoming' && e.status !== 'past');
+        if (recurring.length) {
+          setMiniEvents(recurring.slice(0, 2).map((e: any) => ({
+            lbl: e.status || 'Event',
+            val: e.title,
+            sub: `${e.date || ''} ${e.time ? `· ${e.time}` : ''} ${e.location ? `· ${e.location}` : ''}`.trim(),
+          })));
+        }
+      }
+    };
+
+    const loadGallery = async () => {
+      const { data } = await supabase.from('gallery').select('*').order('created_at', { ascending: false }).limit(4);
+      if (data?.length) {
+        setPastConfs(data.map((g: GalleryItem) => ({
+          year: g.category || 'Gallery',
+          theme: g.title || 'Photo',
+          image_url: g.image_url,
+        })));
+      }
+    };
+
+    loadEvents();
+    loadGallery();
+
+    const ch1 = supabase.channel('ep-events').on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, () => loadEvents()).subscribe();
+    const ch2 = supabase.channel('ep-gallery').on('postgres_changes', { event: '*', schema: 'public', table: 'gallery' }, () => loadGallery()).subscribe();
+
+    return () => { supabase.removeChannel(ch1); supabase.removeChannel(ch2); };
+  }, []);
 
   return (
     <section className="py-24 bg-background border-t border-border" ref={ref}>
@@ -58,10 +114,7 @@ export default function EventsPreview() {
 
           {/* Side mini events */}
           <div className="flex flex-col gap-4 reveal">
-            {[
-              { lbl: 'Monthly', val: 'First Saturday Service', sub: 'Every 1st Saturday · 10 AM' },
-              { lbl: 'Weekly', val: 'Mid-Week Gathering', sub: 'Every Wednesday · TBA' },
-            ].map((ev, i) => (
+            {miniEvents.map((ev, i) => (
               <div key={i} className="p-5 rounded-lg border border-border bg-card flex-1 flex flex-col justify-center card-lift">
                 <div className="text-[9.5px] font-bold tracking-[2px] uppercase text-primary mb-1">{ev.lbl}</div>
                 <div className="font-heading text-base text-foreground">{ev.val}</div>
@@ -85,22 +138,19 @@ export default function EventsPreview() {
             </Link>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[
-              { year: '2023', theme: 'Arrows' },
-              { year: '2023', theme: 'Awakening' },
-              { year: '2024', theme: 'Forge' },
-              { year: '2025', theme: 'Immersion' },
-            ].map((ed, i) => (
+            {pastConfs.map((ed, i) => (
               <Link
                 key={i}
                 to="/past-conferences"
                 className="rounded-lg overflow-hidden relative group cursor-pointer min-h-[140px] block"
               >
-                <div className="w-full h-full bg-gradient-to-br from-[hsl(var(--bg-subtle))] to-[hsl(var(--border))] flex items-center justify-center transition-transform duration-500 group-hover:scale-105 absolute inset-0">
-                  <span className="text-[10px] tracking-[3px] uppercase text-muted-foreground">
-                    Gallery
-                  </span>
-                </div>
+                {(ed as any).image_url ? (
+                  <img src={(ed as any).image_url} alt={ed.theme} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-[hsl(var(--bg-subtle))] to-[hsl(var(--border))] flex items-center justify-center transition-transform duration-500 group-hover:scale-105 absolute inset-0">
+                    <span className="text-[10px] tracking-[3px] uppercase text-muted-foreground">Gallery</span>
+                  </div>
+                )}
                 <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent z-[1]">
                   <p className="text-[10px] tracking-[2px] uppercase text-white/70">{ed.year}</p>
                   <h4 className="font-heading text-[14px] italic text-white">"{ed.theme}"</h4>
