@@ -7,18 +7,43 @@ import hero4 from '@/assets/hero/hero4.jpg';
 import hero5 from '@/assets/hero/hero5.jpg';
 import welcomeImg from '@/assets/welcome.jpg';
 import logo from '@/assets/logo/logo.png';
+import { supabase } from '@/lib/supabaseClient';
 
-// Moved hero1 to second-to-last position
 const slides = [hero2, hero3, hero4, hero5, hero1, welcomeImg];
 
 export default function HeroSection() {
   const [current, setCurrent] = useState(0);
+  const [verse, setVerse] = useState('"Each will be like a refuge from the wind and a shelter from the storm."');
+  const [verseRef, setVerseRef] = useState('— Isaiah 32:2');
 
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrent((prev) => (prev + 1) % slides.length);
     }, 5000);
     return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const load = async () => {
+      const { data } = await supabase
+        .from('site_settings')
+        .select('key,value')
+        .in('key', ['hero_verse', 'hero_verse_ref']);
+      if (data) {
+        data.forEach((r: any) => {
+          if (r.key === 'hero_verse' && r.value) setVerse(`"${r.value}"`);
+          if (r.key === 'hero_verse_ref' && r.value) setVerseRef(`— ${r.value}`);
+        });
+      }
+    };
+    load();
+
+    const channel = supabase
+      .channel('hero-settings')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'site_settings' }, () => { load(); })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   return (
@@ -85,16 +110,16 @@ export default function HeroSection() {
         </div>
       </div>
 
-      {/* Scripture strip — bold quote styling with logo */}
+      {/* Scripture strip — dynamic from site_settings */}
       <div className="bg-[#1A1008] py-6 px-8">
         <div className="max-w-[800px] mx-auto flex items-center gap-5 justify-center">
           <img src={logo} alt="Cherubs Cove" className="h-12 w-12 rounded-full object-contain hidden sm:block flex-shrink-0" />
           <div className="text-center sm:text-left">
             <p className="font-heading text-[clamp(16px,2.2vw,22px)] italic leading-snug text-white/90 font-medium">
-              "Each will be like a refuge from the wind and a shelter from the storm."
+              {verse}
             </p>
             <p className="font-display text-[11px] tracking-[3px] uppercase mt-2 text-primary font-semibold">
-              — Isaiah 32:2
+              {verseRef}
             </p>
           </div>
         </div>

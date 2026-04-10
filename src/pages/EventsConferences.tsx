@@ -12,6 +12,9 @@ type Edition = {
   theme: string;
   type: string;
   upcoming?: boolean;
+  description?: string;
+  location?: string;
+  time?: string;
 };
 
 const fallbackEditions: Edition[] = [
@@ -26,26 +29,38 @@ export default function EventsConferencesPage() {
   const ref = useScrollReveal();
   const [editions, setEditions] = useState<Edition[]>(fallbackEditions);
 
+  const loadEvents = async () => {
+    const { data, error } = await supabase
+      .from('events')
+      .select('*')
+      .order('date', { ascending: false });
+
+    if (!error && data?.length) {
+      setEditions(
+        data.map((item: any) => ({
+          year: item.date ? item.date.slice(0, 4) : 'TBA',
+          theme: item.title || 'Upcoming event',
+          type: item.description || 'Conference',
+          upcoming: item.status === 'upcoming',
+          description: item.description,
+          location: item.location,
+          time: item.time,
+        }))
+      );
+    }
+  };
+
   useEffect(() => {
-    const loadEvents = async () => {
-      const { data, error } = await supabase
-        .from('events')
-        .select('theme,type,status,date')
-        .order('date', { ascending: false });
-
-      if (!error && data?.length) {
-        setEditions(
-          data.map((item: any) => ({
-            year: item.date ? item.date.slice(0, 4) : 'TBA',
-            theme: item.theme || 'Upcoming event',
-            type: item.type || 'Conference',
-            upcoming: item.status === 'upcoming',
-          }))
-        );
-      }
-    };
-
     loadEvents();
+
+    const channel = supabase
+      .channel('events-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, () => {
+        loadEvents();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   return (
@@ -132,7 +147,7 @@ export default function EventsConferencesPage() {
               { icon: Calendar, label: 'Annual', desc: 'Every year' },
               { icon: MapPin, label: 'Nigeria', desc: 'Multiple cities' },
               { icon: Users, label: 'Open to All', desc: 'Free attendance' },
-              { icon: Sparkles, label: '5 Editions', desc: 'Since 2023' },
+              { icon: Sparkles, label: `${editions.length} Editions`, desc: 'And counting' },
             ].map((item, i) => (
               <div key={i} className="flex items-center gap-3 p-4 rounded-lg bg-card border border-border">
                 <div className="w-9 h-9 rounded-lg bg-[hsl(var(--orange-soft))] flex items-center justify-center text-primary flex-shrink-0">

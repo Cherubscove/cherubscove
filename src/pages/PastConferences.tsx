@@ -9,7 +9,6 @@ type GalleryItem = {
   label: string;
   title: string;
   image_url?: string;
-  active?: boolean;
 };
 
 const fallbackGalleryItems: GalleryItem[] = [
@@ -27,22 +26,34 @@ export default function PastConferencesPage() {
   const ref = useScrollReveal();
   const [galleryItems, setGalleryItems] = useState<GalleryItem[]>(fallbackGalleryItems);
 
-  useEffect(() => {
-    const loadGallery = async () => {
-      const { data, error } = await supabase.from('gallery').select('event_label,title,image_url,active').order('title');
-      if (!error && data?.length) {
-        setGalleryItems(
-          data.map((item: any) => ({
-            label: item.event_label || 'Gallery item',
-            title: item.title || 'Photo',
-            image_url: item.image_url,
-            active: item.active ?? true,
-          }))
-        );
-      }
-    };
+  const loadGallery = async () => {
+    const { data, error } = await supabase
+      .from('gallery')
+      .select('*')
+      .order('created_at', { ascending: false });
 
+    if (!error && data?.length) {
+      setGalleryItems(
+        data.map((item: any) => ({
+          label: item.category || item.caption || 'Gallery',
+          title: item.title || 'Photo',
+          image_url: item.image_url,
+        }))
+      );
+    }
+  };
+
+  useEffect(() => {
     loadGallery();
+
+    const channel = supabase
+      .channel('gallery-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'gallery' }, () => {
+        loadGallery();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   return (
@@ -100,11 +111,19 @@ export default function PastConferencesPage() {
                   i === 0 ? 'sm:col-span-2 lg:col-span-2 min-h-[300px]' : 'min-h-[220px]'
                 }`}
               >
-                <div className="w-full h-full bg-gradient-to-br from-[hsl(var(--bg-subtle))] to-[hsl(var(--border))] flex items-center justify-center transition-transform duration-500 group-hover:scale-105 absolute inset-0">
-                  <span className="text-[11px] tracking-[3px] uppercase text-muted-foreground">
-                    Gallery Photo
-                  </span>
-                </div>
+                {item.image_url ? (
+                  <img
+                    src={item.image_url}
+                    alt={item.title}
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-[hsl(var(--bg-subtle))] to-[hsl(var(--border))] flex items-center justify-center transition-transform duration-500 group-hover:scale-105 absolute inset-0">
+                    <span className="text-[11px] tracking-[3px] uppercase text-muted-foreground">
+                      Gallery Photo
+                    </span>
+                  </div>
+                )}
                 <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-[1]">
                   <p className="text-[10.5px] tracking-[2px] uppercase text-white/80">
                     {item.label}

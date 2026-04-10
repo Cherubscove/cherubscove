@@ -38,28 +38,37 @@ export default function ResourcesPage() {
   const [resources, setResources] = useState<Resource[]>(fallbackResources);
   const ref = useScrollReveal();
 
-  useEffect(() => {
-    const loadDownloads = async () => {
-      const { data, error } = await supabase.from('downloads').select('*').order('label');
-      if (!error && data?.length) {
-        setResources(
-          data.map((item: any) => ({
-            type: (item.type as ResType) || 'pdf',
-            title: item.label || 'Resource',
-            speaker: item.description || 'Updated content',
-            action:
-              item.type === 'video'
-                ? 'Watch / Download'
-                : item.type === 'pdf'
-                ? 'Download PDF'
-                : 'Download',
-            href: item.url || '#',
-          }))
-        );
-      }
-    };
+  const loadDownloads = async () => {
+    const { data, error } = await supabase.from('downloads').select('*').order('title');
+    if (!error && data?.length) {
+      setResources(
+        data.map((item: any) => ({
+          type: (item.type as ResType) || 'pdf',
+          title: item.title || 'Resource',
+          speaker: item.description || item.category || '',
+          action:
+            item.type === 'video'
+              ? 'Watch / Download'
+              : item.type === 'pdf'
+              ? 'Download PDF'
+              : 'Download',
+          href: item.url || '#',
+        }))
+      );
+    }
+  };
 
+  useEffect(() => {
     loadDownloads();
+
+    const channel = supabase
+      .channel('downloads-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'downloads' }, () => {
+        loadDownloads();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const filtered = filter === 'all' ? resources : resources.filter((r) => r.type === filter);
