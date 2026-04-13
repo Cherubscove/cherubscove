@@ -134,6 +134,8 @@ export default function AdminPage() {
   const [siteSettings, setSiteSettings] = useState<Record<string, string>>({});
   const [settingsMeta, setSettingsMeta] = useState<{ id: string; key: string; label: string; type: string }[]>([]);
   const [registrations, setRegistrations] = useState<RegistrationRecord[]>([]);
+  const [contentValues, setContentValues] = useState<Record<string, string>>({});
+  const [contentGroup, setContentGroup] = useState('all');
 
   // Editing state
   const [editEvent, setEditEvent] = useState<EventRecord | null>(null);
