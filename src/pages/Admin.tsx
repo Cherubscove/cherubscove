@@ -211,10 +211,45 @@ export default function AdminPage() {
       setRegistrations(reg.data ?? []);
       const settings = st.data ?? [];
       setSettingsMeta(settings.map((r: any) => ({ id: r.id, key: r.key, label: r.label, type: r.type })));
-      setSiteSettings(settings.reduce((acc: Record<string, string>, r: any) => { acc[r.key] = r.value ?? ''; return acc; }, {}));
+      const settingsMap = settings.reduce((acc: Record<string, string>, r: any) => { acc[r.key] = r.value ?? ''; return acc; }, {});
+      setSiteSettings(settingsMap);
+
+      // Build content values from DB, filling missing with defaults
+      const cv: Record<string, string> = {};
+      CONTENT_DEFAULTS.forEach(cd => { cv[cd.key] = settingsMap[cd.key] ?? cd.value; });
+      setContentValues(cv);
+
+      // Auto-seed missing content keys into DB
+      const existingKeys = new Set(settings.map((r: any) => r.key));
+      const missing = CONTENT_DEFAULTS.filter(cd => !existingKeys.has(cd.key));
+      if (missing.length > 0) {
+        await supabase.from('site_settings').insert(
+          missing.map(cd => ({ key: cd.key, label: cd.label, value: cd.value, type: 'text' }))
+        );
+        // Reload to get IDs
+        const { data: refreshed } = await supabase.from('site_settings').select('*');
+        if (refreshed) {
+          setSettingsMeta(refreshed.map((r: any) => ({ id: r.id, key: r.key, label: r.label, type: r.type })));
+          const refreshedMap = refreshed.reduce((acc: Record<string, string>, r: any) => { acc[r.key] = r.value ?? ''; return acc; }, {});
+          setSiteSettings(refreshedMap);
+        }
+      }
     } finally {
       setIsLoading(false);
     }
+  };
+
+  /* ── Save Content Setting ──────────────────────────────────────────── */
+
+  const saveContentSetting = async (key: string) => {
+    const meta = settingsMeta.find(s => s.key === key);
+    if (!meta) {
+      toast.error('Setting not found in DB. Try reloading.');
+      return;
+    }
+    const { error } = await supabase.from('site_settings').update({ value: contentValues[key] }).eq('id', meta.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`Saved.`);
   };
 
   /* ── CRUD: Events ────────────────────────────────────────────────────── */
