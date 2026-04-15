@@ -418,13 +418,6 @@ export default function AdminPage() {
       {label} <ArrowUpDown size={10} />
     </button>
   );
-
-  // Get unique event names for registration filter
-  const regEventNames = useMemo(() => {
-    const names = new Set(registrations.map(r => r.event_title || r.program || '').filter(Boolean));
-    return Array.from(names);
-  }, [registrations]);
-
   return (
     <div className="min-h-screen bg-[#0F0D0A] text-white">
       <Navbar />
