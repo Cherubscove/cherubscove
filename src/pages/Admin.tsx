@@ -99,6 +99,12 @@ export default function AdminPage() {
   const [regSearch, setRegSearch] = useState('');
   const [regEventFilter, setRegEventFilter] = useState('all');
 
+  // Get unique event names for registration filter (must be before early return)
+  const regEventNames = useMemo(() => {
+    const names = new Set(registrations.map(r => r.event_title || r.program || '').filter(Boolean));
+    return Array.from(names);
+  }, [registrations]);
+
   /* ── Auth ─────────────────────────────────────────────────────────────── */
 
   useEffect(() => {
