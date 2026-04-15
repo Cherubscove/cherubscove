@@ -11,17 +11,22 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import {
-  Calendar, Download, Image, Settings, Users, LogOut, Plus, Trash2, Edit2, Save, X, Eye, EyeOff, FileDown, ArrowUpDown, ClipboardList, FileText,
+  Calendar, Download, Image, Settings, Users, LogOut, Plus, Trash2, Edit2, Save, X, Eye, EyeOff, FileDown, ArrowUpDown, ClipboardList, FileText, ToggleLeft, ToggleRight,
 } from 'lucide-react';
+import FormFieldBuilder from '@/components/admin/FormFieldBuilder';
+import { SEED_EVENTS, SEED_DOWNLOADS } from '@/lib/seedData';
+import type {
+  EventRecord, DownloadRecord, GalleryRecord, RegistrationRecord, FormFieldConfig,
+  emptyEvent as _ee, emptyDownload as _ed, emptyGallery as _eg,
+} from '@/lib/adminTypes';
+import { emptyEvent, emptyDownload, emptyGallery } from '@/lib/adminTypes';
 
 /* ── Content Keys (seed defaults for every editable frontend text) ────── */
 
 const CONTENT_DEFAULTS: { key: string; label: string; value: string; group: string }[] = [
-  // Welcome Section
   { key: 'welcome_eyebrow', label: 'Welcome — Eyebrow', value: 'Who We Are', group: 'Welcome Section' },
   { key: 'welcome_paragraph_1', label: 'Welcome — Paragraph 1', value: 'Cherubs Cove is an interdenominational ministry committed to raising a generation on fire for God. We exist to equip, ignite, and release burning youths into every sphere of society, with the Gospel of Jesus Christ as our foundation and compass.', group: 'Welcome Section' },
   { key: 'welcome_paragraph_2', label: 'Welcome — Paragraph 2', value: "We believe the Church must rise to reflect Christ in its fullness, and we are devoted to providing a spiritual environment where every individual finds their place in God's grand narrative. From our gatherings to our flagship International Quivers Conference, everything flows from one conviction: this is the making place.", group: 'Welcome Section' },
-  // Info Strip
   { key: 'info_1_label', label: 'Info Strip 1 — Label', value: 'Ministry Type', group: 'Info Strip' },
   { key: 'info_1_value', label: 'Info Strip 1 — Value', value: 'Interdenominational', group: 'Info Strip' },
   { key: 'info_1_sub', label: 'Info Strip 1 — Subtitle', value: 'Open to all believers', group: 'Info Strip' },
@@ -31,7 +36,6 @@ const CONTENT_DEFAULTS: { key: string; label: string; value: string; group: stri
   { key: 'info_3_label', label: 'Info Strip 3 — Label', value: 'Based In', group: 'Info Strip' },
   { key: 'info_3_value', label: 'Info Strip 3 — Value', value: 'Nigeria', group: 'Info Strip' },
   { key: 'info_3_sub', label: 'Info Strip 3 — Subtitle', value: 'Reaching the nations', group: 'Info Strip' },
-  // Events Preview
   { key: 'events_eyebrow', label: 'Events — Eyebrow', value: 'Programs & Events', group: 'Events Section' },
   { key: 'events_heading', label: 'Events — Heading (before em)', value: 'Upcoming', group: 'Events Section' },
   { key: 'events_heading_em', label: 'Events — Heading (italic part)', value: 'Gatherings', group: 'Events Section' },
@@ -40,29 +44,24 @@ const CONTENT_DEFAULTS: { key: string; label: string; value: string; group: stri
   { key: 'conf_subtitle', label: 'Conference — Subtitle', value: 'Envoys of Light', group: 'Events Section' },
   { key: 'conf_venue', label: 'Conference — Venue', value: 'To Be Announced', group: 'Events Section' },
   { key: 'conf_attendance', label: 'Conference — Attendance', value: 'Free — Open to All', group: 'Events Section' },
-  // About Jesse
   { key: 'about_eyebrow', label: 'About — Eyebrow', value: 'Meet Our President', group: 'About Page' },
   { key: 'about_heading', label: 'About — Heading (HTML)', value: 'A Voice. A <em>Vision.</em><br />A Commission.', group: 'About Page' },
   { key: 'about_name', label: 'About — Name', value: 'Jesse Falodun', group: 'About Page' },
   { key: 'about_title', label: 'About — Title', value: 'President, Cherubs Cove', group: 'About Page' },
-  { key: 'about_bio_1', label: 'About — Bio Paragraph 1', value: 'Jesse Falodun was born and bred in Kano. He is a young man passionately given to God, with a burning concern for raising high the banner of Christ in every sector of society. His heart beats especially for raising burning youths for the Lord and for the propagation of the Gospel of Christ, particularly within the Cherubim and Seraphim Church.', group: 'About Page' },
-  { key: 'about_bio_2', label: 'About — Bio Paragraph 2', value: "One of Jesse's topmost commissions is seeing the C&S Church perfectly modeled after our Lord Jesus Christ and watching the Church rise to become the one rightly after the Father's heart. Committed to learning the ways of the Lord, he graduated from the International School of Ministry in 2021 and has continued in further pursuit of knowledge in God. He is a dedicated, fervent member of Spirit Life Cherubim and Seraphim Church, Ibadan, Nigeria.", group: 'About Page' },
-  { key: 'about_bio_3', label: 'About — Bio Paragraph 3', value: 'A graduate of Mass Communication from Kogi State University, Jesse is an On-Air Personality (OAP) whose voice has graced several radio stations across Nigeria, including Cool FM Kano, Radio Nigeria Kogi, Fusion FM and Premier FM in Ibadan. He is an anointed Spoken Word Artist who believes deeply in the transforming power of words.', group: 'About Page' },
-  { key: 'about_bio_4', label: 'About — Bio Paragraph 4', value: 'He strikes a unique balance across every dimension of life, engaging also in business as a graphics designer and personal and business branding expert. In his leisure, he loves to write, sing, and take long strolls and prayer walks. He is the convener of the International Quivers Conference.', group: 'About Page' },
+  { key: 'about_bio_1', label: 'About — Bio Paragraph 1', value: 'Jesse Falodun was born and bred in Kano...', group: 'About Page' },
+  { key: 'about_bio_2', label: 'About — Bio Paragraph 2', value: "One of Jesse's topmost commissions...", group: 'About Page' },
+  { key: 'about_bio_3', label: 'About — Bio Paragraph 3', value: 'A graduate of Mass Communication...', group: 'About Page' },
+  { key: 'about_bio_4', label: 'About — Bio Paragraph 4', value: 'He strikes a unique balance...', group: 'About Page' },
   { key: 'about_tags', label: 'About — Tags (comma-separated)', value: 'Ministry President,Conference Convener,OAP / Broadcaster,Spoken Word Artist,School of Ministry Graduate,C&S Church Member,Brand Designer,Writer', group: 'About Page' },
   { key: 'about_tags_highlight', label: 'About — Highlighted Tags', value: 'Ministry President,Conference Convener', group: 'About Page' },
   { key: 'about_cta_title', label: 'About — CTA Title', value: 'Connect with Jesse', group: 'About Page' },
   { key: 'about_cta_text', label: 'About — CTA Text', value: 'Want to invite Jesse to speak at your event or learn more about Cherubs Cove Ministry?', group: 'About Page' },
-  // Footer
   { key: 'footer_tagline', label: 'Footer — Tagline', value: 'An interdenominational ministry raising burning youths for the Lord.', group: 'Footer' },
-  // Hero
   { key: 'hero_verse', label: 'Hero — Scripture Verse', value: 'As arrows are in the hand of a mighty man; so are children of the youth.', group: 'Hero Section' },
   { key: 'hero_verse_ref', label: 'Hero — Scripture Reference', value: 'Psalm 127:4', group: 'Hero Section' },
-  // Contact
   { key: 'contact_email', label: 'Contact — Email', value: 'hello@cherubscove.org', group: 'Contact Info' },
   { key: 'contact_phone', label: 'Contact — Phone', value: '+234 000 000 0000', group: 'Contact Info' },
   { key: 'location', label: 'Contact — Location', value: 'Nigeria', group: 'Contact Info' },
-  // Social
   { key: 'facebook_url', label: 'Facebook URL', value: '', group: 'Social Links' },
   { key: 'instagram_url', label: 'Instagram URL', value: '', group: 'Social Links' },
   { key: 'youtube_url', label: 'YouTube URL', value: '', group: 'Social Links' },
@@ -70,56 +69,9 @@ const CONTENT_DEFAULTS: { key: string; label: string; value: string; group: stri
   { key: 'whatsapp_url', label: 'WhatsApp URL', value: '', group: 'Social Links' },
 ];
 
-/* ── Types ──────────────────────────────────────────────────────────────── */
-
-interface EventRecord {
-  id?: string;
-  title: string;
-  status: string;
-  date: string;
-  image_url: string;
-  description: string;
-  location: string;
-  time: string;
-}
-
-interface DownloadRecord {
-  id?: string;
-  title: string;
-  url: string;
-  description: string;
-  category: string;
-  type: string;
-}
-
-interface GalleryRecord {
-  id?: string;
-  title: string;
-  image_url: string;
-  caption: string;
-  category: string;
-}
-
-interface RegistrationRecord {
-  id: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone: string;
-  program: string;
-  location: string;
-  note: string;
-  created_at: string;
-}
-
-const emptyEvent: EventRecord = { title: '', status: 'upcoming', date: '', image_url: '', description: '', location: '', time: '' };
-const emptyDownload: DownloadRecord = { title: '', url: '', description: '', category: '', type: '' };
-const emptyGallery: GalleryRecord = { title: '', image_url: '', caption: '', category: '' };
-
 /* ── Component ──────────────────────────────────────────────────────────── */
 
 export default function AdminPage() {
-  // Auth
   const [session, setSession] = useState<Session | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -127,7 +79,6 @@ export default function AdminPage() {
   const [authMode, setAuthMode] = useState<'signIn' | 'signUp'>('signIn');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Data
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [downloads, setDownloads] = useState<DownloadRecord[]>([]);
   const [gallery, setGallery] = useState<GalleryRecord[]>([]);
@@ -137,18 +88,16 @@ export default function AdminPage() {
   const [contentValues, setContentValues] = useState<Record<string, string>>({});
   const [contentGroup, setContentGroup] = useState('all');
 
-  // Editing state
   const [editEvent, setEditEvent] = useState<EventRecord | null>(null);
   const [editDownload, setEditDownload] = useState<DownloadRecord | null>(null);
   const [editGallery, setEditGallery] = useState<GalleryRecord | null>(null);
 
-  // Admin invite
   const [inviteEmail, setInviteEmail] = useState('');
   const [invitePassword, setInvitePassword] = useState('');
 
-  // Registration sorting
   const [regSort, setRegSort] = useState<{ col: keyof RegistrationRecord; asc: boolean }>({ col: 'created_at', asc: false });
   const [regSearch, setRegSearch] = useState('');
+  const [regEventFilter, setRegEventFilter] = useState('all');
 
   /* ── Auth ─────────────────────────────────────────────────────────────── */
 
@@ -165,10 +114,7 @@ export default function AdminPage() {
   }, []);
 
   const handleAuth = async () => {
-    if (!email.trim() || !password.trim()) {
-      toast.error('Please enter both email and password.');
-      return;
-    }
+    if (!email.trim() || !password.trim()) { toast.error('Please enter both email and password.'); return; }
     setIsLoading(true);
     try {
       if (authMode === 'signIn') {
@@ -182,18 +128,12 @@ export default function AdminPage() {
       }
     } catch (err: any) {
       toast.error(err.message ?? 'Authentication failed.');
-    } finally {
-      setIsLoading(false);
-    }
+    } finally { setIsLoading(false); }
   };
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    setSession(null);
-    toast.info('Signed out.');
-  };
+  const handleSignOut = async () => { await supabase.auth.signOut(); setSession(null); toast.info('Signed out.'); };
 
-  /* ── Data Loading ────────────────────────────────────────────────────── */
+  /* ── Data Loading + Seeding ─────────────────────────────────────────── */
 
   const loadAllData = async () => {
     setIsLoading(true);
@@ -205,28 +145,41 @@ export default function AdminPage() {
         supabase.from('site_settings').select('*'),
         supabase.from('registrations').select('*').order('created_at', { ascending: false }),
       ]);
-      setEvents(ev.data ?? []);
-      setDownloads(dl.data ?? []);
+
+      // Auto-seed events if empty
+      if (!ev.data?.length) {
+        await supabase.from('events').insert(SEED_EVENTS);
+        const { data: seeded } = await supabase.from('events').select('*').order('date', { ascending: false });
+        setEvents(seeded ?? []);
+      } else {
+        setEvents(ev.data ?? []);
+      }
+
+      // Auto-seed downloads if empty
+      if (!dl.data?.length) {
+        await supabase.from('downloads').insert(SEED_DOWNLOADS);
+        const { data: seeded } = await supabase.from('downloads').select('*').order('title');
+        setDownloads(seeded ?? []);
+      } else {
+        setDownloads(dl.data ?? []);
+      }
+
       setGallery(gal.data ?? []);
       setRegistrations(reg.data ?? []);
+
       const settings = st.data ?? [];
       setSettingsMeta(settings.map((r: any) => ({ id: r.id, key: r.key, label: r.label, type: r.type })));
       const settingsMap = settings.reduce((acc: Record<string, string>, r: any) => { acc[r.key] = r.value ?? ''; return acc; }, {});
       setSiteSettings(settingsMap);
 
-      // Build content values from DB, filling missing with defaults
       const cv: Record<string, string> = {};
       CONTENT_DEFAULTS.forEach(cd => { cv[cd.key] = settingsMap[cd.key] ?? cd.value; });
       setContentValues(cv);
 
-      // Auto-seed missing content keys into DB
       const existingKeys = new Set(settings.map((r: any) => r.key));
       const missing = CONTENT_DEFAULTS.filter(cd => !existingKeys.has(cd.key));
       if (missing.length > 0) {
-        await supabase.from('site_settings').insert(
-          missing.map(cd => ({ key: cd.key, label: cd.label, value: cd.value, type: 'text' }))
-        );
-        // Reload to get IDs
+        await supabase.from('site_settings').insert(missing.map(cd => ({ key: cd.key, label: cd.label, value: cd.value, type: 'text' })));
         const { data: refreshed } = await supabase.from('site_settings').select('*');
         if (refreshed) {
           setSettingsMeta(refreshed.map((r: any) => ({ id: r.id, key: r.key, label: r.label, type: r.type })));
@@ -234,22 +187,17 @@ export default function AdminPage() {
           setSiteSettings(refreshedMap);
         }
       }
-    } finally {
-      setIsLoading(false);
-    }
+    } finally { setIsLoading(false); }
   };
 
   /* ── Save Content Setting ──────────────────────────────────────────── */
 
   const saveContentSetting = async (key: string) => {
     const meta = settingsMeta.find(s => s.key === key);
-    if (!meta) {
-      toast.error('Setting not found in DB. Try reloading.');
-      return;
-    }
+    if (!meta) { toast.error('Setting not found in DB. Try reloading.'); return; }
     const { error } = await supabase.from('site_settings').update({ value: contentValues[key] }).eq('id', meta.id);
     if (error) { toast.error(error.message); return; }
-    toast.success(`Saved.`);
+    toast.success('Saved.');
   };
 
   /* ── CRUD: Events ────────────────────────────────────────────────────── */
@@ -257,7 +205,13 @@ export default function AdminPage() {
   const saveEvent = async () => {
     if (!editEvent) return;
     if (!editEvent.title) { toast.error('Event title is required.'); return; }
-    const payload = { title: editEvent.title, status: editEvent.status, date: editEvent.date, image_url: editEvent.image_url, description: editEvent.description, location: editEvent.location, time: editEvent.time };
+    const payload: any = {
+      title: editEvent.title, status: editEvent.status, date: editEvent.date,
+      image_url: editEvent.image_url, description: editEvent.description,
+      location: editEvent.location, time: editEvent.time,
+      registration_enabled: editEvent.registration_enabled ?? false,
+      form_fields: editEvent.form_fields ?? '[]',
+    };
     if (editEvent.id) {
       const { error } = await supabase.from('events').update(payload).eq('id', editEvent.id);
       if (error) { toast.error(error.message); return; }
@@ -275,6 +229,14 @@ export default function AdminPage() {
     if (!confirm('Delete this event?')) return;
     await supabase.from('events').delete().eq('id', id);
     toast.success('Event deleted.');
+    loadAllData();
+  };
+
+  const toggleEventRegistration = async (ev: EventRecord) => {
+    const newVal = !ev.registration_enabled;
+    const { error } = await supabase.from('events').update({ registration_enabled: newVal }).eq('id', ev.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success(newVal ? 'Registration enabled.' : 'Registration disabled.');
     loadAllData();
   };
 
@@ -346,7 +308,7 @@ export default function AdminPage() {
     if (!inviteEmail.trim() || !invitePassword.trim()) { toast.error('Enter email and password for the new admin.'); return; }
     const { error } = await supabase.auth.signUp({ email: inviteEmail, password: invitePassword });
     if (error) { toast.error(error.message); return; }
-    toast.success(`Invite sent to ${inviteEmail}. They should check their email for verification.`);
+    toast.success(`Invite sent to ${inviteEmail}.`);
     setInviteEmail('');
     setInvitePassword('');
   };
@@ -355,10 +317,13 @@ export default function AdminPage() {
 
   const sortedRegistrations = useMemo(() => {
     let filtered = registrations;
+    if (regEventFilter !== 'all') {
+      filtered = filtered.filter(r => (r.event_title || r.program || '') === regEventFilter);
+    }
     if (regSearch.trim()) {
       const q = regSearch.toLowerCase();
       filtered = filtered.filter(r =>
-        `${r.first_name} ${r.last_name} ${r.email} ${r.program} ${r.location}`.toLowerCase().includes(q)
+        `${r.first_name} ${r.last_name} ${r.email} ${r.program} ${r.location} ${r.event_title || ''}`.toLowerCase().includes(q)
       );
     }
     return [...filtered].sort((a, b) => {
@@ -366,7 +331,7 @@ export default function AdminPage() {
       const bv = (b[regSort.col] ?? '') as string;
       return regSort.asc ? av.localeCompare(bv) : bv.localeCompare(av);
     });
-  }, [registrations, regSort, regSearch]);
+  }, [registrations, regSort, regSearch, regEventFilter]);
 
   const toggleSort = (col: keyof RegistrationRecord) => {
     setRegSort(prev => prev.col === col ? { col, asc: !prev.asc } : { col, asc: true });
@@ -374,11 +339,12 @@ export default function AdminPage() {
 
   const exportCSV = () => {
     if (!sortedRegistrations.length) { toast.error('No registrations to export.'); return; }
-    const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Program', 'Location', 'Note', 'Date'];
+    const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Event', 'Location', 'Note', 'Date', 'Extra Data'];
     const rows = sortedRegistrations.map(r => [
-      r.first_name, r.last_name, r.email, r.phone, r.program, r.location,
-      `"${(r.note || '').replace(/"/g, '""')}"`,
+      r.first_name, r.last_name, r.email, r.phone, r.event_title || r.program || '',
+      r.location, `"${(r.note || '').replace(/"/g, '""')}"`,
       new Date(r.created_at).toLocaleDateString(),
+      `"${(r.form_data || '').replace(/"/g, '""')}"`,
     ]);
     const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -398,6 +364,12 @@ export default function AdminPage() {
     loadAllData();
   };
 
+  /* ── Helper: parse form fields from event ──────────────────────────── */
+
+  const getFormFields = (ev: EventRecord): FormFieldConfig[] => {
+    try { return JSON.parse(ev.form_fields || '[]'); } catch { return []; }
+  };
+
   /* ── Render: Auth Screen ─────────────────────────────────────────────── */
 
   if (!session) {
@@ -405,9 +377,7 @@ export default function AdminPage() {
       <div className="min-h-screen bg-[#0F0D0A] flex items-center justify-center px-4">
         <Card className="w-full max-w-md bg-[#1A1814] border-[#E8620A]/20">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-['Playfair_Display'] text-white">
-              Admin Login
-            </CardTitle>
+            <CardTitle className="text-2xl font-['Playfair_Display'] text-white">Admin Login</CardTitle>
             <p className="text-sm text-[#B5A898] mt-1">Cherubs Cove Ministry</p>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -438,16 +408,21 @@ export default function AdminPage() {
   const inputCls = "bg-[#0F0D0A] border-[#2A2520] text-white placeholder:text-[#6B5E50] focus:border-[#E8620A]";
 
   const SortBtn = ({ col, label }: { col: keyof RegistrationRecord; label: string }) => (
-    <button onClick={() => toggleSort(col)} className={`text-[10px] font-bold tracking-[1.5px] uppercase inline-flex items-center gap-1 ${regSort.col === col ? 'text-primary' : 'text-[#6B5E50]'}`}>
+    <button onClick={() => toggleSort(col)} className={`text-[10px] font-bold tracking-[1.5px] uppercase inline-flex items-center gap-1 ${regSort.col === col ? 'text-[#E8620A]' : 'text-[#6B5E50]'}`}>
       {label} <ArrowUpDown size={10} />
     </button>
   );
+
+  // Get unique event names for registration filter
+  const regEventNames = useMemo(() => {
+    const names = new Set(registrations.map(r => r.event_title || r.program || '').filter(Boolean));
+    return Array.from(names);
+  }, [registrations]);
 
   return (
     <div className="min-h-screen bg-[#0F0D0A] text-white">
       <Navbar />
       <div className="pt-24 pb-16 px-4 max-w-6xl mx-auto">
-        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-['Playfair_Display'] text-white">Admin Dashboard</h1>
@@ -458,7 +433,6 @@ export default function AdminPage() {
           </Button>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
           {[
             { icon: Calendar, label: 'Events', count: events.length, color: '#E8620A' },
@@ -482,7 +456,6 @@ export default function AdminPage() {
           ))}
         </div>
 
-        {/* Tabs */}
         <Tabs defaultValue="events" className="space-y-6">
           <TabsList className="bg-[#1A1814] border border-[#2A2520] p-1 flex flex-wrap h-auto gap-1">
             <TabsTrigger value="events" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><Calendar size={14} className="mr-1.5" />Events</TabsTrigger>
@@ -507,13 +480,41 @@ export default function AdminPage() {
                   <h3 className="font-semibold text-[#E8620A]">{editEvent.id ? 'Edit Event' : 'New Event'}</h3>
                   <div className="grid md:grid-cols-2 gap-3">
                     <Input placeholder="Title *" value={editEvent.title} onChange={e => setEditEvent({ ...editEvent, title: e.target.value })} className={inputCls} />
-                    <Input placeholder="Status (upcoming/past)" value={editEvent.status} onChange={e => setEditEvent({ ...editEvent, status: e.target.value })} className={inputCls} />
-                    <Input placeholder="Date (YYYY-MM-DD)" type="date" value={editEvent.date} onChange={e => setEditEvent({ ...editEvent, date: e.target.value })} className={inputCls} />
+                    <select value={editEvent.status} onChange={e => setEditEvent({ ...editEvent, status: e.target.value })} className={`${inputCls} rounded-md px-3 py-2 border text-sm`}>
+                      <option value="upcoming">Upcoming</option>
+                      <option value="past">Past</option>
+                      <option value="recurring">Recurring</option>
+                    </select>
+                    <Input placeholder="Date" type="date" value={editEvent.date} onChange={e => setEditEvent({ ...editEvent, date: e.target.value })} className={inputCls} />
                     <Input placeholder="Time" value={editEvent.time} onChange={e => setEditEvent({ ...editEvent, time: e.target.value })} className={inputCls} />
                     <Input placeholder="Location" value={editEvent.location} onChange={e => setEditEvent({ ...editEvent, location: e.target.value })} className={inputCls} />
                     <Input placeholder="Image URL" value={editEvent.image_url} onChange={e => setEditEvent({ ...editEvent, image_url: e.target.value })} className={inputCls} />
                   </div>
                   <Textarea placeholder="Description" value={editEvent.description} onChange={e => setEditEvent({ ...editEvent, description: e.target.value })} className={inputCls} rows={3} />
+
+                  {/* Registration Toggle */}
+                  <div className="border border-[#2A2520] rounded-lg p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="text-sm font-medium text-[#B5A898]">Enable Registration</label>
+                        <p className="text-xs text-[#6B5E50]">Allow people to register for this event on the website</p>
+                      </div>
+                      <button
+                        onClick={() => setEditEvent({ ...editEvent, registration_enabled: !editEvent.registration_enabled })}
+                        className={`transition-colors ${editEvent.registration_enabled ? 'text-green-400' : 'text-[#6B5E50]'}`}
+                      >
+                        {editEvent.registration_enabled ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
+                      </button>
+                    </div>
+
+                    {editEvent.registration_enabled && (
+                      <FormFieldBuilder
+                        fields={getFormFields(editEvent)}
+                        onChange={(fields) => setEditEvent({ ...editEvent, form_fields: JSON.stringify(fields) })}
+                      />
+                    )}
+                  </div>
+
                   <div className="flex gap-2">
                     <Button onClick={saveEvent} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><Save size={14} className="mr-1" /> Save</Button>
                     <Button variant="outline" onClick={() => setEditEvent(null)} className="border-[#2A2520] text-[#B5A898]"><X size={14} className="mr-1" /> Cancel</Button>
@@ -531,11 +532,20 @@ export default function AdminPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h4 className="font-semibold text-white truncate">{ev.title}</h4>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${ev.status === 'upcoming' ? 'bg-green-900/40 text-green-400' : 'bg-gray-800 text-gray-400'}`}>{ev.status}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${ev.status === 'upcoming' ? 'bg-green-900/40 text-green-400' : ev.status === 'recurring' ? 'bg-blue-900/40 text-blue-400' : 'bg-gray-800 text-gray-400'}`}>{ev.status}</span>
+                        {ev.registration_enabled && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-[#E8620A]/20 text-[#E8620A]">Registration Open</span>
+                        )}
                       </div>
                       <p className="text-sm text-[#6B5E50] mt-0.5">{ev.date} {ev.time && `• ${ev.time}`} {ev.location && `• ${ev.location}`}</p>
+                      {ev.registration_enabled && (
+                        <p className="text-xs text-[#B5A898] mt-1">{getFormFields(ev).length} form field(s)</p>
+                      )}
                     </div>
                     <div className="flex gap-1 ml-2">
+                      <Button size="sm" variant="ghost" onClick={() => toggleEventRegistration(ev)} className={ev.registration_enabled ? 'text-green-400 hover:text-green-300' : 'text-[#6B5E50] hover:text-white'} title={ev.registration_enabled ? 'Disable registration' : 'Enable registration'}>
+                        {ev.registration_enabled ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
+                      </Button>
                       <Button size="sm" variant="ghost" onClick={() => setEditEvent({ ...ev })} className="text-[#B5A898] hover:text-white"><Edit2 size={14} /></Button>
                       <Button size="sm" variant="ghost" onClick={() => deleteEvent(ev.id!)} className="text-red-400 hover:text-red-300"><Trash2 size={14} /></Button>
                     </div>
@@ -551,7 +561,6 @@ export default function AdminPage() {
               <h2 className="text-xl font-semibold">Downloads</h2>
               <Button onClick={() => setEditDownload({ ...emptyDownload })} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><Plus size={16} className="mr-1" /> Add Download</Button>
             </div>
-
             {editDownload && (
               <Card className="bg-[#1A1814] border-[#E8620A]/30">
                 <CardContent className="p-5 space-y-3">
@@ -560,7 +569,12 @@ export default function AdminPage() {
                     <Input placeholder="Title *" value={editDownload.title} onChange={e => setEditDownload({ ...editDownload, title: e.target.value })} className={inputCls} />
                     <Input placeholder="URL *" value={editDownload.url} onChange={e => setEditDownload({ ...editDownload, url: e.target.value })} className={inputCls} />
                     <Input placeholder="Category" value={editDownload.category} onChange={e => setEditDownload({ ...editDownload, category: e.target.value })} className={inputCls} />
-                    <Input placeholder="Type (pdf, audio, etc.)" value={editDownload.type} onChange={e => setEditDownload({ ...editDownload, type: e.target.value })} className={inputCls} />
+                    <select value={editDownload.type} onChange={e => setEditDownload({ ...editDownload, type: e.target.value })} className={`${inputCls} rounded-md px-3 py-2 border text-sm`}>
+                      <option value="">Select type...</option>
+                      <option value="audio">Audio</option>
+                      <option value="video">Video</option>
+                      <option value="pdf">PDF / Document</option>
+                    </select>
                   </div>
                   <Textarea placeholder="Description" value={editDownload.description} onChange={e => setEditDownload({ ...editDownload, description: e.target.value })} className={inputCls} rows={2} />
                   <div className="flex gap-2">
@@ -570,9 +584,7 @@ export default function AdminPage() {
                 </CardContent>
               </Card>
             )}
-
-            {downloads.length === 0 && !editDownload && <p className="text-[#6B5E50] text-center py-8">No downloads yet. Click "Add Download" to create one.</p>}
-
+            {downloads.length === 0 && !editDownload && <p className="text-[#6B5E50] text-center py-8">No downloads yet.</p>}
             <div className="space-y-3">
               {downloads.map(dl => (
                 <Card key={dl.id} className="bg-[#1A1814] border-[#2A2520]">
@@ -597,7 +609,6 @@ export default function AdminPage() {
               <h2 className="text-xl font-semibold">Gallery</h2>
               <Button onClick={() => setEditGallery({ ...emptyGallery })} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><Plus size={16} className="mr-1" /> Add Image</Button>
             </div>
-
             {editGallery && (
               <Card className="bg-[#1A1814] border-[#E8620A]/30">
                 <CardContent className="p-5 space-y-3">
@@ -608,9 +619,7 @@ export default function AdminPage() {
                     <Input placeholder="Category" value={editGallery.category} onChange={e => setEditGallery({ ...editGallery, category: e.target.value })} className={inputCls} />
                     <Input placeholder="Caption" value={editGallery.caption} onChange={e => setEditGallery({ ...editGallery, caption: e.target.value })} className={inputCls} />
                   </div>
-                  {editGallery.image_url && (
-                    <img src={editGallery.image_url} alt="Preview" className="w-32 h-24 object-cover rounded-lg border border-[#2A2520]" />
-                  )}
+                  {editGallery.image_url && <img src={editGallery.image_url} alt="Preview" className="w-32 h-24 object-cover rounded-lg border border-[#2A2520]" />}
                   <div className="flex gap-2">
                     <Button onClick={saveGallery} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><Save size={14} className="mr-1" /> Save</Button>
                     <Button variant="outline" onClick={() => setEditGallery(null)} className="border-[#2A2520] text-[#B5A898]"><X size={14} className="mr-1" /> Cancel</Button>
@@ -618,9 +627,7 @@ export default function AdminPage() {
                 </CardContent>
               </Card>
             )}
-
-            {gallery.length === 0 && !editGallery && <p className="text-[#6B5E50] text-center py-8">No gallery items yet. Click "Add Image" to create one.</p>}
-
+            {gallery.length === 0 && !editGallery && <p className="text-[#6B5E50] text-center py-8">No gallery items yet.</p>}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {gallery.map(g => (
                 <Card key={g.id} className="bg-[#1A1814] border-[#2A2520] overflow-hidden">
@@ -644,22 +651,22 @@ export default function AdminPage() {
           <TabsContent value="registrations" className="space-y-4">
             <div className="flex flex-wrap justify-between items-center gap-3">
               <h2 className="text-xl font-semibold">Registrations ({sortedRegistrations.length})</h2>
-              <div className="flex gap-2">
-                <Input placeholder="Search registrations…" value={regSearch} onChange={e => setRegSearch(e.target.value)} className={`${inputCls} w-56`} />
+              <div className="flex gap-2 flex-wrap">
+                <select value={regEventFilter} onChange={e => setRegEventFilter(e.target.value)} className={`${inputCls} rounded-md px-3 py-2 border text-sm w-48`}>
+                  <option value="all">All Events</option>
+                  {regEventNames.map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+                <Input placeholder="Search…" value={regSearch} onChange={e => setRegSearch(e.target.value)} className={`${inputCls} w-48`} />
                 <Button onClick={exportCSV} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><FileDown size={14} className="mr-1" /> Export CSV</Button>
               </div>
             </div>
-
-            {/* Sort controls */}
             <div className="flex gap-4 flex-wrap">
               <SortBtn col="created_at" label="Date" />
               <SortBtn col="first_name" label="Name" />
-              <SortBtn col="program" label="Program" />
+              <SortBtn col="event_title" label="Event" />
               <SortBtn col="location" label="Location" />
             </div>
-
             {sortedRegistrations.length === 0 && <p className="text-[#6B5E50] text-center py-8">No registrations yet.</p>}
-
             <div className="space-y-2">
               {sortedRegistrations.map(r => (
                 <Card key={r.id} className="bg-[#1A1814] border-[#2A2520]">
@@ -668,7 +675,7 @@ export default function AdminPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h4 className="font-semibold text-white">{r.first_name} {r.last_name}</h4>
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-[#E8620A]/20 text-[#E8620A]">{r.program || 'No program'}</span>
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-[#E8620A]/20 text-[#E8620A]">{r.event_title || r.program || 'General'}</span>
                         </div>
                         <div className="flex gap-4 flex-wrap mt-1.5 text-sm text-[#6B5E50]">
                           <span>{r.email}</span>
@@ -676,6 +683,12 @@ export default function AdminPage() {
                           {r.location && <span>{r.location}</span>}
                         </div>
                         {r.note && <p className="text-xs text-[#B5A898] mt-2 italic">"{r.note}"</p>}
+                        {r.form_data && r.form_data !== '{}' && (
+                          <details className="mt-2">
+                            <summary className="text-xs text-[#6B5E50] cursor-pointer hover:text-[#B5A898]">View extra form data</summary>
+                            <pre className="text-xs text-[#B5A898] mt-1 bg-[#0F0D0A] p-2 rounded overflow-auto max-h-32">{JSON.stringify(JSON.parse(r.form_data || '{}'), null, 2)}</pre>
+                          </details>
+                        )}
                         <p className="text-[10px] text-[#6B5E50] mt-1">{new Date(r.created_at).toLocaleString()}</p>
                       </div>
                       <Button size="sm" variant="ghost" onClick={() => deleteRegistration(r.id)} className="text-red-400 hover:text-red-300"><Trash2 size={14} /></Button>
@@ -694,26 +707,15 @@ export default function AdminPage() {
                 <p className="text-sm text-[#6B5E50]">Edit all text on the website. Changes update in real-time.</p>
               </div>
             </div>
-
-            {/* Group filter */}
             <div className="flex gap-2 flex-wrap">
               {['all', ...Array.from(new Set(CONTENT_DEFAULTS.map(c => c.group)))].map(g => (
-                <button
-                  key={g}
-                  onClick={() => setContentGroup(g)}
-                  className={`text-[10px] font-bold tracking-[1.5px] uppercase px-3 py-1.5 rounded-full border transition-colors ${
-                    contentGroup === g ? 'bg-[#E8620A] text-white border-[#E8620A]' : 'border-[#2A2520] text-[#6B5E50] hover:border-[#E8620A]/50'
-                  }`}
-                >
+                <button key={g} onClick={() => setContentGroup(g)} className={`text-[10px] font-bold tracking-[1.5px] uppercase px-3 py-1.5 rounded-full border transition-colors ${contentGroup === g ? 'bg-[#E8620A] text-white border-[#E8620A]' : 'border-[#2A2520] text-[#6B5E50] hover:border-[#E8620A]/50'}`}>
                   {g === 'all' ? 'All' : g}
                 </button>
               ))}
             </div>
-
             <div className="space-y-3">
-              {CONTENT_DEFAULTS
-                .filter(cd => contentGroup === 'all' || cd.group === contentGroup)
-                .map(cd => (
+              {CONTENT_DEFAULTS.filter(cd => contentGroup === 'all' || cd.group === contentGroup).map(cd => (
                 <Card key={cd.key} className="bg-[#1A1814] border-[#2A2520]">
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between gap-2 mb-1.5">
@@ -722,18 +724,9 @@ export default function AdminPage() {
                     </div>
                     <div className="flex gap-2">
                       {(contentValues[cd.key] ?? '').length > 80 ? (
-                        <Textarea
-                          value={contentValues[cd.key] ?? ''}
-                          onChange={e => setContentValues(prev => ({ ...prev, [cd.key]: e.target.value }))}
-                          className={`flex-1 ${inputCls}`}
-                          rows={3}
-                        />
+                        <Textarea value={contentValues[cd.key] ?? ''} onChange={e => setContentValues(prev => ({ ...prev, [cd.key]: e.target.value }))} className={`flex-1 ${inputCls}`} rows={3} />
                       ) : (
-                        <Input
-                          value={contentValues[cd.key] ?? ''}
-                          onChange={e => setContentValues(prev => ({ ...prev, [cd.key]: e.target.value }))}
-                          className={`flex-1 ${inputCls}`}
-                        />
+                        <Input value={contentValues[cd.key] ?? ''} onChange={e => setContentValues(prev => ({ ...prev, [cd.key]: e.target.value }))} className={`flex-1 ${inputCls}`} />
                       )}
                       <Button onClick={() => saveContentSetting(cd.key)} className="bg-[#E8620A] hover:bg-[#cf5709] text-white self-start"><Save size={14} /></Button>
                     </div>
@@ -746,7 +739,7 @@ export default function AdminPage() {
           {/* ── Settings Tab ─────────────────────────────────────────────── */}
           <TabsContent value="settings" className="space-y-4">
             <h2 className="text-xl font-semibold">Site Settings</h2>
-            <p className="text-sm text-[#6B5E50]">Changes here update the website in real-time (contact info, hero scripture, social links, etc.)</p>
+            <p className="text-sm text-[#6B5E50]">Changes here update the website in real-time.</p>
             <div className="space-y-4">
               {settingsMeta.filter(m => !CONTENT_DEFAULTS.some(cd => cd.key === m.key)).map(meta => (
                 <Card key={meta.id} className="bg-[#1A1814] border-[#2A2520]">
@@ -754,21 +747,12 @@ export default function AdminPage() {
                     <label className="text-sm font-medium text-[#B5A898] block mb-1.5">{meta.label}</label>
                     <div className="flex gap-2">
                       {meta.type === 'boolean' ? (
-                        <select
-                          value={siteSettings[meta.key] ?? ''}
-                          onChange={e => setSiteSettings(prev => ({ ...prev, [meta.key]: e.target.value }))}
-                          className={`flex-1 rounded-md px-3 py-2 ${inputCls} border`}
-                        >
+                        <select value={siteSettings[meta.key] ?? ''} onChange={e => setSiteSettings(prev => ({ ...prev, [meta.key]: e.target.value }))} className={`flex-1 rounded-md px-3 py-2 ${inputCls} border`}>
                           <option value="true">Yes</option>
                           <option value="false">No</option>
                         </select>
                       ) : (
-                        <Input
-                          value={siteSettings[meta.key] ?? ''}
-                          onChange={e => setSiteSettings(prev => ({ ...prev, [meta.key]: e.target.value }))}
-                          className={`flex-1 ${inputCls}`}
-                          type={meta.type === 'email' ? 'email' : meta.type === 'url' ? 'url' : 'text'}
-                        />
+                        <Input value={siteSettings[meta.key] ?? ''} onChange={e => setSiteSettings(prev => ({ ...prev, [meta.key]: e.target.value }))} className={`flex-1 ${inputCls}`} type={meta.type === 'email' ? 'email' : meta.type === 'url' ? 'url' : 'text'} />
                       )}
                       <Button onClick={() => saveSetting(meta.key)} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><Save size={14} /></Button>
                     </div>
