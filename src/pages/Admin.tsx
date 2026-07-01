@@ -538,6 +538,14 @@ export default function AdminPage() {
       {label} <ArrowUpDown size={10} />
     </button>
   );
+
+  const Field = ({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) => (
+    <div className="space-y-1">
+      <label className="text-[11px] font-semibold tracking-wide uppercase text-[#B5A898]">{label}</label>
+      {children}
+      {hint && <p className="text-[10px] text-[#6B5E50]">{hint}</p>}
+    </div>
+  );
   return (
     <div className="min-h-screen bg-[#0F0D0A] text-white">
       <Navbar />
