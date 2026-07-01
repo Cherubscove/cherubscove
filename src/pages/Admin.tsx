@@ -715,17 +715,27 @@ export default function AdminPage() {
                 <CardContent className="p-5 space-y-3">
                   <h3 className="font-semibold text-[#E8620A]">{editDownload.id ? 'Edit Download' : 'New Download'}</h3>
                   <div className="grid md:grid-cols-2 gap-3">
-                    <Input placeholder="Title *" value={editDownload.title} onChange={e => setEditDownload({ ...editDownload, title: e.target.value })} className={inputCls} />
-                    <Input placeholder="URL *" value={editDownload.url} onChange={e => setEditDownload({ ...editDownload, url: e.target.value })} className={inputCls} />
-                    <Input placeholder="Category" value={editDownload.category} onChange={e => setEditDownload({ ...editDownload, category: e.target.value })} className={inputCls} />
-                    <select value={editDownload.type} onChange={e => setEditDownload({ ...editDownload, type: e.target.value })} className={`${inputCls} rounded-md px-3 py-2 border text-sm`}>
-                      <option value="">Select type...</option>
-                      <option value="audio">Audio</option>
-                      <option value="video">Video</option>
-                      <option value="pdf">PDF / Document</option>
-                    </select>
+                    <Field label="File Title *" hint="Displayed as the download's name on the site">
+                      <Input placeholder="e.g. Walking in Your Kingdom Identity" value={editDownload.title} onChange={e => setEditDownload({ ...editDownload, title: e.target.value })} className={inputCls} />
+                    </Field>
+                    <Field label="Download URL *" hint="Direct link to the file (mp3, mp4, pdf, YouTube, Drive, etc.)">
+                      <Input placeholder="https://…" value={editDownload.url} onChange={e => setEditDownload({ ...editDownload, url: e.target.value })} className={inputCls} />
+                    </Field>
+                    <Field label="Category" hint="Grouping label, e.g. Sermon, Teaching, Manual">
+                      <Input placeholder="Sermon" value={editDownload.category} onChange={e => setEditDownload({ ...editDownload, category: e.target.value })} className={inputCls} />
+                    </Field>
+                    <Field label="File Type" hint="Icon shown on the frontend card">
+                      <select value={editDownload.type} onChange={e => setEditDownload({ ...editDownload, type: e.target.value })} className={`${inputCls} rounded-md px-3 py-2 border text-sm w-full`}>
+                        <option value="">Select type…</option>
+                        <option value="audio">Audio</option>
+                        <option value="video">Video</option>
+                        <option value="pdf">PDF / Document</option>
+                      </select>
+                    </Field>
                   </div>
-                  <Textarea placeholder="Description" value={editDownload.description} onChange={e => setEditDownload({ ...editDownload, description: e.target.value })} className={inputCls} rows={2} />
+                  <Field label="Description" hint="Short line shown under the title (speaker, event, series…)">
+                    <Textarea placeholder="Jesse Falodun — Quiver's Immersion 2025" value={editDownload.description} onChange={e => setEditDownload({ ...editDownload, description: e.target.value })} className={inputCls} rows={2} />
+                  </Field>
                   <div className="flex gap-2">
                     <Button onClick={saveDownload} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><Save size={14} className="mr-1" /> Save</Button>
                     <Button variant="outline" onClick={() => setEditDownload(null)} className="border-[#2A2520] text-[#B5A898]"><X size={14} className="mr-1" /> Cancel</Button>
