@@ -513,12 +513,42 @@ export default function AdminPage() {
                       <option value="past">Past</option>
                       <option value="recurring">Recurring</option>
                     </select>
-                    <Input placeholder="Date" type="date" value={editEvent.date} onChange={e => setEditEvent({ ...editEvent, date: e.target.value })} className={inputCls} />
-                    <Input placeholder="Time" value={editEvent.time} onChange={e => setEditEvent({ ...editEvent, time: e.target.value })} className={inputCls} />
-                    <Input placeholder="Location" value={editEvent.location} onChange={e => setEditEvent({ ...editEvent, location: e.target.value })} className={inputCls} />
-                    <Input placeholder="Image URL" value={editEvent.image_url} onChange={e => setEditEvent({ ...editEvent, image_url: e.target.value })} className={inputCls} />
+                    <div>
+                      <label className="text-[10px] text-[#6B5E50] uppercase tracking-wider">Start Date</label>
+                      <Input type="date" value={editEvent.date} onChange={e => setEditEvent({ ...editEvent, date: e.target.value })} className={inputCls} />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-[#6B5E50] uppercase tracking-wider">End Date <span className="text-[#6B5E50]/70">(leave empty for single-day)</span></label>
+                      <Input type="date" value={editEvent.end_date || ''} onChange={e => setEditEvent({ ...editEvent, end_date: e.target.value })} className={inputCls} />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-[#6B5E50] uppercase tracking-wider">Start Time</label>
+                      <Input placeholder="e.g. 10:00 AM" value={editEvent.time} onChange={e => setEditEvent({ ...editEvent, time: e.target.value })} className={inputCls} />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-[#6B5E50] uppercase tracking-wider">End Time</label>
+                      <Input placeholder="e.g. 4:00 PM" value={editEvent.end_time || ''} onChange={e => setEditEvent({ ...editEvent, end_time: e.target.value })} className={inputCls} />
+                    </div>
+                    <Input placeholder="Location" value={editEvent.location} onChange={e => setEditEvent({ ...editEvent, location: e.target.value })} className={`${inputCls} md:col-span-2`} />
                   </div>
+
+                  {/* Image: file upload OR URL */}
+                  <div className="border border-[#2A2520] rounded-lg p-4 space-y-3">
+                    <label className="text-sm font-medium text-[#B5A898]">Event Image</label>
+                    <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+                      <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-[#E8620A] hover:bg-[#cf5709] text-white rounded-md text-sm font-medium">
+                        {uploadingImage ? 'Uploading…' : 'Upload File'}
+                        <input type="file" accept="image/*" className="hidden" disabled={uploadingImage}
+                          onChange={e => e.target.files?.[0] && uploadEventImage(e.target.files[0])} />
+                      </label>
+                      <span className="text-xs text-[#6B5E50]">or paste an image URL</span>
+                    </div>
+                    <Input placeholder="https://…" value={editEvent.image_url} onChange={e => setEditEvent({ ...editEvent, image_url: e.target.value })} className={inputCls} />
+                    {editEvent.image_url && <img src={editEvent.image_url} alt="Preview" className="w-40 h-28 object-cover rounded-md border border-[#2A2520]" />}
+                  </div>
+
                   <Textarea placeholder="Description" value={editEvent.description} onChange={e => setEditEvent({ ...editEvent, description: e.target.value })} className={inputCls} rows={3} />
+
 
                   {/* Registration Toggle */}
                   <div className="border border-[#2A2520] rounded-lg p-4 space-y-3">
