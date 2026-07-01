@@ -38,7 +38,7 @@ export default function EventsPreview() {
           setMiniEvents(recurring.slice(0, 2).map((e: any) => ({
             lbl: e.status || 'Event',
             val: e.title,
-            sub: `${e.date || ''} ${e.time ? `· ${e.time}` : ''} ${e.location ? `· ${e.location}` : ''}`.trim(),
+            sub: [formatEventDateRange(e), e.location].filter(Boolean).join(' · '),
           })));
         }
       }
