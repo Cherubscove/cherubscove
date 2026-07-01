@@ -4,6 +4,7 @@ import { ArrowRight, Calendar, Clock } from 'lucide-react';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
 import { useSiteSettings, getSetting } from '@/hooks/useSiteSettings';
 import { supabase } from '@/lib/supabaseClient';
+import { formatEventDateRange } from '@/lib/adminTypes';
 
 type MiniEvent = { lbl: string; val: string; sub: string };
 
@@ -37,7 +38,7 @@ export default function EventsPreview() {
           setMiniEvents(recurring.slice(0, 2).map((e: any) => ({
             lbl: e.status || 'Event',
             val: e.title,
-            sub: `${e.date || ''} ${e.time ? `· ${e.time}` : ''} ${e.location ? `· ${e.location}` : ''}`.trim(),
+            sub: [formatEventDateRange(e), e.location].filter(Boolean).join(' · '),
           })));
         }
       }

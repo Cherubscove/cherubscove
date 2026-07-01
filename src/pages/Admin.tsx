@@ -19,7 +19,7 @@ import type {
   EventRecord, DownloadRecord, GalleryRecord, RegistrationRecord, FormFieldConfig,
   emptyEvent as _ee, emptyDownload as _ed, emptyGallery as _eg,
 } from '@/lib/adminTypes';
-import { emptyEvent, emptyDownload, emptyGallery } from '@/lib/adminTypes';
+import { emptyEvent, emptyDownload, emptyGallery, formatEventDateRange } from '@/lib/adminTypes';
 
 /* ── Content Keys (seed defaults for every editable frontend text) ────── */
 
@@ -97,12 +97,19 @@ export default function AdminPage() {
 
   const [regSort, setRegSort] = useState<{ col: keyof RegistrationRecord; asc: boolean }>({ col: 'created_at', asc: false });
   const [regSearch, setRegSearch] = useState('');
-  const [regEventFilter, setRegEventFilter] = useState('all');
+  const [regSelectedGroupKey, setRegSelectedGroupKey] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
-  // Get unique event names for registration filter (must be before early return)
-  const regEventNames = useMemo(() => {
-    const names = new Set(registrations.map(r => r.event_title || r.program || '').filter(Boolean));
-    return Array.from(names);
+  // Group registrations by event
+  const regGroups = useMemo(() => {
+    const map = new Map<string, { key: string; title: string; items: RegistrationRecord[] }>();
+    registrations.forEach(r => {
+      const key = r.event_id || r.event_title || r.program || 'general';
+      const title = r.event_title || r.program || 'General Registrations';
+      if (!map.has(key)) map.set(key, { key, title, items: [] });
+      map.get(key)!.items.push(r);
+    });
+    return Array.from(map.values()).sort((a, b) => b.items.length - a.items.length);
   }, [registrations]);
 
   /* ── Auth ─────────────────────────────────────────────────────────────── */
@@ -212,23 +219,44 @@ export default function AdminPage() {
     if (!editEvent) return;
     if (!editEvent.title) { toast.error('Event title is required.'); return; }
     const payload: any = {
-      title: editEvent.title, status: editEvent.status, date: editEvent.date,
+      title: editEvent.title, status: editEvent.status,
+      date: editEvent.date || null,
+      end_date: editEvent.end_date || null,
+      time: editEvent.time || null,
+      end_time: editEvent.end_time || null,
       image_url: editEvent.image_url, description: editEvent.description,
-      location: editEvent.location, time: editEvent.time,
+      location: editEvent.location,
       registration_enabled: editEvent.registration_enabled ?? false,
       form_fields: editEvent.form_fields ?? '[]',
     };
     if (editEvent.id) {
       const { error } = await supabase.from('events').update(payload).eq('id', editEvent.id);
-      if (error) { toast.error(error.message); return; }
+      if (error) { toast.error(error.message + (error.message.includes('column') ? ' — Run the migration in the note below.' : '')); return; }
       toast.success('Event updated.');
     } else {
       const { error } = await supabase.from('events').insert(payload);
-      if (error) { toast.error(error.message); return; }
+      if (error) { toast.error(error.message + (error.message.includes('column') ? ' — Run the migration in the note below.' : '')); return; }
       toast.success('Event created.');
     }
     setEditEvent(null);
     loadAllData();
+  };
+
+  const uploadEventImage = async (file: File) => {
+    if (!editEvent) return;
+    setUploadingImage(true);
+    try {
+      const ext = file.name.split('.').pop() || 'jpg';
+      const path = `events/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('event-images').upload(path, file, { upsert: false });
+      if (upErr) {
+        toast.error(`Upload failed: ${upErr.message}. Create a public bucket named "event-images" in Supabase Storage.`);
+        return;
+      }
+      const { data } = supabase.storage.from('event-images').getPublicUrl(path);
+      setEditEvent({ ...editEvent, image_url: data.publicUrl });
+      toast.success('Image uploaded.');
+    } finally { setUploadingImage(false); }
   };
 
   const deleteEvent = async (id: string) => {
@@ -323,8 +351,9 @@ export default function AdminPage() {
 
   const sortedRegistrations = useMemo(() => {
     let filtered = registrations;
-    if (regEventFilter !== 'all') {
-      filtered = filtered.filter(r => (r.event_title || r.program || '') === regEventFilter);
+    if (regSelectedGroupKey) {
+      const grp = regGroups.find(g => g.key === regSelectedGroupKey);
+      filtered = grp ? grp.items : [];
     }
     if (regSearch.trim()) {
       const q = regSearch.toLowerCase();
@@ -337,7 +366,7 @@ export default function AdminPage() {
       const bv = (b[regSort.col] ?? '') as string;
       return regSort.asc ? av.localeCompare(bv) : bv.localeCompare(av);
     });
-  }, [registrations, regSort, regSearch, regEventFilter]);
+  }, [registrations, regSort, regSearch, regSelectedGroupKey, regGroups]);
 
   const toggleSort = (col: keyof RegistrationRecord) => {
     setRegSort(prev => prev.col === col ? { col, asc: !prev.asc } : { col, asc: true });
@@ -484,12 +513,42 @@ export default function AdminPage() {
                       <option value="past">Past</option>
                       <option value="recurring">Recurring</option>
                     </select>
-                    <Input placeholder="Date" type="date" value={editEvent.date} onChange={e => setEditEvent({ ...editEvent, date: e.target.value })} className={inputCls} />
-                    <Input placeholder="Time" value={editEvent.time} onChange={e => setEditEvent({ ...editEvent, time: e.target.value })} className={inputCls} />
-                    <Input placeholder="Location" value={editEvent.location} onChange={e => setEditEvent({ ...editEvent, location: e.target.value })} className={inputCls} />
-                    <Input placeholder="Image URL" value={editEvent.image_url} onChange={e => setEditEvent({ ...editEvent, image_url: e.target.value })} className={inputCls} />
+                    <div>
+                      <label className="text-[10px] text-[#6B5E50] uppercase tracking-wider">Start Date</label>
+                      <Input type="date" value={editEvent.date} onChange={e => setEditEvent({ ...editEvent, date: e.target.value })} className={inputCls} />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-[#6B5E50] uppercase tracking-wider">End Date <span className="text-[#6B5E50]/70">(leave empty for single-day)</span></label>
+                      <Input type="date" value={editEvent.end_date || ''} onChange={e => setEditEvent({ ...editEvent, end_date: e.target.value })} className={inputCls} />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-[#6B5E50] uppercase tracking-wider">Start Time</label>
+                      <Input placeholder="e.g. 10:00 AM" value={editEvent.time} onChange={e => setEditEvent({ ...editEvent, time: e.target.value })} className={inputCls} />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-[#6B5E50] uppercase tracking-wider">End Time</label>
+                      <Input placeholder="e.g. 4:00 PM" value={editEvent.end_time || ''} onChange={e => setEditEvent({ ...editEvent, end_time: e.target.value })} className={inputCls} />
+                    </div>
+                    <Input placeholder="Location" value={editEvent.location} onChange={e => setEditEvent({ ...editEvent, location: e.target.value })} className={`${inputCls} md:col-span-2`} />
                   </div>
+
+                  {/* Image: file upload OR URL */}
+                  <div className="border border-[#2A2520] rounded-lg p-4 space-y-3">
+                    <label className="text-sm font-medium text-[#B5A898]">Event Image</label>
+                    <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+                      <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-[#E8620A] hover:bg-[#cf5709] text-white rounded-md text-sm font-medium">
+                        {uploadingImage ? 'Uploading…' : 'Upload File'}
+                        <input type="file" accept="image/*" className="hidden" disabled={uploadingImage}
+                          onChange={e => e.target.files?.[0] && uploadEventImage(e.target.files[0])} />
+                      </label>
+                      <span className="text-xs text-[#6B5E50]">or paste an image URL</span>
+                    </div>
+                    <Input placeholder="https://…" value={editEvent.image_url} onChange={e => setEditEvent({ ...editEvent, image_url: e.target.value })} className={inputCls} />
+                    {editEvent.image_url && <img src={editEvent.image_url} alt="Preview" className="w-40 h-28 object-cover rounded-md border border-[#2A2520]" />}
+                  </div>
+
                   <Textarea placeholder="Description" value={editEvent.description} onChange={e => setEditEvent({ ...editEvent, description: e.target.value })} className={inputCls} rows={3} />
+
 
                   {/* Registration Toggle */}
                   <div className="border border-[#2A2520] rounded-lg p-4 space-y-3">
@@ -536,7 +595,7 @@ export default function AdminPage() {
                           <span className="text-xs px-2 py-0.5 rounded-full bg-[#E8620A]/20 text-[#E8620A]">Registration Open</span>
                         )}
                       </div>
-                      <p className="text-sm text-[#6B5E50] mt-0.5">{ev.date} {ev.time && `• ${ev.time}`} {ev.location && `• ${ev.location}`}</p>
+                      <p className="text-sm text-[#6B5E50] mt-0.5">{formatEventDateRange(ev) || 'No date set'}{ev.location && ` • ${ev.location}`}</p>
                       {ev.registration_enabled && (
                         <p className="text-xs text-[#B5A898] mt-1">{getFormFields(ev).length} form field(s)</p>
                       )}
@@ -648,25 +707,51 @@ export default function AdminPage() {
 
           {/* ── Registrations Tab ─────────────────────────────────────────── */}
           <TabsContent value="registrations" className="space-y-4">
-            <div className="flex flex-wrap justify-between items-center gap-3">
-              <h2 className="text-xl font-semibold">Registrations ({sortedRegistrations.length})</h2>
-              <div className="flex gap-2 flex-wrap">
-                <select value={regEventFilter} onChange={e => setRegEventFilter(e.target.value)} className={`${inputCls} rounded-md px-3 py-2 border text-sm w-48`}>
-                  <option value="all">All Events</option>
-                  {regEventNames.map(n => <option key={n} value={n}>{n}</option>)}
-                </select>
-                <Input placeholder="Search…" value={regSearch} onChange={e => setRegSearch(e.target.value)} className={`${inputCls} w-48`} />
-                <Button onClick={exportCSV} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><FileDown size={14} className="mr-1" /> Export CSV</Button>
-              </div>
-            </div>
-            <div className="flex gap-4 flex-wrap">
-              <SortBtn col="created_at" label="Date" />
-              <SortBtn col="first_name" label="Name" />
-              <SortBtn col="event_title" label="Event" />
-              <SortBtn col="location" label="Location" />
-            </div>
-            {sortedRegistrations.length === 0 && <p className="text-[#6B5E50] text-center py-8">No registrations yet.</p>}
-            <div className="space-y-2">
+            {!regSelectedGroupKey ? (
+              <>
+                <div className="flex justify-between items-center flex-wrap gap-3">
+                  <h2 className="text-xl font-semibold">Registrations by Event</h2>
+                  <p className="text-sm text-[#6B5E50]">Click an event to see its registrations.</p>
+                </div>
+                {regGroups.length === 0 && <p className="text-[#6B5E50] text-center py-8">No registrations yet.</p>}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {regGroups.map(g => (
+                    <button key={g.key} onClick={() => setRegSelectedGroupKey(g.key)}
+                      className="text-left bg-[#1A1814] border border-[#2A2520] hover:border-[#E8620A]/60 rounded-lg p-5 transition-colors">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-white truncate">{g.title}</h3>
+                          <p className="text-xs text-[#6B5E50] mt-1">Click to view registrations</p>
+                        </div>
+                        <div className="bg-[#E8620A]/20 text-[#E8620A] rounded-full px-3 py-1 text-sm font-bold">
+                          {g.items.length}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex flex-wrap justify-between items-center gap-3">
+                  <div className="flex items-center gap-3">
+                    <Button variant="outline" size="sm" onClick={() => { setRegSelectedGroupKey(null); setRegSearch(''); }} className="border-[#2A2520] text-[#B5A898]">← Back</Button>
+                    <h2 className="text-xl font-semibold">
+                      {regGroups.find(g => g.key === regSelectedGroupKey)?.title} ({sortedRegistrations.length})
+                    </h2>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    <Input placeholder="Search…" value={regSearch} onChange={e => setRegSearch(e.target.value)} className={`${inputCls} w-48`} />
+                    <Button onClick={exportCSV} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><FileDown size={14} className="mr-1" /> Export CSV</Button>
+                  </div>
+                </div>
+                <div className="flex gap-4 flex-wrap">
+                  <SortBtn col="created_at" label="Date" />
+                  <SortBtn col="first_name" label="Name" />
+                  <SortBtn col="location" label="Location" />
+                </div>
+                {sortedRegistrations.length === 0 && <p className="text-[#6B5E50] text-center py-8">No registrations match.</p>}
+                <div className="space-y-2">
               {sortedRegistrations.map(r => (
                 <Card key={r.id} className="bg-[#1A1814] border-[#2A2520]">
                   <CardContent className="p-4">
@@ -695,7 +780,9 @@ export default function AdminPage() {
                   </CardContent>
                 </Card>
               ))}
-            </div>
+                </div>
+              </>
+            )}
           </TabsContent>
 
           {/* ── Content Tab ──────────────────────────────────────────────── */}
