@@ -1,8 +1,17 @@
-/* Seed data for events and downloads tables */
+/* Seed data for events, downloads and gallery collections */
+
+export const SEED_GALLERIES = [
+  { id: 'quivers-arrows-2023', name: "Quiver's Arrows 2023", description: 'The inaugural edition — a prophetic call to the next generation.' },
+  { id: 'quivers-awakening-2023', name: "Quiver's Awakening 2023", description: 'Northern Edition — expanding the reach across the nation.' },
+  { id: 'quivers-forge-2024', name: "Quiver's Forge 2024", description: 'A furnace of refining — shaping vessels for honour.' },
+  { id: 'quivers-immersion-2025', name: "Quiver's Immersion 2025", description: 'Diving deep into the presence and purpose of God.' },
+];
+
 
 export const SEED_EVENTS = [
   {
-    title: '"Arrows"',
+    title: "Quiver's Conference 2023",
+    theme: 'Arrows',
     status: 'past',
     date: '2023-04-15',
     description: 'Main Edition',
@@ -13,7 +22,8 @@ export const SEED_EVENTS = [
     form_fields: '[]',
   },
   {
-    title: '"Awakening"',
+    title: "Quiver's Conference 2023 (Northern)",
+    theme: 'Awakening',
     status: 'past',
     date: '2023-09-10',
     description: 'Northern Edition',
@@ -24,7 +34,8 @@ export const SEED_EVENTS = [
     form_fields: '[]',
   },
   {
-    title: '"Forge"',
+    title: "Quiver's Conference 2024",
+    theme: 'Forge',
     status: 'past',
     date: '2024-04-20',
     description: 'Annual Conference',
@@ -35,7 +46,8 @@ export const SEED_EVENTS = [
     form_fields: '[]',
   },
   {
-    title: '"Immersion"',
+    title: "Quiver's Conference 2025",
+    theme: 'Immersion',
     status: 'past',
     date: '2025-04-12',
     description: 'Annual Conference',
@@ -46,7 +58,8 @@ export const SEED_EVENTS = [
     form_fields: '[]',
   },
   {
-    title: '"Envoys of Light"',
+    title: "Quiver's Conference 2026",
+    theme: 'Envoys of Light',
     status: 'upcoming',
     date: '2026-04-18',
     description: 'International Quivers Conference 2026 continues a legacy of encounters that have shaped lives, ignited faith, and released voices across generations.',
@@ -65,6 +78,7 @@ export const SEED_EVENTS = [
   },
   {
     title: 'First Saturday Service',
+    theme: '',
     status: 'recurring',
     date: '2026-01-01',
     description: 'Monthly Gathering',

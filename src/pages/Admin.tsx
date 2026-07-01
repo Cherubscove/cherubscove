@@ -14,9 +14,9 @@ import {
   Calendar, Download, Image, Settings, Users, LogOut, Plus, Trash2, Edit2, Save, X, Eye, EyeOff, FileDown, ArrowUpDown, ClipboardList, FileText, ToggleLeft, ToggleRight,
 } from 'lucide-react';
 import FormFieldBuilder from '@/components/admin/FormFieldBuilder';
-import { SEED_EVENTS, SEED_DOWNLOADS } from '@/lib/seedData';
+import { SEED_EVENTS, SEED_DOWNLOADS, SEED_GALLERIES } from '@/lib/seedData';
 import type {
-  EventRecord, DownloadRecord, GalleryRecord, RegistrationRecord, FormFieldConfig,
+  EventRecord, DownloadRecord, GalleryRecord, RegistrationRecord, FormFieldConfig, GalleryCollection,
   emptyEvent as _ee, emptyDownload as _ed, emptyGallery as _eg,
 } from '@/lib/adminTypes';
 import { emptyEvent, emptyDownload, emptyGallery, formatEventDateRange } from '@/lib/adminTypes';
@@ -103,11 +103,14 @@ export default function AdminPage() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingGalleryImage, setUploadingGalleryImage] = useState(false);
 
-  // Distinct gallery collection names — used for admin dropdown & frontend grouping
-  const galleryCollections = useMemo(
-    () => Array.from(new Set(gallery.map(g => (g.category || '').trim()).filter(Boolean))).sort(),
-    [gallery]
-  );
+  // Gallery collections (stored as JSON in site_settings["galleries_json"])
+  const [galleries, setGalleries] = useState<GalleryCollection[]>([]);
+  const [selectedGalleryId, setSelectedGalleryId] = useState<string | null>(null);
+  const [editCollection, setEditCollection] = useState<GalleryCollection | null>(null);
+  const selectedGallery = galleries.find(g => g.id === selectedGalleryId) || null;
+  const imagesInSelectedGallery = selectedGallery
+    ? gallery.filter(g => (g.category || '').trim() === selectedGallery.name)
+    : [];
 
   // Group registrations by event
   const regGroups = useMemo(() => {
@@ -212,6 +215,7 @@ export default function AdminPage() {
         }
       }
       await loadAdminList(finalSettings);
+      await loadGalleries(finalSettings);
     } finally { setIsLoading(false); }
   };
 
@@ -231,7 +235,9 @@ export default function AdminPage() {
     if (!editEvent) return;
     if (!editEvent.title) { toast.error('Event title is required.'); return; }
     const payload: any = {
-      title: editEvent.title, status: editEvent.status,
+      title: editEvent.title,
+      theme: editEvent.theme || null,
+      status: editEvent.status,
       date: editEvent.date || null,
       end_date: editEvent.end_date || null,
       time: editEvent.time || null,
@@ -389,10 +395,11 @@ export default function AdminPage() {
     if (!parsed.some(a => a.email.toLowerCase() === SUPER_ADMIN_EMAIL)) {
       parsed.unshift({ email: SUPER_ADMIN_EMAIL, role: 'super_admin' });
       const payload = JSON.stringify(parsed);
-      if (row) {
-        await supabase.from('site_settings').update({ value: payload }).eq('id', row.id);
-      } else {
-        await supabase.from('site_settings').insert({ key: ADMIN_LIST_KEY, label: 'Admin Users (JSON)', value: payload, type: 'text' });
+      const res = row
+        ? await supabase.from('site_settings').update({ value: payload }).eq('id', row.id)
+        : await supabase.from('site_settings').insert({ key: ADMIN_LIST_KEY, label: 'Admin Users (JSON)', value: payload, type: 'text' });
+      if (res.error) {
+        toast.error(`Could not persist admin list: ${res.error.message}. Check site_settings RLS policies.`);
       }
     }
     setAdminList(parsed);
@@ -438,7 +445,33 @@ export default function AdminPage() {
     toast.success('Role updated.');
   };
 
+  const GALLERIES_KEY = 'galleries_json';
+  const persistGalleries = async (next: GalleryCollection[]) => {
+    const { data: existing } = await supabase.from('site_settings').select('id').eq('key', GALLERIES_KEY).maybeSingle();
+    const payload = JSON.stringify(next);
+    if (existing?.id) {
+      await supabase.from('site_settings').update({ value: payload }).eq('id', existing.id);
+    } else {
+      await supabase.from('site_settings').insert({ key: GALLERIES_KEY, label: 'Galleries (JSON)', value: payload, type: 'text' });
+    }
+    setGalleries(next);
+  };
+
+  const loadGalleries = async (settingsRows: any[]) => {
+    const row = settingsRows.find(r => r.key === GALLERIES_KEY);
+    let parsed: GalleryCollection[] = [];
+    if (row?.value) { try { parsed = JSON.parse(row.value); } catch { parsed = []; } }
+    if (!parsed.length) {
+      parsed = SEED_GALLERIES;
+      const payload = JSON.stringify(parsed);
+      if (row) await supabase.from('site_settings').update({ value: payload }).eq('id', row.id);
+      else await supabase.from('site_settings').insert({ key: GALLERIES_KEY, label: 'Galleries (JSON)', value: payload, type: 'text' });
+    }
+    setGalleries(parsed);
+  };
+
   /* ── Registrations: Sort & Filter ────────────────────────────────────── */
+
 
   const sortedRegistrations = useMemo(() => {
     let filtered = registrations;
@@ -606,7 +639,12 @@ export default function AdminPage() {
                 <CardContent className="p-5 space-y-3">
                   <h3 className="font-semibold text-[#E8620A]">{editEvent.id ? 'Edit Event' : 'New Event'}</h3>
                   <div className="grid md:grid-cols-2 gap-3">
-                    <Input placeholder="Title *" value={editEvent.title} onChange={e => setEditEvent({ ...editEvent, title: e.target.value })} className={inputCls} />
+                    <Field label="Event Title *" hint="e.g. Quiver's Conference 2026, Wednesday Weekly Meeting">
+                      <Input placeholder="Event title" value={editEvent.title} onChange={e => setEditEvent({ ...editEvent, title: e.target.value })} className={inputCls} />
+                    </Field>
+                    <Field label="Theme / Topic" hint="Optional — e.g. Envoys of Light, The Passion of Christ">
+                      <Input placeholder="Theme (optional)" value={editEvent.theme || ''} onChange={e => setEditEvent({ ...editEvent, theme: e.target.value })} className={inputCls} />
+                    </Field>
                     <select value={editEvent.status} onChange={e => setEditEvent({ ...editEvent, status: e.target.value })} className={`${inputCls} rounded-md px-3 py-2 border text-sm`}>
                       <option value="upcoming">Upcoming</option>
                       <option value="past">Past</option>
@@ -689,6 +727,7 @@ export default function AdminPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h4 className="font-semibold text-white truncate">{ev.title}</h4>
+                        {ev.theme && <span className="text-xs italic text-[#B5A898]">"{ev.theme}"</span>}
                         <span className={`text-xs px-2 py-0.5 rounded-full ${ev.status === 'upcoming' ? 'bg-green-900/40 text-green-400' : ev.status === 'recurring' ? 'bg-blue-900/40 text-blue-400' : 'bg-gray-800 text-gray-400'}`}>{ev.status}</span>
                         {ev.registration_enabled && (
                           <span className="text-xs px-2 py-0.5 rounded-full bg-[#E8620A]/20 text-[#E8620A]">Registration Open</span>
@@ -770,124 +809,107 @@ export default function AdminPage() {
             </div>
           </TabsContent>
 
-          {/* ── Gallery Tab ──────────────────────────────────────────────── */}
+          {/* ── Gallery Tab (gallery-first) ─────────────────────────────── */}
           <TabsContent value="gallery" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold">Gallery</h2>
-              <Button onClick={() => setEditGallery({ ...emptyGallery })} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><Plus size={16} className="mr-1" /> Add Image</Button>
-            </div>
-            {editGallery && (
-              <Card className="bg-[#1A1814] border-[#E8620A]/30">
-                <CardContent className="p-5 space-y-3">
-                  <h3 className="font-semibold text-[#E8620A]">{editGallery.id ? 'Edit Image' : 'New Image'}</h3>
-
-                  <Field label="Gallery Collection *" hint="Groups images under one heading on the Past Conferences page. Pick an existing collection or type a new name.">
-                    <div className="flex gap-2 flex-wrap">
-                      <Input
-                        list="gallery-collections"
-                        placeholder="e.g. Quiver's 2025 — Immersion"
-                        value={editGallery.category}
-                        onChange={e => setEditGallery({ ...editGallery, category: e.target.value })}
-                        className={`${inputCls} flex-1 min-w-[220px]`}
-                      />
-                      <datalist id="gallery-collections">
-                        {galleryCollections.map(c => <option key={c} value={c} />)}
-                      </datalist>
-                      {galleryCollections.length > 0 && (
-                        <select
-                          value=""
-                          onChange={e => e.target.value && setEditGallery({ ...editGallery, category: e.target.value })}
-                          className={`${inputCls} rounded-md px-3 py-2 border text-sm`}
-                        >
-                          <option value="">Pick existing…</option>
-                          {galleryCollections.map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
-                      )}
-                    </div>
-                  </Field>
-
-                  <div className="grid md:grid-cols-2 gap-3">
-                    <Field label="Image Title *" hint="Shown as caption overlay on the frontend">
-                      <Input placeholder="e.g. Opening Night" value={editGallery.title} onChange={e => setEditGallery({ ...editGallery, title: e.target.value })} className={inputCls} />
-                    </Field>
-                    <Field label="Caption" hint="Optional secondary line (e.g. photographer, session name)">
-                      <Input placeholder="Optional" value={editGallery.caption} onChange={e => setEditGallery({ ...editGallery, caption: e.target.value })} className={inputCls} />
-                    </Field>
-                  </div>
-
-                  <Field label="Image *" hint="Upload a file or paste a URL. Uploads go to the 'gallery-images' (or 'event-images') public bucket.">
-                    <div className="border border-[#2A2520] rounded-lg p-4 space-y-3">
-                      <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-                        <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-[#E8620A] hover:bg-[#cf5709] text-white rounded-md text-sm font-medium">
-                          {uploadingGalleryImage ? 'Uploading…' : 'Upload File'}
-                          <input type="file" accept="image/*" className="hidden" disabled={uploadingGalleryImage}
-                            onChange={e => e.target.files?.[0] && uploadGalleryImage(e.target.files[0])} />
-                        </label>
-                        <span className="text-xs text-[#6B5E50]">or paste an image URL</span>
-                      </div>
-                      <Input placeholder="https://…" value={editGallery.image_url} onChange={e => setEditGallery({ ...editGallery, image_url: e.target.value })} className={inputCls} />
-                      {editGallery.image_url && <img src={editGallery.image_url} alt="Preview" className="w-40 h-28 object-cover rounded-md border border-[#2A2520]" />}
-                    </div>
-                  </Field>
-
-                  <div className="flex gap-2">
-                    <Button onClick={saveGallery} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><Save size={14} className="mr-1" /> Save</Button>
-                    <Button variant="outline" onClick={() => setEditGallery(null)} className="border-[#2A2520] text-[#B5A898]"><X size={14} className="mr-1" /> Cancel</Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-            {gallery.length === 0 && !editGallery && <p className="text-[#6B5E50] text-center py-8">No gallery items yet.</p>}
-
-            {/* Grouped by collection */}
-            {galleryCollections.length > 0 && (
-              <div className="space-y-6">
-                {galleryCollections.map(col => {
-                  const items = gallery.filter(g => (g.category || '') === col);
-                  return (
-                    <div key={col}>
-                      <div className="flex items-center gap-3 mb-3">
-                        <h3 className="text-sm font-bold tracking-[2px] uppercase text-[#E8620A]">{col}</h3>
-                        <span className="text-xs text-[#6B5E50]">{items.length} image{items.length !== 1 ? 's' : ''}</span>
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        {items.map(g => (
-                          <Card key={g.id} className="bg-[#1A1814] border-[#2A2520] overflow-hidden">
-                            <div className="aspect-video bg-[#0F0D0A] relative">
-                              {g.image_url ? <img src={g.image_url} alt={g.title} className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full text-[#2A2520]"><Image size={32} /></div>}
-                            </div>
-                            <CardContent className="p-3">
-                              <h4 className="text-sm font-semibold text-white truncate">{g.title}</h4>
-                              {g.caption && <p className="text-xs text-[#6B5E50] truncate">{g.caption}</p>}
-                              <div className="flex gap-1 mt-2">
-                                <Button size="sm" variant="ghost" onClick={() => setEditGallery({ ...g })} className="text-[#B5A898] hover:text-white h-7 px-2"><Edit2 size={12} /></Button>
-                                <Button size="sm" variant="ghost" onClick={() => deleteGallery(g.id!)} className="text-red-400 hover:text-red-300 h-7 px-2"><Trash2 size={12} /></Button>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-                {/* Uncategorized */}
-                {gallery.some(g => !(g.category || '').trim()) && (
+            {!selectedGallery ? (
+              <>
+                <div className="flex justify-between items-center flex-wrap gap-3">
                   <div>
-                    <div className="flex items-center gap-3 mb-3">
-                      <h3 className="text-sm font-bold tracking-[2px] uppercase text-[#6B5E50]">Uncategorized</h3>
-                      <span className="text-xs text-[#6B5E50]">Assign a collection so these appear on the Past Conferences page.</span>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {gallery.filter(g => !(g.category || '').trim()).map(g => (
-                        <Card key={g.id} className="bg-[#1A1814] border-yellow-800/40 overflow-hidden">
+                    <h2 className="text-xl font-semibold">Galleries</h2>
+                    <p className="text-sm text-[#6B5E50]">Create a gallery, then click into it to upload images.</p>
+                  </div>
+                  <Button onClick={() => setEditCollection({ id: '', name: '', description: '' })} className="bg-[#E8620A] hover:bg-[#cf5709] text-white">
+                    <Plus size={16} className="mr-1" /> New Gallery
+                  </Button>
+                </div>
+
+                {editCollection && (
+                  <Card className="bg-[#1A1814] border-[#E8620A]/30">
+                    <CardContent className="p-5 space-y-3">
+                      <h3 className="font-semibold text-[#E8620A]">{editCollection.id ? 'Edit Gallery' : 'New Gallery'}</h3>
+                      <Field label="Gallery Name *" hint="Shown as the heading on the Past Conferences page.">
+                        <Input placeholder="e.g. Quiver's Immersion 2025" value={editCollection.name} onChange={e => setEditCollection({ ...editCollection, name: e.target.value })} className={inputCls} />
+                      </Field>
+                      <Field label="Description" hint="Optional short description.">
+                        <Textarea rows={2} value={editCollection.description || ''} onChange={e => setEditCollection({ ...editCollection, description: e.target.value })} className={inputCls} />
+                      </Field>
+                      <div className="flex gap-2">
+                        <Button onClick={async () => {
+                          const name = editCollection.name.trim();
+                          if (!name) { toast.error('Name required.'); return; }
+                          let next: GalleryCollection[];
+                          if (editCollection.id) {
+                            const oldName = galleries.find(g => g.id === editCollection.id)?.name;
+                            next = galleries.map(g => g.id === editCollection.id ? { ...editCollection, name } : g);
+                            // Rename category on images if name changed
+                            if (oldName && oldName !== name) {
+                              await supabase.from('gallery').update({ category: name }).eq('category', oldName);
+                            }
+                          } else {
+                            const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Math.random().toString(36).slice(2, 6);
+                            next = [...galleries, { ...editCollection, id, name }];
+                          }
+                          await persistGalleries(next);
+                          setEditCollection(null);
+                          loadAllData();
+                          toast.success('Gallery saved.');
+                        }} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><Save size={14} className="mr-1" /> Save</Button>
+                        <Button variant="outline" onClick={() => setEditCollection(null)} className="border-[#2A2520] text-[#B5A898]"><X size={14} className="mr-1" /> Cancel</Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {galleries.length === 0 && !editCollection && (
+                  <p className="text-[#6B5E50] text-center py-8">No galleries yet. Click "New Gallery" to create one.</p>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {galleries.map(col => {
+                    const imgs = gallery.filter(g => (g.category || '').trim() === col.name);
+                    const cover = imgs.find(i => i.image_url);
+                    return (
+                      <Card key={col.id} className="bg-[#1A1814] border-[#2A2520] overflow-hidden">
+                        <button onClick={() => setSelectedGalleryId(col.id)} className="block w-full text-left">
                           <div className="aspect-video bg-[#0F0D0A] relative">
-                            {g.image_url ? <img src={g.image_url} alt={g.title} className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full text-[#2A2520]"><Image size={32} /></div>}
+                            {cover?.image_url
+                              ? <img src={cover.image_url} alt={col.name} className="w-full h-full object-cover" />
+                              : <div className="flex items-center justify-center h-full text-[#2A2520]"><Image size={40} /></div>}
+                            <div className="absolute top-2 right-2 bg-[#E8620A] text-white text-xs font-bold px-2 py-0.5 rounded-full">{imgs.length}</div>
                           </div>
                           <CardContent className="p-3">
-                            <h4 className="text-sm font-semibold text-white truncate">{g.title}</h4>
-                            <div className="flex gap-1 mt-2">
-                              <Button size="sm" variant="ghost" onClick={() => setEditGallery({ ...g })} className="text-[#B5A898] hover:text-white h-7 px-2"><Edit2 size={12} /></Button>
-                              <Button size="sm" variant="ghost" onClick={() => deleteGallery(g.id!)} className="text-red-400 hover:text-red-300 h-7 px-2"><Trash2 size={12} /></Button>
+                            <h4 className="font-semibold text-white truncate">{col.name}</h4>
+                            {col.description && <p className="text-xs text-[#6B5E50] truncate">{col.description}</p>}
+                          </CardContent>
+                        </button>
+                        <div className="flex gap-1 px-3 pb-3">
+                          <Button size="sm" variant="ghost" onClick={() => setEditCollection({ ...col })} className="text-[#B5A898] hover:text-white h-7 px-2"><Edit2 size={12} /></Button>
+                          <Button size="sm" variant="ghost" onClick={async () => {
+                            if (!confirm(`Delete gallery "${col.name}"? Images inside will become uncategorized.`)) return;
+                            await persistGalleries(galleries.filter(g => g.id !== col.id));
+                            toast.success('Gallery deleted.');
+                          }} className="text-red-400 hover:text-red-300 h-7 px-2"><Trash2 size={12} /></Button>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+
+                {/* Standalone / uncategorized images */}
+                {gallery.some(g => !(g.category || '').trim() || !galleries.some(gc => gc.name === (g.category || '').trim())) && (
+                  <div className="pt-6">
+                    <h3 className="text-sm font-bold tracking-[2px] uppercase text-[#6B5E50] mb-3">Unassigned Images</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {gallery.filter(g => !(g.category || '').trim() || !galleries.some(gc => gc.name === (g.category || '').trim())).map(g => (
+                        <Card key={g.id} className="bg-[#1A1814] border-yellow-800/40 overflow-hidden">
+                          <div className="aspect-video bg-[#0F0D0A]">
+                            {g.image_url ? <img src={g.image_url} alt={g.title} className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full text-[#2A2520]"><Image size={24} /></div>}
+                          </div>
+                          <CardContent className="p-2">
+                            <h4 className="text-xs font-semibold text-white truncate">{g.title}</h4>
+                            <div className="flex gap-1 mt-1">
+                              <Button size="sm" variant="ghost" onClick={() => setEditGallery({ ...g })} className="text-[#B5A898] h-6 px-1"><Edit2 size={10} /></Button>
+                              <Button size="sm" variant="ghost" onClick={() => deleteGallery(g.id!)} className="text-red-400 h-6 px-1"><Trash2 size={10} /></Button>
                             </div>
                           </CardContent>
                         </Card>
@@ -895,9 +917,81 @@ export default function AdminPage() {
                     </div>
                   </div>
                 )}
-              </div>
+              </>
+            ) : (
+              <>
+                {/* Gallery detail view */}
+                <div className="flex justify-between items-center flex-wrap gap-3">
+                  <div className="flex items-center gap-3">
+                    <Button variant="outline" size="sm" onClick={() => { setSelectedGalleryId(null); setEditGallery(null); }} className="border-[#2A2520] text-[#B5A898]">← Back</Button>
+                    <div>
+                      <h2 className="text-xl font-semibold">{selectedGallery.name}</h2>
+                      <p className="text-xs text-[#6B5E50]">{imagesInSelectedGallery.length} image{imagesInSelectedGallery.length !== 1 ? 's' : ''}</p>
+                    </div>
+                  </div>
+                  <Button onClick={() => setEditGallery({ ...emptyGallery, category: selectedGallery.name })} className="bg-[#E8620A] hover:bg-[#cf5709] text-white">
+                    <Plus size={16} className="mr-1" /> Add Image
+                  </Button>
+                </div>
+
+                {editGallery && (
+                  <Card className="bg-[#1A1814] border-[#E8620A]/30">
+                    <CardContent className="p-5 space-y-3">
+                      <h3 className="font-semibold text-[#E8620A]">{editGallery.id ? 'Edit Image' : 'New Image'} — <span className="text-white/70">{selectedGallery.name}</span></h3>
+                      <div className="grid md:grid-cols-2 gap-3">
+                        <Field label="Image Title *" hint="Shown as caption overlay on the frontend">
+                          <Input placeholder="e.g. Opening Night" value={editGallery.title} onChange={e => setEditGallery({ ...editGallery, title: e.target.value })} className={inputCls} />
+                        </Field>
+                        <Field label="Caption" hint="Optional secondary line">
+                          <Input placeholder="Optional" value={editGallery.caption} onChange={e => setEditGallery({ ...editGallery, caption: e.target.value })} className={inputCls} />
+                        </Field>
+                      </div>
+                      <Field label="Image *" hint="Upload a file or paste a URL.">
+                        <div className="border border-[#2A2520] rounded-lg p-4 space-y-3">
+                          <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+                            <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-[#E8620A] hover:bg-[#cf5709] text-white rounded-md text-sm font-medium">
+                              {uploadingGalleryImage ? 'Uploading…' : 'Upload File'}
+                              <input type="file" accept="image/*" className="hidden" disabled={uploadingGalleryImage}
+                                onChange={e => e.target.files?.[0] && uploadGalleryImage(e.target.files[0])} />
+                            </label>
+                            <span className="text-xs text-[#6B5E50]">or paste an image URL</span>
+                          </div>
+                          <Input placeholder="https://…" value={editGallery.image_url} onChange={e => setEditGallery({ ...editGallery, image_url: e.target.value })} className={inputCls} />
+                          {editGallery.image_url && <img src={editGallery.image_url} alt="Preview" className="w-40 h-28 object-cover rounded-md border border-[#2A2520]" />}
+                        </div>
+                      </Field>
+                      <div className="flex gap-2">
+                        <Button onClick={async () => { await saveGallery(); }} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><Save size={14} className="mr-1" /> Save</Button>
+                        <Button variant="outline" onClick={() => setEditGallery(null)} className="border-[#2A2520] text-[#B5A898]"><X size={14} className="mr-1" /> Cancel</Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {imagesInSelectedGallery.length === 0 && !editGallery && (
+                  <p className="text-[#6B5E50] text-center py-8">No images in this gallery yet. Click "Add Image".</p>
+                )}
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {imagesInSelectedGallery.map(g => (
+                    <Card key={g.id} className="bg-[#1A1814] border-[#2A2520] overflow-hidden">
+                      <div className="aspect-video bg-[#0F0D0A] relative">
+                        {g.image_url ? <img src={g.image_url} alt={g.title} className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full text-[#2A2520]"><Image size={32} /></div>}
+                      </div>
+                      <CardContent className="p-3">
+                        <h4 className="text-sm font-semibold text-white truncate">{g.title}</h4>
+                        {g.caption && <p className="text-xs text-[#6B5E50] truncate">{g.caption}</p>}
+                        <div className="flex gap-1 mt-2">
+                          <Button size="sm" variant="ghost" onClick={() => setEditGallery({ ...g })} className="text-[#B5A898] hover:text-white h-7 px-2"><Edit2 size={12} /></Button>
+                          <Button size="sm" variant="ghost" onClick={() => deleteGallery(g.id!)} className="text-red-400 hover:text-red-300 h-7 px-2"><Trash2 size={12} /></Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </>
             )}
           </TabsContent>
+
 
           {/* ── Registrations Tab ─────────────────────────────────────────── */}
           <TabsContent value="registrations" className="space-y-4">
