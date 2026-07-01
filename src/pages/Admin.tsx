@@ -234,7 +234,9 @@ export default function AdminPage() {
     if (!editEvent) return;
     if (!editEvent.title) { toast.error('Event title is required.'); return; }
     const payload: any = {
-      title: editEvent.title, status: editEvent.status,
+      title: editEvent.title,
+      theme: editEvent.theme || null,
+      status: editEvent.status,
       date: editEvent.date || null,
       end_date: editEvent.end_date || null,
       time: editEvent.time || null,
