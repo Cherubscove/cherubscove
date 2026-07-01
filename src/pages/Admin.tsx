@@ -638,7 +638,12 @@ export default function AdminPage() {
                 <CardContent className="p-5 space-y-3">
                   <h3 className="font-semibold text-[#E8620A]">{editEvent.id ? 'Edit Event' : 'New Event'}</h3>
                   <div className="grid md:grid-cols-2 gap-3">
-                    <Input placeholder="Title *" value={editEvent.title} onChange={e => setEditEvent({ ...editEvent, title: e.target.value })} className={inputCls} />
+                    <Field label="Event Title *" hint="e.g. Quiver's Conference 2026, Wednesday Weekly Meeting">
+                      <Input placeholder="Event title" value={editEvent.title} onChange={e => setEditEvent({ ...editEvent, title: e.target.value })} className={inputCls} />
+                    </Field>
+                    <Field label="Theme / Topic" hint="Optional — e.g. Envoys of Light, The Passion of Christ">
+                      <Input placeholder="Theme (optional)" value={editEvent.theme || ''} onChange={e => setEditEvent({ ...editEvent, theme: e.target.value })} className={inputCls} />
+                    </Field>
                     <select value={editEvent.status} onChange={e => setEditEvent({ ...editEvent, status: e.target.value })} className={`${inputCls} rounded-md px-3 py-2 border text-sm`}>
                       <option value="upcoming">Upcoming</option>
                       <option value="past">Past</option>
