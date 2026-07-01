@@ -345,15 +345,70 @@ export default function AdminPage() {
     toast.success(`${meta.label} saved.`);
   };
 
-  /* ── Admin Invite ────────────────────────────────────────────────────── */
+  /* ── Admin Invite & Management ───────────────────────────────────────── */
+
+  const SUPER_ADMIN_EMAIL = 'cherubscove@gmail.com';
+  const ADMIN_LIST_KEY = 'admin_users_json';
+
+  const isSuperAdmin = session?.user?.email?.toLowerCase() === SUPER_ADMIN_EMAIL;
+
+  const loadAdminList = async (settingsRows: any[]) => {
+    const row = settingsRows.find(r => r.key === ADMIN_LIST_KEY);
+    let parsed: { email: string; role: 'super_admin' | 'admin' }[] = [];
+    if (row?.value) {
+      try { parsed = JSON.parse(row.value); } catch { parsed = []; }
+    }
+    // Ensure super admin is always present
+    if (!parsed.some(a => a.email.toLowerCase() === SUPER_ADMIN_EMAIL)) {
+      parsed.unshift({ email: SUPER_ADMIN_EMAIL, role: 'super_admin' });
+      const payload = JSON.stringify(parsed);
+      if (row) {
+        await supabase.from('site_settings').update({ value: payload }).eq('id', row.id);
+      } else {
+        await supabase.from('site_settings').insert({ key: ADMIN_LIST_KEY, label: 'Admin Users (JSON)', value: payload, type: 'text' });
+      }
+    }
+    setAdminList(parsed);
+  };
+
+  const persistAdminList = async (next: { email: string; role: 'super_admin' | 'admin' }[]) => {
+    const { data: existing } = await supabase.from('site_settings').select('id').eq('key', ADMIN_LIST_KEY).maybeSingle();
+    const payload = JSON.stringify(next);
+    if (existing?.id) {
+      await supabase.from('site_settings').update({ value: payload }).eq('id', existing.id);
+    } else {
+      await supabase.from('site_settings').insert({ key: ADMIN_LIST_KEY, label: 'Admin Users (JSON)', value: payload, type: 'text' });
+    }
+    setAdminList(next);
+  };
 
   const inviteAdmin = async () => {
     if (!inviteEmail.trim() || !invitePassword.trim()) { toast.error('Enter email and password for the new admin.'); return; }
-    const { error } = await supabase.auth.signUp({ email: inviteEmail, password: invitePassword });
-    if (error) { toast.error(error.message); return; }
-    toast.success(`Invite sent to ${inviteEmail}.`);
+    const email = inviteEmail.trim().toLowerCase();
+    const { error } = await supabase.auth.signUp({ email, password: invitePassword });
+    if (error && !/already/i.test(error.message)) { toast.error(error.message); return; }
+    const next = adminList.some(a => a.email.toLowerCase() === email)
+      ? adminList
+      : [...adminList, { email, role: inviteRole }];
+    await persistAdminList(next);
+    toast.success(`${email} added as ${inviteRole === 'super_admin' ? 'super admin' : 'admin'}.`);
     setInviteEmail('');
     setInvitePassword('');
+  };
+
+  const removeAdmin = async (email: string) => {
+    if (email.toLowerCase() === SUPER_ADMIN_EMAIL) { toast.error('The super admin cannot be removed.'); return; }
+    if (!isSuperAdmin) { toast.error('Only the super admin can remove admins.'); return; }
+    if (!confirm(`Remove ${email} from admins?`)) return;
+    await persistAdminList(adminList.filter(a => a.email.toLowerCase() !== email.toLowerCase()));
+    toast.success('Admin removed.');
+  };
+
+  const changeAdminRole = async (email: string, role: 'admin' | 'super_admin') => {
+    if (email.toLowerCase() === SUPER_ADMIN_EMAIL) { toast.error("The super admin's role is locked."); return; }
+    if (!isSuperAdmin) { toast.error('Only the super admin can change roles.'); return; }
+    await persistAdminList(adminList.map(a => a.email.toLowerCase() === email.toLowerCase() ? { ...a, role } : a));
+    toast.success('Role updated.');
   };
 
   /* ── Registrations: Sort & Filter ────────────────────────────────────── */
