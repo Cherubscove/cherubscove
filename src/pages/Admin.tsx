@@ -219,23 +219,44 @@ export default function AdminPage() {
     if (!editEvent) return;
     if (!editEvent.title) { toast.error('Event title is required.'); return; }
     const payload: any = {
-      title: editEvent.title, status: editEvent.status, date: editEvent.date,
+      title: editEvent.title, status: editEvent.status,
+      date: editEvent.date || null,
+      end_date: editEvent.end_date || null,
+      time: editEvent.time || null,
+      end_time: editEvent.end_time || null,
       image_url: editEvent.image_url, description: editEvent.description,
-      location: editEvent.location, time: editEvent.time,
+      location: editEvent.location,
       registration_enabled: editEvent.registration_enabled ?? false,
       form_fields: editEvent.form_fields ?? '[]',
     };
     if (editEvent.id) {
       const { error } = await supabase.from('events').update(payload).eq('id', editEvent.id);
-      if (error) { toast.error(error.message); return; }
+      if (error) { toast.error(error.message + (error.message.includes('column') ? ' — Run the migration in the note below.' : '')); return; }
       toast.success('Event updated.');
     } else {
       const { error } = await supabase.from('events').insert(payload);
-      if (error) { toast.error(error.message); return; }
+      if (error) { toast.error(error.message + (error.message.includes('column') ? ' — Run the migration in the note below.' : '')); return; }
       toast.success('Event created.');
     }
     setEditEvent(null);
     loadAllData();
+  };
+
+  const uploadEventImage = async (file: File) => {
+    if (!editEvent) return;
+    setUploadingImage(true);
+    try {
+      const ext = file.name.split('.').pop() || 'jpg';
+      const path = `events/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('event-images').upload(path, file, { upsert: false });
+      if (upErr) {
+        toast.error(`Upload failed: ${upErr.message}. Create a public bucket named "event-images" in Supabase Storage.`);
+        return;
+      }
+      const { data } = supabase.storage.from('event-images').getPublicUrl(path);
+      setEditEvent({ ...editEvent, image_url: data.publicUrl });
+      toast.success('Image uploaded.');
+    } finally { setUploadingImage(false); }
   };
 
   const deleteEvent = async (id: string) => {
