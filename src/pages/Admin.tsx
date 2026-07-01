@@ -19,7 +19,7 @@ import type {
   EventRecord, DownloadRecord, GalleryRecord, RegistrationRecord, FormFieldConfig,
   emptyEvent as _ee, emptyDownload as _ed, emptyGallery as _eg,
 } from '@/lib/adminTypes';
-import { emptyEvent, emptyDownload, emptyGallery } from '@/lib/adminTypes';
+import { emptyEvent, emptyDownload, emptyGallery, formatEventDateRange } from '@/lib/adminTypes';
 
 /* ── Content Keys (seed defaults for every editable frontend text) ────── */
 
