@@ -780,7 +780,9 @@ export default function AdminPage() {
                   </CardContent>
                 </Card>
               ))}
-            </div>
+                </div>
+              </>
+            )}
           </TabsContent>
 
           {/* ── Content Tab ──────────────────────────────────────────────── */}
