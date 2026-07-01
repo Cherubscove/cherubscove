@@ -215,6 +215,7 @@ export default function AdminPage() {
         }
       }
       await loadAdminList(finalSettings);
+      await loadGalleries(finalSettings);
     } finally { setIsLoading(false); }
   };
 
