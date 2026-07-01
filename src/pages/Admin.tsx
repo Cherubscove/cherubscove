@@ -94,11 +94,20 @@ export default function AdminPage() {
 
   const [inviteEmail, setInviteEmail] = useState('');
   const [invitePassword, setInvitePassword] = useState('');
+  const [inviteRole, setInviteRole] = useState<'admin' | 'super_admin'>('admin');
+  const [adminList, setAdminList] = useState<{ email: string; role: 'super_admin' | 'admin' }[]>([]);
 
   const [regSort, setRegSort] = useState<{ col: keyof RegistrationRecord; asc: boolean }>({ col: 'created_at', asc: false });
   const [regSearch, setRegSearch] = useState('');
   const [regSelectedGroupKey, setRegSelectedGroupKey] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingGalleryImage, setUploadingGalleryImage] = useState(false);
+
+  // Distinct gallery collection names — used for admin dropdown & frontend grouping
+  const galleryCollections = useMemo(
+    () => Array.from(new Set(gallery.map(g => (g.category || '').trim()).filter(Boolean))).sort(),
+    [gallery]
+  );
 
   // Group registrations by event
   const regGroups = useMemo(() => {
@@ -191,15 +200,18 @@ export default function AdminPage() {
 
       const existingKeys = new Set(settings.map((r: any) => r.key));
       const missing = CONTENT_DEFAULTS.filter(cd => !existingKeys.has(cd.key));
+      let finalSettings = settings;
       if (missing.length > 0) {
         await supabase.from('site_settings').insert(missing.map(cd => ({ key: cd.key, label: cd.label, value: cd.value, type: 'text' })));
         const { data: refreshed } = await supabase.from('site_settings').select('*');
         if (refreshed) {
+          finalSettings = refreshed;
           setSettingsMeta(refreshed.map((r: any) => ({ id: r.id, key: r.key, label: r.label, type: r.type })));
           const refreshedMap = refreshed.reduce((acc: Record<string, string>, r: any) => { acc[r.key] = r.value ?? ''; return acc; }, {});
           setSiteSettings(refreshedMap);
         }
       }
+      await loadAdminList(finalSettings);
     } finally { setIsLoading(false); }
   };
 
@@ -319,6 +331,30 @@ export default function AdminPage() {
     loadAllData();
   };
 
+  const uploadGalleryImage = async (file: File) => {
+    if (!editGallery) return;
+    setUploadingGalleryImage(true);
+    try {
+      const ext = file.name.split('.').pop() || 'jpg';
+      const path = `gallery/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      // Try dedicated gallery bucket, fall back to event-images
+      let bucket = 'gallery-images';
+      let { error: upErr } = await supabase.storage.from(bucket).upload(path, file, { upsert: false });
+      if (upErr) {
+        bucket = 'event-images';
+        ({ error: upErr } = await supabase.storage.from(bucket).upload(path, file, { upsert: false }));
+      }
+      if (upErr) {
+        toast.error(`Upload failed: ${upErr.message}. Create a public bucket named "gallery-images" (or "event-images") in Supabase Storage.`);
+        return;
+      }
+      const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+      setEditGallery({ ...editGallery, image_url: data.publicUrl });
+      toast.success('Image uploaded.');
+    } finally { setUploadingGalleryImage(false); }
+  };
+
+
   const deleteGallery = async (id: string) => {
     if (!confirm('Delete this gallery item?')) return;
     await supabase.from('gallery').delete().eq('id', id);
@@ -336,15 +372,70 @@ export default function AdminPage() {
     toast.success(`${meta.label} saved.`);
   };
 
-  /* ── Admin Invite ────────────────────────────────────────────────────── */
+  /* ── Admin Invite & Management ───────────────────────────────────────── */
+
+  const SUPER_ADMIN_EMAIL = 'cherubscove@gmail.com';
+  const ADMIN_LIST_KEY = 'admin_users_json';
+
+  const isSuperAdmin = session?.user?.email?.toLowerCase() === SUPER_ADMIN_EMAIL;
+
+  const loadAdminList = async (settingsRows: any[]) => {
+    const row = settingsRows.find(r => r.key === ADMIN_LIST_KEY);
+    let parsed: { email: string; role: 'super_admin' | 'admin' }[] = [];
+    if (row?.value) {
+      try { parsed = JSON.parse(row.value); } catch { parsed = []; }
+    }
+    // Ensure super admin is always present
+    if (!parsed.some(a => a.email.toLowerCase() === SUPER_ADMIN_EMAIL)) {
+      parsed.unshift({ email: SUPER_ADMIN_EMAIL, role: 'super_admin' });
+      const payload = JSON.stringify(parsed);
+      if (row) {
+        await supabase.from('site_settings').update({ value: payload }).eq('id', row.id);
+      } else {
+        await supabase.from('site_settings').insert({ key: ADMIN_LIST_KEY, label: 'Admin Users (JSON)', value: payload, type: 'text' });
+      }
+    }
+    setAdminList(parsed);
+  };
+
+  const persistAdminList = async (next: { email: string; role: 'super_admin' | 'admin' }[]) => {
+    const { data: existing } = await supabase.from('site_settings').select('id').eq('key', ADMIN_LIST_KEY).maybeSingle();
+    const payload = JSON.stringify(next);
+    if (existing?.id) {
+      await supabase.from('site_settings').update({ value: payload }).eq('id', existing.id);
+    } else {
+      await supabase.from('site_settings').insert({ key: ADMIN_LIST_KEY, label: 'Admin Users (JSON)', value: payload, type: 'text' });
+    }
+    setAdminList(next);
+  };
 
   const inviteAdmin = async () => {
     if (!inviteEmail.trim() || !invitePassword.trim()) { toast.error('Enter email and password for the new admin.'); return; }
-    const { error } = await supabase.auth.signUp({ email: inviteEmail, password: invitePassword });
-    if (error) { toast.error(error.message); return; }
-    toast.success(`Invite sent to ${inviteEmail}.`);
+    const email = inviteEmail.trim().toLowerCase();
+    const { error } = await supabase.auth.signUp({ email, password: invitePassword });
+    if (error && !/already/i.test(error.message)) { toast.error(error.message); return; }
+    const next = adminList.some(a => a.email.toLowerCase() === email)
+      ? adminList
+      : [...adminList, { email, role: inviteRole }];
+    await persistAdminList(next);
+    toast.success(`${email} added as ${inviteRole === 'super_admin' ? 'super admin' : 'admin'}.`);
     setInviteEmail('');
     setInvitePassword('');
+  };
+
+  const removeAdmin = async (email: string) => {
+    if (email.toLowerCase() === SUPER_ADMIN_EMAIL) { toast.error('The super admin cannot be removed.'); return; }
+    if (!isSuperAdmin) { toast.error('Only the super admin can remove admins.'); return; }
+    if (!confirm(`Remove ${email} from admins?`)) return;
+    await persistAdminList(adminList.filter(a => a.email.toLowerCase() !== email.toLowerCase()));
+    toast.success('Admin removed.');
+  };
+
+  const changeAdminRole = async (email: string, role: 'admin' | 'super_admin') => {
+    if (email.toLowerCase() === SUPER_ADMIN_EMAIL) { toast.error("The super admin's role is locked."); return; }
+    if (!isSuperAdmin) { toast.error('Only the super admin can change roles.'); return; }
+    await persistAdminList(adminList.map(a => a.email.toLowerCase() === email.toLowerCase() ? { ...a, role } : a));
+    toast.success('Role updated.');
   };
 
   /* ── Registrations: Sort & Filter ────────────────────────────────────── */
@@ -446,6 +537,14 @@ export default function AdminPage() {
     <button onClick={() => toggleSort(col)} className={`text-[10px] font-bold tracking-[1.5px] uppercase inline-flex items-center gap-1 ${regSort.col === col ? 'text-[#E8620A]' : 'text-[#6B5E50]'}`}>
       {label} <ArrowUpDown size={10} />
     </button>
+  );
+
+  const Field = ({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) => (
+    <div className="space-y-1">
+      <label className="text-[11px] font-semibold tracking-wide uppercase text-[#B5A898]">{label}</label>
+      {children}
+      {hint && <p className="text-[10px] text-[#6B5E50]">{hint}</p>}
+    </div>
   );
   return (
     <div className="min-h-screen bg-[#0F0D0A] text-white">
@@ -624,17 +723,27 @@ export default function AdminPage() {
                 <CardContent className="p-5 space-y-3">
                   <h3 className="font-semibold text-[#E8620A]">{editDownload.id ? 'Edit Download' : 'New Download'}</h3>
                   <div className="grid md:grid-cols-2 gap-3">
-                    <Input placeholder="Title *" value={editDownload.title} onChange={e => setEditDownload({ ...editDownload, title: e.target.value })} className={inputCls} />
-                    <Input placeholder="URL *" value={editDownload.url} onChange={e => setEditDownload({ ...editDownload, url: e.target.value })} className={inputCls} />
-                    <Input placeholder="Category" value={editDownload.category} onChange={e => setEditDownload({ ...editDownload, category: e.target.value })} className={inputCls} />
-                    <select value={editDownload.type} onChange={e => setEditDownload({ ...editDownload, type: e.target.value })} className={`${inputCls} rounded-md px-3 py-2 border text-sm`}>
-                      <option value="">Select type...</option>
-                      <option value="audio">Audio</option>
-                      <option value="video">Video</option>
-                      <option value="pdf">PDF / Document</option>
-                    </select>
+                    <Field label="File Title *" hint="Displayed as the download's name on the site">
+                      <Input placeholder="e.g. Walking in Your Kingdom Identity" value={editDownload.title} onChange={e => setEditDownload({ ...editDownload, title: e.target.value })} className={inputCls} />
+                    </Field>
+                    <Field label="Download URL *" hint="Direct link to the file (mp3, mp4, pdf, YouTube, Drive, etc.)">
+                      <Input placeholder="https://…" value={editDownload.url} onChange={e => setEditDownload({ ...editDownload, url: e.target.value })} className={inputCls} />
+                    </Field>
+                    <Field label="Category" hint="Grouping label, e.g. Sermon, Teaching, Manual">
+                      <Input placeholder="Sermon" value={editDownload.category} onChange={e => setEditDownload({ ...editDownload, category: e.target.value })} className={inputCls} />
+                    </Field>
+                    <Field label="File Type" hint="Icon shown on the frontend card">
+                      <select value={editDownload.type} onChange={e => setEditDownload({ ...editDownload, type: e.target.value })} className={`${inputCls} rounded-md px-3 py-2 border text-sm w-full`}>
+                        <option value="">Select type…</option>
+                        <option value="audio">Audio</option>
+                        <option value="video">Video</option>
+                        <option value="pdf">PDF / Document</option>
+                      </select>
+                    </Field>
                   </div>
-                  <Textarea placeholder="Description" value={editDownload.description} onChange={e => setEditDownload({ ...editDownload, description: e.target.value })} className={inputCls} rows={2} />
+                  <Field label="Description" hint="Short line shown under the title (speaker, event, series…)">
+                    <Textarea placeholder="Jesse Falodun — Quiver's Immersion 2025" value={editDownload.description} onChange={e => setEditDownload({ ...editDownload, description: e.target.value })} className={inputCls} rows={2} />
+                  </Field>
                   <div className="flex gap-2">
                     <Button onClick={saveDownload} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><Save size={14} className="mr-1" /> Save</Button>
                     <Button variant="outline" onClick={() => setEditDownload(null)} className="border-[#2A2520] text-[#B5A898]"><X size={14} className="mr-1" /> Cancel</Button>
@@ -671,13 +780,56 @@ export default function AdminPage() {
               <Card className="bg-[#1A1814] border-[#E8620A]/30">
                 <CardContent className="p-5 space-y-3">
                   <h3 className="font-semibold text-[#E8620A]">{editGallery.id ? 'Edit Image' : 'New Image'}</h3>
+
+                  <Field label="Gallery Collection *" hint="Groups images under one heading on the Past Conferences page. Pick an existing collection or type a new name.">
+                    <div className="flex gap-2 flex-wrap">
+                      <Input
+                        list="gallery-collections"
+                        placeholder="e.g. Quiver's 2025 — Immersion"
+                        value={editGallery.category}
+                        onChange={e => setEditGallery({ ...editGallery, category: e.target.value })}
+                        className={`${inputCls} flex-1 min-w-[220px]`}
+                      />
+                      <datalist id="gallery-collections">
+                        {galleryCollections.map(c => <option key={c} value={c} />)}
+                      </datalist>
+                      {galleryCollections.length > 0 && (
+                        <select
+                          value=""
+                          onChange={e => e.target.value && setEditGallery({ ...editGallery, category: e.target.value })}
+                          className={`${inputCls} rounded-md px-3 py-2 border text-sm`}
+                        >
+                          <option value="">Pick existing…</option>
+                          {galleryCollections.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      )}
+                    </div>
+                  </Field>
+
                   <div className="grid md:grid-cols-2 gap-3">
-                    <Input placeholder="Title *" value={editGallery.title} onChange={e => setEditGallery({ ...editGallery, title: e.target.value })} className={inputCls} />
-                    <Input placeholder="Image URL *" value={editGallery.image_url} onChange={e => setEditGallery({ ...editGallery, image_url: e.target.value })} className={inputCls} />
-                    <Input placeholder="Category" value={editGallery.category} onChange={e => setEditGallery({ ...editGallery, category: e.target.value })} className={inputCls} />
-                    <Input placeholder="Caption" value={editGallery.caption} onChange={e => setEditGallery({ ...editGallery, caption: e.target.value })} className={inputCls} />
+                    <Field label="Image Title *" hint="Shown as caption overlay on the frontend">
+                      <Input placeholder="e.g. Opening Night" value={editGallery.title} onChange={e => setEditGallery({ ...editGallery, title: e.target.value })} className={inputCls} />
+                    </Field>
+                    <Field label="Caption" hint="Optional secondary line (e.g. photographer, session name)">
+                      <Input placeholder="Optional" value={editGallery.caption} onChange={e => setEditGallery({ ...editGallery, caption: e.target.value })} className={inputCls} />
+                    </Field>
                   </div>
-                  {editGallery.image_url && <img src={editGallery.image_url} alt="Preview" className="w-32 h-24 object-cover rounded-lg border border-[#2A2520]" />}
+
+                  <Field label="Image *" hint="Upload a file or paste a URL. Uploads go to the 'gallery-images' (or 'event-images') public bucket.">
+                    <div className="border border-[#2A2520] rounded-lg p-4 space-y-3">
+                      <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+                        <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-[#E8620A] hover:bg-[#cf5709] text-white rounded-md text-sm font-medium">
+                          {uploadingGalleryImage ? 'Uploading…' : 'Upload File'}
+                          <input type="file" accept="image/*" className="hidden" disabled={uploadingGalleryImage}
+                            onChange={e => e.target.files?.[0] && uploadGalleryImage(e.target.files[0])} />
+                        </label>
+                        <span className="text-xs text-[#6B5E50]">or paste an image URL</span>
+                      </div>
+                      <Input placeholder="https://…" value={editGallery.image_url} onChange={e => setEditGallery({ ...editGallery, image_url: e.target.value })} className={inputCls} />
+                      {editGallery.image_url && <img src={editGallery.image_url} alt="Preview" className="w-40 h-28 object-cover rounded-md border border-[#2A2520]" />}
+                    </div>
+                  </Field>
+
                   <div className="flex gap-2">
                     <Button onClick={saveGallery} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><Save size={14} className="mr-1" /> Save</Button>
                     <Button variant="outline" onClick={() => setEditGallery(null)} className="border-[#2A2520] text-[#B5A898]"><X size={14} className="mr-1" /> Cancel</Button>
@@ -686,23 +838,65 @@ export default function AdminPage() {
               </Card>
             )}
             {gallery.length === 0 && !editGallery && <p className="text-[#6B5E50] text-center py-8">No gallery items yet.</p>}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {gallery.map(g => (
-                <Card key={g.id} className="bg-[#1A1814] border-[#2A2520] overflow-hidden">
-                  <div className="aspect-video bg-[#0F0D0A] relative">
-                    {g.image_url ? <img src={g.image_url} alt={g.title} className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full text-[#2A2520]"><Image size={32} /></div>}
-                  </div>
-                  <CardContent className="p-3">
-                    <h4 className="text-sm font-semibold text-white truncate">{g.title}</h4>
-                    {g.category && <p className="text-xs text-[#6B5E50]">{g.category}</p>}
-                    <div className="flex gap-1 mt-2">
-                      <Button size="sm" variant="ghost" onClick={() => setEditGallery({ ...g })} className="text-[#B5A898] hover:text-white h-7 px-2"><Edit2 size={12} /></Button>
-                      <Button size="sm" variant="ghost" onClick={() => deleteGallery(g.id!)} className="text-red-400 hover:text-red-300 h-7 px-2"><Trash2 size={12} /></Button>
+
+            {/* Grouped by collection */}
+            {galleryCollections.length > 0 && (
+              <div className="space-y-6">
+                {galleryCollections.map(col => {
+                  const items = gallery.filter(g => (g.category || '') === col);
+                  return (
+                    <div key={col}>
+                      <div className="flex items-center gap-3 mb-3">
+                        <h3 className="text-sm font-bold tracking-[2px] uppercase text-[#E8620A]">{col}</h3>
+                        <span className="text-xs text-[#6B5E50]">{items.length} image{items.length !== 1 ? 's' : ''}</span>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {items.map(g => (
+                          <Card key={g.id} className="bg-[#1A1814] border-[#2A2520] overflow-hidden">
+                            <div className="aspect-video bg-[#0F0D0A] relative">
+                              {g.image_url ? <img src={g.image_url} alt={g.title} className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full text-[#2A2520]"><Image size={32} /></div>}
+                            </div>
+                            <CardContent className="p-3">
+                              <h4 className="text-sm font-semibold text-white truncate">{g.title}</h4>
+                              {g.caption && <p className="text-xs text-[#6B5E50] truncate">{g.caption}</p>}
+                              <div className="flex gap-1 mt-2">
+                                <Button size="sm" variant="ghost" onClick={() => setEditGallery({ ...g })} className="text-[#B5A898] hover:text-white h-7 px-2"><Edit2 size={12} /></Button>
+                                <Button size="sm" variant="ghost" onClick={() => deleteGallery(g.id!)} className="text-red-400 hover:text-red-300 h-7 px-2"><Trash2 size={12} /></Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                  );
+                })}
+                {/* Uncategorized */}
+                {gallery.some(g => !(g.category || '').trim()) && (
+                  <div>
+                    <div className="flex items-center gap-3 mb-3">
+                      <h3 className="text-sm font-bold tracking-[2px] uppercase text-[#6B5E50]">Uncategorized</h3>
+                      <span className="text-xs text-[#6B5E50]">Assign a collection so these appear on the Past Conferences page.</span>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {gallery.filter(g => !(g.category || '').trim()).map(g => (
+                        <Card key={g.id} className="bg-[#1A1814] border-yellow-800/40 overflow-hidden">
+                          <div className="aspect-video bg-[#0F0D0A] relative">
+                            {g.image_url ? <img src={g.image_url} alt={g.title} className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full text-[#2A2520]"><Image size={32} /></div>}
+                          </div>
+                          <CardContent className="p-3">
+                            <h4 className="text-sm font-semibold text-white truncate">{g.title}</h4>
+                            <div className="flex gap-1 mt-2">
+                              <Button size="sm" variant="ghost" onClick={() => setEditGallery({ ...g })} className="text-[#B5A898] hover:text-white h-7 px-2"><Edit2 size={12} /></Button>
+                              <Button size="sm" variant="ghost" onClick={() => deleteGallery(g.id!)} className="text-red-400 hover:text-red-300 h-7 px-2"><Trash2 size={12} /></Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </TabsContent>
 
           {/* ── Registrations Tab ─────────────────────────────────────────── */}
@@ -850,17 +1044,94 @@ export default function AdminPage() {
 
           {/* ── Admins Tab ───────────────────────────────────────────────── */}
           <TabsContent value="admins" className="space-y-4">
-            <h2 className="text-xl font-semibold">Invite New Admin</h2>
-            <Card className="bg-[#1A1814] border-[#2A2520]">
-              <CardContent className="p-5 space-y-3">
-                <p className="text-sm text-[#B5A898]">Create a new admin account. The new admin will receive a verification email.</p>
-                <div className="grid md:grid-cols-2 gap-3">
-                  <Input placeholder="Email" type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} className={inputCls} />
-                  <Input placeholder="Password" type="password" value={invitePassword} onChange={e => setInvitePassword(e.target.value)} className={inputCls} />
-                </div>
-                <Button onClick={inviteAdmin} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><Users size={14} className="mr-1" /> Create Admin</Button>
-              </CardContent>
-            </Card>
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <h2 className="text-xl font-semibold">Admin Users</h2>
+                <p className="text-sm text-[#6B5E50]">
+                  {isSuperAdmin
+                    ? 'You are the super admin. You can add, remove, and change roles.'
+                    : `Only the super admin (${SUPER_ADMIN_EMAIL}) can add or remove admins.`}
+                </p>
+              </div>
+              <div className="text-xs text-[#6B5E50]">{adminList.length} admin{adminList.length !== 1 ? 's' : ''}</div>
+            </div>
+
+            <div className="space-y-2">
+              {adminList.map(a => {
+                const isSuper = a.email.toLowerCase() === SUPER_ADMIN_EMAIL;
+                return (
+                  <Card key={a.email} className="bg-[#1A1814] border-[#2A2520]">
+                    <CardContent className="p-4 flex items-center justify-between gap-3 flex-wrap">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-full bg-[#E8620A]/20 text-[#E8620A] flex items-center justify-center text-sm font-bold uppercase">
+                          {a.email[0]}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-white font-medium truncate">{a.email}</span>
+                            {isSuper && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#E8620A]/20 text-[#E8620A] font-bold tracking-wider uppercase">Super Admin</span>
+                            )}
+                            {!isSuper && a.role === 'super_admin' && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-900/40 text-purple-300 font-bold tracking-wider uppercase">Super Admin</span>
+                            )}
+                            {a.role === 'admin' && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-900/40 text-blue-300 font-bold tracking-wider uppercase">Admin</span>
+                            )}
+                            {session?.user?.email?.toLowerCase() === a.email.toLowerCase() && (
+                              <span className="text-[10px] text-[#6B5E50]">(you)</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {!isSuper && isSuperAdmin && (
+                          <select
+                            value={a.role}
+                            onChange={e => changeAdminRole(a.email, e.target.value as 'admin' | 'super_admin')}
+                            className={`${inputCls} rounded-md px-2 py-1 border text-xs`}
+                          >
+                            <option value="admin">Admin</option>
+                            <option value="super_admin">Super Admin</option>
+                          </select>
+                        )}
+                        {!isSuper && isSuperAdmin && (
+                          <Button size="sm" variant="ghost" onClick={() => removeAdmin(a.email)} className="text-red-400 hover:text-red-300">
+                            <Trash2 size={14} />
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+
+            {isSuperAdmin && (
+              <>
+                <h3 className="text-lg font-semibold pt-4">Add New Admin</h3>
+                <Card className="bg-[#1A1814] border-[#2A2520]">
+                  <CardContent className="p-5 space-y-3">
+                    <p className="text-sm text-[#B5A898]">Creates a login and adds them to the admin list. They'll sign in at /admin with the password you set.</p>
+                    <div className="grid md:grid-cols-3 gap-3">
+                      <Field label="Email">
+                        <Input placeholder="name@example.com" type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} className={inputCls} />
+                      </Field>
+                      <Field label="Temporary Password">
+                        <Input placeholder="At least 6 characters" type="password" value={invitePassword} onChange={e => setInvitePassword(e.target.value)} className={inputCls} />
+                      </Field>
+                      <Field label="Role">
+                        <select value={inviteRole} onChange={e => setInviteRole(e.target.value as 'admin' | 'super_admin')} className={`${inputCls} rounded-md px-3 py-2 border text-sm w-full`}>
+                          <option value="admin">Admin</option>
+                          <option value="super_admin">Super Admin</option>
+                        </select>
+                      </Field>
+                    </div>
+                    <Button onClick={inviteAdmin} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><Users size={14} className="mr-1" /> Create Admin</Button>
+                  </CardContent>
+                </Card>
+              </>
+            )}
           </TabsContent>
         </Tabs>
       </div>
