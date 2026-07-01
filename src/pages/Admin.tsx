@@ -1044,17 +1044,94 @@ export default function AdminPage() {
 
           {/* ── Admins Tab ───────────────────────────────────────────────── */}
           <TabsContent value="admins" className="space-y-4">
-            <h2 className="text-xl font-semibold">Invite New Admin</h2>
-            <Card className="bg-[#1A1814] border-[#2A2520]">
-              <CardContent className="p-5 space-y-3">
-                <p className="text-sm text-[#B5A898]">Create a new admin account. The new admin will receive a verification email.</p>
-                <div className="grid md:grid-cols-2 gap-3">
-                  <Input placeholder="Email" type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} className={inputCls} />
-                  <Input placeholder="Password" type="password" value={invitePassword} onChange={e => setInvitePassword(e.target.value)} className={inputCls} />
-                </div>
-                <Button onClick={inviteAdmin} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><Users size={14} className="mr-1" /> Create Admin</Button>
-              </CardContent>
-            </Card>
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <h2 className="text-xl font-semibold">Admin Users</h2>
+                <p className="text-sm text-[#6B5E50]">
+                  {isSuperAdmin
+                    ? 'You are the super admin. You can add, remove, and change roles.'
+                    : `Only the super admin (${SUPER_ADMIN_EMAIL}) can add or remove admins.`}
+                </p>
+              </div>
+              <div className="text-xs text-[#6B5E50]">{adminList.length} admin{adminList.length !== 1 ? 's' : ''}</div>
+            </div>
+
+            <div className="space-y-2">
+              {adminList.map(a => {
+                const isSuper = a.email.toLowerCase() === SUPER_ADMIN_EMAIL;
+                return (
+                  <Card key={a.email} className="bg-[#1A1814] border-[#2A2520]">
+                    <CardContent className="p-4 flex items-center justify-between gap-3 flex-wrap">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-full bg-[#E8620A]/20 text-[#E8620A] flex items-center justify-center text-sm font-bold uppercase">
+                          {a.email[0]}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-white font-medium truncate">{a.email}</span>
+                            {isSuper && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#E8620A]/20 text-[#E8620A] font-bold tracking-wider uppercase">Super Admin</span>
+                            )}
+                            {!isSuper && a.role === 'super_admin' && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-900/40 text-purple-300 font-bold tracking-wider uppercase">Super Admin</span>
+                            )}
+                            {a.role === 'admin' && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-900/40 text-blue-300 font-bold tracking-wider uppercase">Admin</span>
+                            )}
+                            {session?.user?.email?.toLowerCase() === a.email.toLowerCase() && (
+                              <span className="text-[10px] text-[#6B5E50]">(you)</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {!isSuper && isSuperAdmin && (
+                          <select
+                            value={a.role}
+                            onChange={e => changeAdminRole(a.email, e.target.value as 'admin' | 'super_admin')}
+                            className={`${inputCls} rounded-md px-2 py-1 border text-xs`}
+                          >
+                            <option value="admin">Admin</option>
+                            <option value="super_admin">Super Admin</option>
+                          </select>
+                        )}
+                        {!isSuper && isSuperAdmin && (
+                          <Button size="sm" variant="ghost" onClick={() => removeAdmin(a.email)} className="text-red-400 hover:text-red-300">
+                            <Trash2 size={14} />
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+
+            {isSuperAdmin && (
+              <>
+                <h3 className="text-lg font-semibold pt-4">Add New Admin</h3>
+                <Card className="bg-[#1A1814] border-[#2A2520]">
+                  <CardContent className="p-5 space-y-3">
+                    <p className="text-sm text-[#B5A898]">Creates a login and adds them to the admin list. They'll sign in at /admin with the password you set.</p>
+                    <div className="grid md:grid-cols-3 gap-3">
+                      <Field label="Email">
+                        <Input placeholder="name@example.com" type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} className={inputCls} />
+                      </Field>
+                      <Field label="Temporary Password">
+                        <Input placeholder="At least 6 characters" type="password" value={invitePassword} onChange={e => setInvitePassword(e.target.value)} className={inputCls} />
+                      </Field>
+                      <Field label="Role">
+                        <select value={inviteRole} onChange={e => setInviteRole(e.target.value as 'admin' | 'super_admin')} className={`${inputCls} rounded-md px-3 py-2 border text-sm w-full`}>
+                          <option value="admin">Admin</option>
+                          <option value="super_admin">Super Admin</option>
+                        </select>
+                      </Field>
+                    </div>
+                    <Button onClick={inviteAdmin} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><Users size={14} className="mr-1" /> Create Admin</Button>
+                  </CardContent>
+                </Card>
+              </>
+            )}
           </TabsContent>
         </Tabs>
       </div>
