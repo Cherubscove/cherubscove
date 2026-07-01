@@ -780,13 +780,56 @@ export default function AdminPage() {
               <Card className="bg-[#1A1814] border-[#E8620A]/30">
                 <CardContent className="p-5 space-y-3">
                   <h3 className="font-semibold text-[#E8620A]">{editGallery.id ? 'Edit Image' : 'New Image'}</h3>
+
+                  <Field label="Gallery Collection *" hint="Groups images under one heading on the Past Conferences page. Pick an existing collection or type a new name.">
+                    <div className="flex gap-2 flex-wrap">
+                      <Input
+                        list="gallery-collections"
+                        placeholder="e.g. Quiver's 2025 — Immersion"
+                        value={editGallery.category}
+                        onChange={e => setEditGallery({ ...editGallery, category: e.target.value })}
+                        className={`${inputCls} flex-1 min-w-[220px]`}
+                      />
+                      <datalist id="gallery-collections">
+                        {galleryCollections.map(c => <option key={c} value={c} />)}
+                      </datalist>
+                      {galleryCollections.length > 0 && (
+                        <select
+                          value=""
+                          onChange={e => e.target.value && setEditGallery({ ...editGallery, category: e.target.value })}
+                          className={`${inputCls} rounded-md px-3 py-2 border text-sm`}
+                        >
+                          <option value="">Pick existing…</option>
+                          {galleryCollections.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      )}
+                    </div>
+                  </Field>
+
                   <div className="grid md:grid-cols-2 gap-3">
-                    <Input placeholder="Title *" value={editGallery.title} onChange={e => setEditGallery({ ...editGallery, title: e.target.value })} className={inputCls} />
-                    <Input placeholder="Image URL *" value={editGallery.image_url} onChange={e => setEditGallery({ ...editGallery, image_url: e.target.value })} className={inputCls} />
-                    <Input placeholder="Category" value={editGallery.category} onChange={e => setEditGallery({ ...editGallery, category: e.target.value })} className={inputCls} />
-                    <Input placeholder="Caption" value={editGallery.caption} onChange={e => setEditGallery({ ...editGallery, caption: e.target.value })} className={inputCls} />
+                    <Field label="Image Title *" hint="Shown as caption overlay on the frontend">
+                      <Input placeholder="e.g. Opening Night" value={editGallery.title} onChange={e => setEditGallery({ ...editGallery, title: e.target.value })} className={inputCls} />
+                    </Field>
+                    <Field label="Caption" hint="Optional secondary line (e.g. photographer, session name)">
+                      <Input placeholder="Optional" value={editGallery.caption} onChange={e => setEditGallery({ ...editGallery, caption: e.target.value })} className={inputCls} />
+                    </Field>
                   </div>
-                  {editGallery.image_url && <img src={editGallery.image_url} alt="Preview" className="w-32 h-24 object-cover rounded-lg border border-[#2A2520]" />}
+
+                  <Field label="Image *" hint="Upload a file or paste a URL. Uploads go to the 'gallery-images' (or 'event-images') public bucket.">
+                    <div className="border border-[#2A2520] rounded-lg p-4 space-y-3">
+                      <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+                        <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-[#E8620A] hover:bg-[#cf5709] text-white rounded-md text-sm font-medium">
+                          {uploadingGalleryImage ? 'Uploading…' : 'Upload File'}
+                          <input type="file" accept="image/*" className="hidden" disabled={uploadingGalleryImage}
+                            onChange={e => e.target.files?.[0] && uploadGalleryImage(e.target.files[0])} />
+                        </label>
+                        <span className="text-xs text-[#6B5E50]">or paste an image URL</span>
+                      </div>
+                      <Input placeholder="https://…" value={editGallery.image_url} onChange={e => setEditGallery({ ...editGallery, image_url: e.target.value })} className={inputCls} />
+                      {editGallery.image_url && <img src={editGallery.image_url} alt="Preview" className="w-40 h-28 object-cover rounded-md border border-[#2A2520]" />}
+                    </div>
+                  </Field>
+
                   <div className="flex gap-2">
                     <Button onClick={saveGallery} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><Save size={14} className="mr-1" /> Save</Button>
                     <Button variant="outline" onClick={() => setEditGallery(null)} className="border-[#2A2520] text-[#B5A898]"><X size={14} className="mr-1" /> Cancel</Button>
@@ -795,23 +838,65 @@ export default function AdminPage() {
               </Card>
             )}
             {gallery.length === 0 && !editGallery && <p className="text-[#6B5E50] text-center py-8">No gallery items yet.</p>}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {gallery.map(g => (
-                <Card key={g.id} className="bg-[#1A1814] border-[#2A2520] overflow-hidden">
-                  <div className="aspect-video bg-[#0F0D0A] relative">
-                    {g.image_url ? <img src={g.image_url} alt={g.title} className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full text-[#2A2520]"><Image size={32} /></div>}
-                  </div>
-                  <CardContent className="p-3">
-                    <h4 className="text-sm font-semibold text-white truncate">{g.title}</h4>
-                    {g.category && <p className="text-xs text-[#6B5E50]">{g.category}</p>}
-                    <div className="flex gap-1 mt-2">
-                      <Button size="sm" variant="ghost" onClick={() => setEditGallery({ ...g })} className="text-[#B5A898] hover:text-white h-7 px-2"><Edit2 size={12} /></Button>
-                      <Button size="sm" variant="ghost" onClick={() => deleteGallery(g.id!)} className="text-red-400 hover:text-red-300 h-7 px-2"><Trash2 size={12} /></Button>
+
+            {/* Grouped by collection */}
+            {galleryCollections.length > 0 && (
+              <div className="space-y-6">
+                {galleryCollections.map(col => {
+                  const items = gallery.filter(g => (g.category || '') === col);
+                  return (
+                    <div key={col}>
+                      <div className="flex items-center gap-3 mb-3">
+                        <h3 className="text-sm font-bold tracking-[2px] uppercase text-[#E8620A]">{col}</h3>
+                        <span className="text-xs text-[#6B5E50]">{items.length} image{items.length !== 1 ? 's' : ''}</span>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {items.map(g => (
+                          <Card key={g.id} className="bg-[#1A1814] border-[#2A2520] overflow-hidden">
+                            <div className="aspect-video bg-[#0F0D0A] relative">
+                              {g.image_url ? <img src={g.image_url} alt={g.title} className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full text-[#2A2520]"><Image size={32} /></div>}
+                            </div>
+                            <CardContent className="p-3">
+                              <h4 className="text-sm font-semibold text-white truncate">{g.title}</h4>
+                              {g.caption && <p className="text-xs text-[#6B5E50] truncate">{g.caption}</p>}
+                              <div className="flex gap-1 mt-2">
+                                <Button size="sm" variant="ghost" onClick={() => setEditGallery({ ...g })} className="text-[#B5A898] hover:text-white h-7 px-2"><Edit2 size={12} /></Button>
+                                <Button size="sm" variant="ghost" onClick={() => deleteGallery(g.id!)} className="text-red-400 hover:text-red-300 h-7 px-2"><Trash2 size={12} /></Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                  );
+                })}
+                {/* Uncategorized */}
+                {gallery.some(g => !(g.category || '').trim()) && (
+                  <div>
+                    <div className="flex items-center gap-3 mb-3">
+                      <h3 className="text-sm font-bold tracking-[2px] uppercase text-[#6B5E50]">Uncategorized</h3>
+                      <span className="text-xs text-[#6B5E50]">Assign a collection so these appear on the Past Conferences page.</span>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {gallery.filter(g => !(g.category || '').trim()).map(g => (
+                        <Card key={g.id} className="bg-[#1A1814] border-yellow-800/40 overflow-hidden">
+                          <div className="aspect-video bg-[#0F0D0A] relative">
+                            {g.image_url ? <img src={g.image_url} alt={g.title} className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full text-[#2A2520]"><Image size={32} /></div>}
+                          </div>
+                          <CardContent className="p-3">
+                            <h4 className="text-sm font-semibold text-white truncate">{g.title}</h4>
+                            <div className="flex gap-1 mt-2">
+                              <Button size="sm" variant="ghost" onClick={() => setEditGallery({ ...g })} className="text-[#B5A898] hover:text-white h-7 px-2"><Edit2 size={12} /></Button>
+                              <Button size="sm" variant="ghost" onClick={() => deleteGallery(g.id!)} className="text-red-400 hover:text-red-300 h-7 px-2"><Trash2 size={12} /></Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </TabsContent>
 
           {/* ── Registrations Tab ─────────────────────────────────────────── */}
