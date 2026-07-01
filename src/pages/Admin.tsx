@@ -331,6 +331,28 @@ export default function AdminPage() {
     loadAllData();
   };
 
+  const uploadGalleryImage = async (file: File) => {
+    if (!editGallery) return;
+    setUploadingGalleryImage(true);
+    try {
+      const ext = file.name.split('.').pop() || 'jpg';
+      const path = `gallery/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      // Try dedicated gallery bucket, fall back to event-images
+      let bucket = 'gallery-images';
+      let { error: upErr } = await supabase.storage.from(bucket).upload(path, file, { upsert: false });
+      if (upErr) {
+        bucket = 'event-images';
+        ({ error: upErr } = await supabase.storage.from(bucket).upload(path, file, { upsert: false }));
+      }
+      if (upErr) {
+        toast.error(`Upload failed: ${upErr.message}. Create a public bucket named "gallery-images" (or "event-images") in Supabase Storage.`);
+        return;
+      }
+      const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+      setEditGallery({ ...editGallery, image_url: data.publicUrl });
+      toast.success('Image uploaded.');
+    } finally { setUploadingGalleryImage(false); }
+
   const deleteGallery = async (id: string) => {
     if (!confirm('Delete this gallery item?')) return;
     await supabase.from('gallery').delete().eq('id', id);
