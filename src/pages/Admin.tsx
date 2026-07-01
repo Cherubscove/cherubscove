@@ -352,6 +352,8 @@ export default function AdminPage() {
       setEditGallery({ ...editGallery, image_url: data.publicUrl });
       toast.success('Image uploaded.');
     } finally { setUploadingGalleryImage(false); }
+  };
+
 
   const deleteGallery = async (id: string) => {
     if (!confirm('Delete this gallery item?')) return;
