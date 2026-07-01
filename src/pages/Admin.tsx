@@ -395,10 +395,11 @@ export default function AdminPage() {
     if (!parsed.some(a => a.email.toLowerCase() === SUPER_ADMIN_EMAIL)) {
       parsed.unshift({ email: SUPER_ADMIN_EMAIL, role: 'super_admin' });
       const payload = JSON.stringify(parsed);
-      if (row) {
-        await supabase.from('site_settings').update({ value: payload }).eq('id', row.id);
-      } else {
-        await supabase.from('site_settings').insert({ key: ADMIN_LIST_KEY, label: 'Admin Users (JSON)', value: payload, type: 'text' });
+      const res = row
+        ? await supabase.from('site_settings').update({ value: payload }).eq('id', row.id)
+        : await supabase.from('site_settings').insert({ key: ADMIN_LIST_KEY, label: 'Admin Users (JSON)', value: payload, type: 'text' });
+      if (res.error) {
+        toast.error(`Could not persist admin list: ${res.error.message}. Check site_settings RLS policies.`);
       }
     }
     setAdminList(parsed);
