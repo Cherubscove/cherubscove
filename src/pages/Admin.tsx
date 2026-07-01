@@ -103,11 +103,14 @@ export default function AdminPage() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingGalleryImage, setUploadingGalleryImage] = useState(false);
 
-  // Distinct gallery collection names — used for admin dropdown & frontend grouping
-  const galleryCollections = useMemo(
-    () => Array.from(new Set(gallery.map(g => (g.category || '').trim()).filter(Boolean))).sort(),
-    [gallery]
-  );
+  // Gallery collections (stored as JSON in site_settings["galleries_json"])
+  const [galleries, setGalleries] = useState<GalleryCollection[]>([]);
+  const [selectedGalleryId, setSelectedGalleryId] = useState<string | null>(null);
+  const [editCollection, setEditCollection] = useState<GalleryCollection | null>(null);
+  const selectedGallery = galleries.find(g => g.id === selectedGalleryId) || null;
+  const imagesInSelectedGallery = selectedGallery
+    ? gallery.filter(g => (g.category || '').trim() === selectedGallery.name)
+    : [];
 
   // Group registrations by event
   const regGroups = useMemo(() => {
