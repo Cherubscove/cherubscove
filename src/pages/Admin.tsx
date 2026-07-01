@@ -97,12 +97,19 @@ export default function AdminPage() {
 
   const [regSort, setRegSort] = useState<{ col: keyof RegistrationRecord; asc: boolean }>({ col: 'created_at', asc: false });
   const [regSearch, setRegSearch] = useState('');
-  const [regEventFilter, setRegEventFilter] = useState('all');
+  const [regSelectedGroupKey, setRegSelectedGroupKey] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
-  // Get unique event names for registration filter (must be before early return)
-  const regEventNames = useMemo(() => {
-    const names = new Set(registrations.map(r => r.event_title || r.program || '').filter(Boolean));
-    return Array.from(names);
+  // Group registrations by event
+  const regGroups = useMemo(() => {
+    const map = new Map<string, { key: string; title: string; items: RegistrationRecord[] }>();
+    registrations.forEach(r => {
+      const key = r.event_id || r.event_title || r.program || 'general';
+      const title = r.event_title || r.program || 'General Registrations';
+      if (!map.has(key)) map.set(key, { key, title, items: [] });
+      map.get(key)!.items.push(r);
+    });
+    return Array.from(map.values()).sort((a, b) => b.items.length - a.items.length);
   }, [registrations]);
 
   /* ── Auth ─────────────────────────────────────────────────────────────── */
