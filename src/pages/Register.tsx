@@ -137,8 +137,8 @@ export default function RegisterPage() {
                     <h2 className="font-heading text-xl font-medium text-foreground mb-4">{selectedEvent.title}</h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 my-4">
                       {[
-                        { lbl: 'Date', val: selectedEvent.date || 'TBA' },
-                        { lbl: 'Time', val: selectedEvent.time || 'TBA' },
+                        { lbl: (selectedEvent.end_date && selectedEvent.end_date !== selectedEvent.date) ? 'Dates' : 'Date', val: formatEventDateRange({ date: selectedEvent.date, end_date: selectedEvent.end_date }) || 'TBA' },
+                        { lbl: 'Time', val: (selectedEvent.time && selectedEvent.end_time) ? `${selectedEvent.time} – ${selectedEvent.end_time}` : (selectedEvent.time || 'TBA') },
                         { lbl: 'Venue', val: selectedEvent.location || 'To Be Announced' },
                         { lbl: 'Attendance', val: 'Free — Open to All' },
                       ].map((d, i) => (
