@@ -4,6 +4,7 @@ import { ArrowRight, Calendar, Clock } from 'lucide-react';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
 import { useSiteSettings, getSetting } from '@/hooks/useSiteSettings';
 import { supabase } from '@/lib/supabaseClient';
+import { formatEventDateRange } from '@/lib/adminTypes';
 
 type MiniEvent = { lbl: string; val: string; sub: string };
 
