@@ -10,6 +10,8 @@ export interface FormFieldConfig {
 export interface EventRecord {
   id?: string;
   title: string;
+  /** Optional theme / topic (e.g. "Envoys of Light", "The Passion of Christ"). Requires `theme` text column. */
+  theme?: string;
   status: string;
   /** Start date (YYYY-MM-DD). Stored in existing `date` column. */
   date: string;
@@ -24,6 +26,12 @@ export interface EventRecord {
   location: string;
   registration_enabled?: boolean;
   form_fields?: string;
+}
+
+export interface GalleryCollection {
+  id: string;
+  name: string;
+  description?: string;
 }
 
 export interface DownloadRecord {
