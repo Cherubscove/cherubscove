@@ -595,7 +595,7 @@ export default function AdminPage() {
                           <span className="text-xs px-2 py-0.5 rounded-full bg-[#E8620A]/20 text-[#E8620A]">Registration Open</span>
                         )}
                       </div>
-                      <p className="text-sm text-[#6B5E50] mt-0.5">{ev.date} {ev.time && `• ${ev.time}`} {ev.location && `• ${ev.location}`}</p>
+                      <p className="text-sm text-[#6B5E50] mt-0.5">{formatEventDateRange(ev) || 'No date set'}{ev.location && ` • ${ev.location}`}</p>
                       {ev.registration_enabled && (
                         <p className="text-xs text-[#B5A898] mt-1">{getFormFields(ev).length} form field(s)</p>
                       )}
