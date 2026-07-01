@@ -443,7 +443,33 @@ export default function AdminPage() {
     toast.success('Role updated.');
   };
 
+  const GALLERIES_KEY = 'galleries_json';
+  const persistGalleries = async (next: GalleryCollection[]) => {
+    const { data: existing } = await supabase.from('site_settings').select('id').eq('key', GALLERIES_KEY).maybeSingle();
+    const payload = JSON.stringify(next);
+    if (existing?.id) {
+      await supabase.from('site_settings').update({ value: payload }).eq('id', existing.id);
+    } else {
+      await supabase.from('site_settings').insert({ key: GALLERIES_KEY, label: 'Galleries (JSON)', value: payload, type: 'text' });
+    }
+    setGalleries(next);
+  };
+
+  const loadGalleries = async (settingsRows: any[]) => {
+    const row = settingsRows.find(r => r.key === GALLERIES_KEY);
+    let parsed: GalleryCollection[] = [];
+    if (row?.value) { try { parsed = JSON.parse(row.value); } catch { parsed = []; } }
+    if (!parsed.length) {
+      parsed = SEED_GALLERIES;
+      const payload = JSON.stringify(parsed);
+      if (row) await supabase.from('site_settings').update({ value: payload }).eq('id', row.id);
+      else await supabase.from('site_settings').insert({ key: GALLERIES_KEY, label: 'Galleries (JSON)', value: payload, type: 'text' });
+    }
+    setGalleries(parsed);
+  };
+
   /* ── Registrations: Sort & Filter ────────────────────────────────────── */
+
 
   const sortedRegistrations = useMemo(() => {
     let filtered = registrations;
