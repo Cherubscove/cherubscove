@@ -200,15 +200,18 @@ export default function AdminPage() {
 
       const existingKeys = new Set(settings.map((r: any) => r.key));
       const missing = CONTENT_DEFAULTS.filter(cd => !existingKeys.has(cd.key));
+      let finalSettings = settings;
       if (missing.length > 0) {
         await supabase.from('site_settings').insert(missing.map(cd => ({ key: cd.key, label: cd.label, value: cd.value, type: 'text' })));
         const { data: refreshed } = await supabase.from('site_settings').select('*');
         if (refreshed) {
+          finalSettings = refreshed;
           setSettingsMeta(refreshed.map((r: any) => ({ id: r.id, key: r.key, label: r.label, type: r.type })));
           const refreshedMap = refreshed.reduce((acc: Record<string, string>, r: any) => { acc[r.key] = r.value ?? ''; return acc; }, {});
           setSiteSettings(refreshedMap);
         }
       }
+      await loadAdminList(finalSettings);
     } finally { setIsLoading(false); }
   };
 
