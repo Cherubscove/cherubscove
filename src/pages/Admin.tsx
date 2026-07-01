@@ -94,11 +94,20 @@ export default function AdminPage() {
 
   const [inviteEmail, setInviteEmail] = useState('');
   const [invitePassword, setInvitePassword] = useState('');
+  const [inviteRole, setInviteRole] = useState<'admin' | 'super_admin'>('admin');
+  const [adminList, setAdminList] = useState<{ email: string; role: 'super_admin' | 'admin' }[]>([]);
 
   const [regSort, setRegSort] = useState<{ col: keyof RegistrationRecord; asc: boolean }>({ col: 'created_at', asc: false });
   const [regSearch, setRegSearch] = useState('');
   const [regSelectedGroupKey, setRegSelectedGroupKey] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingGalleryImage, setUploadingGalleryImage] = useState(false);
+
+  // Distinct gallery collection names — used for admin dropdown & frontend grouping
+  const galleryCollections = useMemo(
+    () => Array.from(new Set(gallery.map(g => (g.category || '').trim()).filter(Boolean))).sort(),
+    [gallery]
+  );
 
   // Group registrations by event
   const regGroups = useMemo(() => {
