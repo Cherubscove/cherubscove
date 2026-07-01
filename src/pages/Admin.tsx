@@ -330,8 +330,9 @@ export default function AdminPage() {
 
   const sortedRegistrations = useMemo(() => {
     let filtered = registrations;
-    if (regEventFilter !== 'all') {
-      filtered = filtered.filter(r => (r.event_title || r.program || '') === regEventFilter);
+    if (regSelectedGroupKey) {
+      const grp = regGroups.find(g => g.key === regSelectedGroupKey);
+      filtered = grp ? grp.items : [];
     }
     if (regSearch.trim()) {
       const q = regSearch.toLowerCase();
@@ -344,7 +345,7 @@ export default function AdminPage() {
       const bv = (b[regSort.col] ?? '') as string;
       return regSort.asc ? av.localeCompare(bv) : bv.localeCompare(av);
     });
-  }, [registrations, regSort, regSearch, regEventFilter]);
+  }, [registrations, regSort, regSearch, regSelectedGroupKey, regGroups]);
 
   const toggleSort = (col: keyof RegistrationRecord) => {
     setRegSort(prev => prev.col === col ? { col, asc: !prev.asc } : { col, asc: true });
