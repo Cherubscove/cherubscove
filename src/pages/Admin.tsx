@@ -14,9 +14,9 @@ import {
   Calendar, Download, Image, Settings, Users, LogOut, Plus, Trash2, Edit2, Save, X, Eye, EyeOff, FileDown, ArrowUpDown, ClipboardList, FileText, ToggleLeft, ToggleRight,
 } from 'lucide-react';
 import FormFieldBuilder from '@/components/admin/FormFieldBuilder';
-import { SEED_EVENTS, SEED_DOWNLOADS } from '@/lib/seedData';
+import { SEED_EVENTS, SEED_DOWNLOADS, SEED_GALLERIES } from '@/lib/seedData';
 import type {
-  EventRecord, DownloadRecord, GalleryRecord, RegistrationRecord, FormFieldConfig,
+  EventRecord, DownloadRecord, GalleryRecord, RegistrationRecord, FormFieldConfig, GalleryCollection,
   emptyEvent as _ee, emptyDownload as _ed, emptyGallery as _eg,
 } from '@/lib/adminTypes';
 import { emptyEvent, emptyDownload, emptyGallery, formatEventDateRange } from '@/lib/adminTypes';
