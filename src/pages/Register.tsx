@@ -4,16 +4,18 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ScrollToTop from '@/components/ScrollToTop';
 import { supabase } from '@/lib/supabaseClient';
-import type { FormFieldConfig } from '@/lib/adminTypes';
+import { formatEventDateRange, type FormFieldConfig } from '@/lib/adminTypes';
 
 interface EventWithReg {
   id: string;
   title: string;
   status: string;
   date: string;
+  end_date?: string;
+  time: string;
+  end_time?: string;
   description: string;
   location: string;
-  time: string;
   registration_enabled: boolean;
   form_fields: string;
 }
