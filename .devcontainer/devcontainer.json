@@ -1,0 +1,25 @@
+{
+  "name": "cherubscove",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-24-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": false,
+      "installOhMyZsh": false,
+      "upgradePackages": true
+    }
+  },
+  "containerEnv": {
+    "BUN_INSTALL": "/home/vscode/.bun"
+  },
+  "remoteEnv": {
+    "PATH": "${containerEnv:PATH}:/home/vscode/.bun/bin"
+  },
+  "postCreateCommand": "bash -lc 'set -e; set -a; source /workspaces/cherubscove/.env 2>/dev/null || true; set +a; (command -v apk >/dev/null 2>&1 && apk add --no-cache gcompat libc6-compat) || true; curl -fsSL https://bun.sh/install | bash; export BUN_INSTALL=\"$HOME/.bun\"; export PATH=\"$BUN_INSTALL/bin:$PATH\"; echo \"export BUN_INSTALL=\\\"$HOME/.bun\\\"\" >> \"$HOME/.bashrc\"; echo \"export PATH=\\\"$BUN_INSTALL/bin:$PATH\\\"\" >> \"$HOME/.bashrc\"; echo \"set -a; source /workspaces/cherubscove/.env 2>/dev/null; set +a\" >> \"$HOME/.bashrc\"; npm install -g supabase@latest; npm install'", 
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  }
+}
