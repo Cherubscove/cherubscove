@@ -103,9 +103,20 @@ export default function EventsPreview() {
               <>
                 <div
                   className="h-[160px] relative overflow-hidden flex items-center justify-center flex-col gap-1.5 px-8"
-                  style={{ background: 'linear-gradient(135deg, #1A1008, #2E1C0A)' }}
+                  style={featuredUpcoming.image_url ? {} : { background: 'linear-gradient(135deg, #1A1008, #2E1C0A)' }}
                 >
-                  <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 70% 50%, rgba(232,98,10,0.2), transparent 60%)' }} />
+                  {featuredUpcoming.image_url ? (
+                    <>
+                      <img
+                        src={normalizeImageUrl(featuredUpcoming.image_url)}
+                        alt={featuredUpcoming.title}
+                        className="absolute inset-0 w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+                    </>
+                  ) : (
+                    <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 70% 50%, rgba(232,98,10,0.2), transparent 60%)' }} />
+                  )}
                   <div className="font-display text-[clamp(18px,2.5vw,26px)] font-semibold text-primary tracking-[3px] text-center relative z-[1]">
                     {featuredUpcoming.title}
                   </div>

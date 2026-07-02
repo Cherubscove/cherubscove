@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
 import { useSiteSettings, getSetting } from '@/hooks/useSiteSettings';
 import Navbar from '@/components/Navbar';
@@ -6,7 +7,7 @@ import Footer from '@/components/Footer';
 import ScrollToTop from '@/components/ScrollToTop';
 import { supabase } from '@/lib/supabaseClient';
 import { normalizeImageUrl } from '@/pages/Admin';
-import { Eye, ChevronDown, ChevronUp } from 'lucide-react';
+import { Eye, ChevronDown, ChevronUp, X, ArrowLeft, ArrowRight } from 'lucide-react';
 
 type GalleryRow = {
   id: string;
@@ -35,10 +36,12 @@ const INITIAL_VISIBLE = 5;
 
 export default function PastConferencesPage() {
   const ref = useScrollReveal();
+  const navigate = useNavigate();
   const settings = useSiteSettings();
   const [items, setItems] = useState<GalleryRow[]>([]);
   const [pastEvents, setPastEvents] = useState<ConfEvent[]>([]);
   const [expandedCols, setExpandedCols] = useState<Set<string>>(new Set());
+  const [lightbox, setLightbox] = useState<{ images: GalleryRow[]; index: number } | null>(null);
 
   const galleries: GalleryCollection[] = useMemo(() => {
     const raw = getSetting(settings, 'galleries_json', '[]');
@@ -83,6 +86,40 @@ export default function PastConferencesPage() {
       return next;
     });
   };
+
+  const openLightbox = useCallback((images: GalleryRow[], index: number) => {
+    setLightbox({ images, index });
+  }, []);
+
+  const closeLightbox = useCallback(() => {
+    setLightbox(null);
+  }, []);
+
+  const goNext = useCallback(() => {
+    setLightbox(prev => {
+      if (!prev) return null;
+      return { ...prev, index: (prev.index + 1) % prev.images.length };
+    });
+  }, []);
+
+  const goPrev = useCallback(() => {
+    setLightbox(prev => {
+      if (!prev) return null;
+      return { ...prev, index: (prev.index - 1 + prev.images.length) % prev.images.length };
+    });
+  }, []);
+
+  // Keyboard events for lightbox
+  useEffect(() => {
+    if (!lightbox) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeLightbox();
+      if (e.key === 'ArrowRight') goNext();
+      if (e.key === 'ArrowLeft') goPrev();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [lightbox, closeLightbox, goNext, goPrev]);
 
   useEffect(() => {
     loadGallery();
@@ -217,6 +254,7 @@ export default function PastConferencesPage() {
                         return (
                           <div
                             key={g.id}
+                            onClick={() => g.image_url && openLightbox(col.images, col.images.indexOf(g))}
                             className={`group rounded-xl overflow-hidden relative cursor-pointer ${isCover ? 'sm:col-span-2 lg:col-span-2 min-h-[300px]' : 'min-h-[220px]'}`}
                           >
                             {g.image_url ? (
@@ -228,6 +266,10 @@ export default function PastConferencesPage() {
                                 />
                                 {/* Hover overlay */}
                                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
+                                {/* Click hint */}
+                                <div className="absolute top-3 right-3 bg-black/50 backdrop-blur-sm text-white/80 text-[9px] px-2 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-[3] flex items-center gap-1">
+                                  <Eye size={10} /> View
+                                </div>
                                 {g.featured && (
                                   <div className="absolute top-3 left-3 bg-primary/90 text-primary-foreground text-[9px] font-bold px-2 py-0.5 rounded-full tracking-wider uppercase z-[2]">
                                     Featured
@@ -249,18 +291,18 @@ export default function PastConferencesPage() {
                         );
                       })}
 
-                      {/* "View all" placeholder card */}
+                      {/* "View all" card — links to dedicated gallery page */}
                       {!isExpanded && hiddenCount > 0 && (
-                        <button
-                          onClick={() => toggleExpand(col.id)}
-                          className="min-h-[220px] rounded-xl border-2 border-dashed border-border bg-card/50 hover:bg-card hover:border-primary/50 transition-all duration-300 flex flex-col items-center justify-center gap-2 group cursor-pointer"
+                        <Link
+                          to={`/past-conferences/${encodeURIComponent(col.id)}`}
+                          className="min-h-[220px] rounded-xl border-2 border-dashed border-border bg-card/50 hover:bg-card hover:border-primary/50 transition-all duration-300 flex flex-col items-center justify-center gap-2 group cursor-pointer no-underline"
                         >
                           <Eye size={24} className="text-muted-foreground group-hover:text-primary transition-colors" />
                           <span className="text-sm font-medium text-muted-foreground group-hover:text-primary transition-colors">
                             View all {col.images.length} photos
                           </span>
                           <ChevronDown size={18} className="text-muted-foreground group-hover:text-primary transition-colors" />
-                        </button>
+                        </Link>
                       )}
                     </div>
 
@@ -282,6 +324,73 @@ export default function PastConferencesPage() {
           )}
         </div>
       </div>
+
+      {/* Lightbox */}
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center"
+          onClick={closeLightbox}
+        >
+          {/* Close button */}
+          <button
+            onClick={closeLightbox}
+            className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+          >
+            <X size={20} className="text-white" />
+          </button>
+
+          {/* Counter */}
+          <div className="absolute top-4 left-4 text-white/60 text-[11px] font-bold tracking-[2px] uppercase">
+            {lightbox.index + 1} / {lightbox.images.length}
+          </div>
+
+          {/* Previous */}
+          {lightbox.images.length > 1 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); goPrev(); }}
+              className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors z-10"
+            >
+              <ArrowLeft size={20} className="text-white" />
+            </button>
+          )}
+
+          {/* Image */}
+          {lightbox.images[lightbox.index]?.image_url && (
+            <div className="max-w-[90vw] max-h-[90vh] flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+              <img
+                src={normalizeImageUrl(lightbox.images[lightbox.index].image_url!)}
+                alt={lightbox.images[lightbox.index].alt_text || lightbox.images[lightbox.index].title || 'Gallery photo'}
+                className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+              />
+            </div>
+          )}
+
+          {/* Image info */}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-center">
+            {lightbox.images[lightbox.index]?.title && (
+              <p className="text-white/80 text-sm font-heading italic">
+                {lightbox.images[lightbox.index].title}
+              </p>
+            )}
+            {lightbox.images[lightbox.index]?.caption && (
+              <p className="text-white/50 text-xs mt-1">
+                {lightbox.images[lightbox.index].caption}
+              </p>
+            )}
+          </div>
+
+          {/* Next */}
+          {lightbox.images.length > 1 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); goNext(); }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors z-10"
+            >
+              <ArrowRight size={20} className="text-white" />
+            </button>
+          )}
+        </div>
+      )}
+
       <Footer />
       <ScrollToTop />
     </>

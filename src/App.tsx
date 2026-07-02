@@ -10,6 +10,7 @@ import Resources from "./pages/Resources.tsx";
 import Connect from "./pages/Connect.tsx";
 import EventsConferences from "./pages/EventsConferences.tsx";
 import PastConferences from "./pages/PastConferences.tsx";
+import GalleryDetail from "./pages/GalleryDetail.tsx";
 import Admin from "./pages/Admin.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import { supabaseConfigError } from "@/lib/supabaseClient";
@@ -52,6 +53,7 @@ const App = () => {
             <Route path="/connect" element={<Connect />} />
             <Route path="/events-conferences" element={<EventsConferences />} />
             <Route path="/past-conferences" element={<PastConferences />} />
+            <Route path="/past-conferences/:galleryId" element={<GalleryDetail />} />
             <Route path="/admin" element={<Admin />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
