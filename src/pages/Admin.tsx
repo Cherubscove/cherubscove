@@ -71,6 +71,22 @@ const CONTENT_DEFAULTS: { key: string; label: string; value: string; group: stri
 
 /* ── Component ──────────────────────────────────────────────────────────── */
 
+const Field = ({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) => (
+  <div className="space-y-1">
+    <label className="text-[11px] font-semibold tracking-wide uppercase text-[#B5A898]">{label}</label>
+    {children}
+    {hint && <p className="text-[10px] text-[#6B5E50]">{hint}</p>}
+  </div>
+);
+
+/** Convert Google Drive share URLs into direct-image URLs that browsers can render. */
+export function normalizeImageUrl(url: string): string {
+  if (!url) return url;
+  const m = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:[^&]*&)*id=)([a-zA-Z0-9_-]+)/);
+  if (m) return `https://lh3.googleusercontent.com/d/${m[1]}=w1600`;
+  return url;
+}
+
 export default function AdminPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [email, setEmail] = useState('');
