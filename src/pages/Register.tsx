@@ -265,7 +265,8 @@ export default function RegisterPage() {
                           ) : field.type === 'checkbox' ? (
                             <div className="space-y-2 pt-1">
                               {(field.options || []).map(opt => {
-                                const arr: string[] = Array.isArray(formValues[field.id]) ? formValues[field.id] : [];
+                                const raw = formValues[field.id];
+                                const arr: string[] = Array.isArray(raw) ? raw : [];
                                 const checked = arr.includes(opt);
                                 return (
                                   <label key={opt} className="flex items-center gap-2 text-sm cursor-pointer">
