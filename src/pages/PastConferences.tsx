@@ -4,6 +4,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ScrollToTop from '@/components/ScrollToTop';
 import { supabase } from '@/lib/supabaseClient';
+import { normalizeImageUrl } from '@/pages/Admin';
 
 type GalleryRow = {
   id: string;
