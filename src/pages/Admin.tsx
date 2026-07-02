@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import {
-  Calendar, Download, Image, Settings, Users, LogOut, Plus, Trash2, Edit2, Save, X, Eye, EyeOff, FileDown, ArrowUpDown, ClipboardList, FileText, ToggleLeft, ToggleRight, CheckSquare, Square, FolderInput,
+  Calendar, Download, Image, Settings, Users, LogOut, Plus, Trash2, Edit2, Save, X, Eye, EyeOff, FileDown, ArrowUpDown, ClipboardList, FileText, ToggleLeft, ToggleRight, CheckSquare, Square, FolderInput, Star,
 } from 'lucide-react';
 import FormFieldBuilder from '@/components/admin/FormFieldBuilder';
 import { SEED_EVENTS, SEED_DOWNLOADS, SEED_GALLERIES } from '@/lib/seedData';
@@ -1049,7 +1049,7 @@ export default function AdminPage() {
                       const category = (g.category || '').trim();
                       return category === col.id || category === col.name;
                     });
-                    const cover = imgs.find(i => i.image_url);
+                    const cover = imgs.find(i => (i as any).featured) || imgs.find(i => i.image_url);
                     return (
                       <Card key={col.id} className="bg-[#1A1814] border-[#2A2520] overflow-hidden">
                         <button onClick={() => setSelectedGalleryId(col.id)} className="block w-full text-left">
@@ -1365,7 +1365,7 @@ export default function AdminPage() {
 
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {imagesInSelectedGallery.map(g => (
-                    <Card key={g.id} className="bg-[#1A1814] border-[#2A2520] overflow-hidden relative">
+                    <Card key={g.id} className={`bg-[#1A1814] border-[#2A2520] overflow-hidden relative ${(g as any).featured ? 'ring-2 ring-[#E8620A]' : ''}`}>
                       {/* Selection checkbox */}
                       <button
                         type="button"
@@ -1374,14 +1374,35 @@ export default function AdminPage() {
                       >
                         {selectedImageIds.has(g.id!) ? <CheckSquare size={16} className="text-[#E8620A]" /> : <Square size={16} className="text-white/80" />}
                       </button>
+                      {/* Featured badge */}
+                      {(g as any).featured && (
+                        <div className="absolute top-2 right-2 z-10 bg-[#E8620A] text-white text-[9px] font-bold px-2 py-0.5 rounded-full tracking-wider uppercase">
+                          Cover
+                        </div>
+                      )}
                       <div className="aspect-video bg-[#0F0D0A] relative">
                         {g.image_url ? <img src={normalizeImageUrl(g.image_url)} alt={g.alt_text || g.title || 'Gallery photo'} className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full text-[#2A2520]"><Image size={32} /></div>}
                       </div>
                       <CardContent className="p-3">
                         <h4 className="text-sm font-semibold text-white truncate">{g.title}</h4>
                         {g.caption && <p className="text-xs text-[#6B5E50] truncate">{g.caption}</p>}
-                        <div className="flex gap-1 mt-2">
+                        <div className="flex gap-1 mt-2 flex-wrap">
                           <Button size="sm" variant="ghost" onClick={() => setEditGallery({ ...g })} className="text-[#B5A898] hover:text-white h-7 px-2"><Edit2 size={12} /></Button>
+                          {!(g as any).featured && (
+                            <Button size="sm" variant="ghost" onClick={async () => {
+                              const { error } = await supabase.from('gallery').update({ featured: true }).eq('id', g.id!);
+                              if (error) { toast.error(error.message); return; }
+                              // Unfeature all others in same gallery
+                              const otherIds = imagesInSelectedGallery.filter(x => x.id !== g.id).map(x => x.id!);
+                              if (otherIds.length) {
+                                await supabase.from('gallery').update({ featured: false }).in('id', otherIds);
+                              }
+                              toast.success('Cover image updated.');
+                              loadAllData();
+                            }} className="text-yellow-500 hover:text-yellow-400 h-7 px-2" title="Set as gallery cover">
+                              <Star size={12} />
+                            </Button>
+                          )}
                           <Button size="sm" variant="ghost" onClick={() => deleteGallery(g.id!)} className="text-red-400 hover:text-red-300 h-7 px-2"><Trash2 size={12} /></Button>
                         </div>
                       </CardContent>
