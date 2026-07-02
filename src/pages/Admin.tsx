@@ -367,16 +367,23 @@ export default function AdminPage() {
     const title = editGallery.title || titleFromUrl(editGallery.image_url) || 'Gallery Photo';
     // Auto-generate alt_text from title if not explicitly provided
     const alt_text = editGallery.alt_text || `Photo: ${title}`;
-    const payload = { title, image_url: editGallery.image_url, caption: editGallery.caption, category: editGallery.category, alt_text };
-    if (editGallery.id) {
-      const { error } = await supabase.from('gallery').update(payload).eq('id', editGallery.id);
-      if (error) { toast.error(error.message); return; }
-      toast.success('Gallery item updated.');
-    } else {
-      const { error } = await supabase.from('gallery').insert(payload);
-      if (error) { toast.error(error.message); return; }
-      toast.success('Gallery item created.');
+    const payload: Record<string, string> = { title, image_url: editGallery.image_url, caption: editGallery.caption, category: editGallery.category };
+    payload.alt_text = alt_text;
+    const trySave = async (data: Record<string, string>) => {
+      if (editGallery.id) {
+        return supabase.from('gallery').update(data).eq('id', editGallery.id);
+      }
+      return supabase.from('gallery').insert(data);
+    };
+    let { error } = await trySave(payload);
+    // If alt_text column doesn't exist yet, retry without it
+    if (error && error.message?.includes('alt_text')) {
+      delete payload.alt_text;
+      const r = await trySave(payload);
+      error = r.error;
     }
+    if (error) { toast.error(error.message); return; }
+    toast.success(editGallery.id ? 'Gallery item updated.' : 'Gallery item created.');
     setEditGallery(null);
     loadAllData();
   };
@@ -1033,13 +1040,24 @@ export default function AdminPage() {
                             if (!urls.length) { toast.error('Paste at least one URL.'); return; }
                             setImportingBulk(true);
                             let success = 0;
+                            let hasAltColumn = true;
                             for (const url of urls) {
                               const title = titleFromUrl(url) || 'Gallery Photo';
-                              const alt_text = `Photo: ${title}`;
-                              const { error } = await supabase.from('gallery').insert({
-                                title, image_url: url, caption: '', category: selectedGallery.name, alt_text,
-                              });
-                              if (!error) success++;
+                              const row: Record<string, string> = { title, image_url: url, caption: '', category: selectedGallery.name };
+                              if (hasAltColumn) row.alt_text = `Photo: ${title}`;
+                              const { error } = await supabase.from('gallery').insert(row);
+                              if (error) {
+                                // If alt_text column is missing, retry without it once
+                                if (hasAltColumn && error.message?.includes('alt_text')) {
+                                  hasAltColumn = false;
+                                  const { error: retryErr } = await supabase.from('gallery').insert({
+                                    title, image_url: url, caption: '', category: selectedGallery.name,
+                                  });
+                                  if (!retryErr) success++;
+                                }
+                              } else {
+                                success++;
+                              }
                             }
                             setImportingBulk(false);
                             if (success) toast.success(`${success} of ${urls.length} images imported.`);
