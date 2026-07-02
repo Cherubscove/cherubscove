@@ -43,7 +43,7 @@ export interface DownloadRecord {
   id?: string; title: string; url: string; description: string; category: string; type: string;
 }
 export interface GalleryRecord {
-  id?: string; title: string; image_url: string; caption: string; category: string;
+  id?: string; title: string; image_url: string; caption: string; category: string; alt_text?: string;
 }
 export interface RegistrationRecord {
   id: string; event_id?: string; event_title?: string; form_data?: string;
@@ -108,7 +108,7 @@ export function buildEventRegistrationLink(event: Pick<EventRecord, 'id'>): stri
   return event.id ? `/register/${encodeURIComponent(event.id)}` : '/register';
 }
 export const emptyDownload: DownloadRecord = { title: '', url: '', description: '', category: '', type: '' };
-export const emptyGallery: GalleryRecord = { title: '', image_url: '', caption: '', category: '' };
+export const emptyGallery: GalleryRecord = { title: '', image_url: '', caption: '', category: '', alt_text: '' };
 
 /** Format event date range for display. */
 export function formatEventDateRange(ev: { date?: string; end_date?: string; time?: string; end_time?: string }): string {

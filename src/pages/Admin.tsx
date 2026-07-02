@@ -118,6 +118,9 @@ export default function AdminPage() {
   const [regSelectedGroupKey, setRegSelectedGroupKey] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingGalleryImage, setUploadingGalleryImage] = useState(false);
+  const [bulkAddMode, setBulkAddMode] = useState(false);
+  const [bulkUrls, setBulkUrls] = useState('');
+  const [importingBulk, setImportingBulk] = useState(false);
 
   // Gallery collections (stored as JSON in site_settings["galleries_json"])
   const [galleries, setGalleries] = useState<GalleryCollection[]>([]);
@@ -348,10 +351,23 @@ export default function AdminPage() {
 
   /* ── CRUD: Gallery ───────────────────────────────────────────────────── */
 
+  /** Extract a readable title from a URL's filename. */
+  function titleFromUrl(url: string): string {
+    try {
+      const filename = url.split('/').pop()?.split('?')[0]?.split('#')[0] || '';
+      const name = filename.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ');
+      return name.charAt(0).toUpperCase() + name.slice(1);
+    } catch { return ''; }
+  }
+
   const saveGallery = async () => {
     if (!editGallery) return;
-    if (!editGallery.title || !editGallery.image_url) { toast.error('Title and image URL are required.'); return; }
-    const payload = { title: editGallery.title, image_url: editGallery.image_url, caption: editGallery.caption, category: editGallery.category };
+    if (!editGallery.image_url) { toast.error('Image URL is required.'); return; }
+    // Auto-generate title from URL if empty
+    const title = editGallery.title || titleFromUrl(editGallery.image_url) || 'Gallery Photo';
+    // Auto-generate alt_text from title if not explicitly provided
+    const alt_text = editGallery.alt_text || `Photo: ${title}`;
+    const payload = { title, image_url: editGallery.image_url, caption: editGallery.caption, category: editGallery.category, alt_text };
     if (editGallery.id) {
       const { error } = await supabase.from('gallery').update(payload).eq('id', editGallery.id);
       if (error) { toast.error(error.message); return; }
@@ -950,7 +966,7 @@ export default function AdminPage() {
                       {gallery.filter(g => !(g.category || '').trim() || !galleries.some(gc => gc.name === (g.category || '').trim())).map(g => (
                         <Card key={g.id} className="bg-[#1A1814] border-yellow-800/40 overflow-hidden">
                           <div className="aspect-video bg-[#0F0D0A]">
-                            {g.image_url ? <img src={normalizeImageUrl(g.image_url)} alt={g.title} className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full text-[#2A2520]"><Image size={24} /></div>}
+                            {g.image_url ? <img src={normalizeImageUrl(g.image_url)} alt={g.alt_text || g.title || 'Gallery photo'} className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full text-[#2A2520]"><Image size={24} /></div>}
                           </div>
                           <CardContent className="p-2">
                             <h4 className="text-xs font-semibold text-white truncate">{g.title}</h4>
@@ -970,30 +986,95 @@ export default function AdminPage() {
                 {/* Gallery detail view */}
                 <div className="flex justify-between items-center flex-wrap gap-3">
                   <div className="flex items-center gap-3">
-                    <Button variant="outline" size="sm" onClick={() => { setSelectedGalleryId(null); setEditGallery(null); }} className="border-[#2A2520] text-[#B5A898]">← Back</Button>
+                    <Button variant="outline" size="sm" onClick={() => { setSelectedGalleryId(null); setEditGallery(null); setBulkAddMode(false); setBulkUrls(''); }} className="border-[#2A2520] text-[#B5A898]">← Back</Button>
                     <div>
                       <h2 className="text-xl font-semibold">{selectedGallery.name}</h2>
                       <p className="text-xs text-[#6B5E50]">{imagesInSelectedGallery.length} image{imagesInSelectedGallery.length !== 1 ? 's' : ''}</p>
                     </div>
                   </div>
-                  <Button onClick={() => setEditGallery({ ...emptyGallery, category: selectedGallery.name })} className="bg-[#E8620A] hover:bg-[#cf5709] text-white">
-                    <Plus size={16} className="mr-1" /> Add Image
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => { setBulkAddMode(false); setEditGallery({ ...emptyGallery, category: selectedGallery.name }); }}
+                      className="bg-[#E8620A] hover:bg-[#cf5709] text-white"
+                    >
+                      <Plus size={16} className="mr-1" /> Add Image
+                    </Button>
+                    <Button
+                      onClick={() => { setBulkAddMode(true); setEditGallery(null); setBulkUrls(''); }}
+                      variant={bulkAddMode ? 'default' : 'outline'}
+                      className={bulkAddMode ? 'bg-[#E8620A] hover:bg-[#cf5709] text-white' : 'border-[#2A2520] text-[#B5A898]'}
+                    >
+                      <Image size={16} className="mr-1" /> Bulk Add
+                    </Button>
+                  </div>
                 </div>
 
-                {editGallery && (
+                {/* ── Bulk add mode ──────────────────────────────────────── */}
+                {bulkAddMode && (
+                  <Card className="bg-[#1A1814] border-[#E8620A]/30">
+                    <CardContent className="p-5 space-y-3">
+                      <h3 className="font-semibold text-[#E8620A]">Bulk Import Images — <span className="text-white/70">{selectedGallery.name}</span></h3>
+                      <p className="text-xs text-[#6B5E50]">Paste one URL per line. Titles and alt text will be auto-generated from filenames. You can edit them individually afterward.</p>
+                      <Textarea
+                        rows={8}
+                        placeholder={
+                          'https://drive.google.com/file/d/abc123/view\n' +
+                          'https://drive.google.com/file/d/def456/view\n' +
+                          'https://images.unsplash.com/photo-abc'
+                        }
+                        value={bulkUrls}
+                        onChange={e => setBulkUrls(e.target.value)}
+                        className={inputCls}
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={async () => {
+                            const urls = bulkUrls.split('\n').map(s => s.trim()).filter(Boolean);
+                            if (!urls.length) { toast.error('Paste at least one URL.'); return; }
+                            setImportingBulk(true);
+                            let success = 0;
+                            for (const url of urls) {
+                              const title = titleFromUrl(url) || 'Gallery Photo';
+                              const alt_text = `Photo: ${title}`;
+                              const { error } = await supabase.from('gallery').insert({
+                                title, image_url: url, caption: '', category: selectedGallery.name, alt_text,
+                              });
+                              if (!error) success++;
+                            }
+                            setImportingBulk(false);
+                            if (success) toast.success(`${success} of ${urls.length} images imported.`);
+                            else toast.error('Failed to import images. Check console for details.');
+                            setBulkUrls('');
+                            loadAllData();
+                          }}
+                          disabled={importingBulk}
+                          className="bg-[#E8620A] hover:bg-[#cf5709] text-white"
+                        >
+                          {importingBulk ? 'Importing…' : `Import ${bulkUrls.split('\n').map(s => s.trim()).filter(Boolean).length || ''} Images`}
+                        </Button>
+                        <Button variant="outline" onClick={() => { setBulkAddMode(false); setBulkUrls(''); }} className="border-[#2A2520] text-[#B5A898]"><X size={14} className="mr-1" /> Cancel</Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* ── Single add / edit form ────────────────────────────── */}
+                {editGallery && !bulkAddMode && (
                   <Card className="bg-[#1A1814] border-[#E8620A]/30">
                     <CardContent className="p-5 space-y-3">
                       <h3 className="font-semibold text-[#E8620A]">{editGallery.id ? 'Edit Image' : 'New Image'} — <span className="text-white/70">{selectedGallery.name}</span></h3>
                       <div className="grid md:grid-cols-2 gap-3">
-                        <Field label="Image Title *" hint="Shown as caption overlay on the frontend">
+                        <Field label="Image Title" hint="Optional — auto-generated from filename if blank. Shown as overlay on the frontend.">
                           <Input placeholder="e.g. Opening Night" value={editGallery.title} onChange={e => setEditGallery({ ...editGallery, title: e.target.value })} className={inputCls} />
                         </Field>
-                        <Field label="Caption" hint="Optional secondary line">
-                          <Input placeholder="Optional" value={editGallery.caption} onChange={e => setEditGallery({ ...editGallery, caption: e.target.value })} className={inputCls} />
+                        <Field label="Alt Text" hint="Optional — for accessibility. Auto-generated from title if left blank.">
+                          <Input placeholder="Auto-generated from title" value={editGallery.alt_text || ''} onChange={e => setEditGallery({ ...editGallery, alt_text: e.target.value })} className={inputCls} />
                         </Field>
                       </div>
-                      <Field label="Image *" hint="Upload a file or paste a URL.">
+                      <Field label="Caption" hint="Optional secondary line">
+                        <Input placeholder="Optional" value={editGallery.caption} onChange={e => setEditGallery({ ...editGallery, caption: e.target.value })} className={inputCls} />
+                      </Field>
+                      <Field label="Image URL *" hint="Upload a file or paste a URL.">
                         <div className="border border-[#2A2520] rounded-lg p-4 space-y-3">
                           <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
                             <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-[#E8620A] hover:bg-[#cf5709] text-white rounded-md text-sm font-medium">
@@ -1015,14 +1096,14 @@ export default function AdminPage() {
                   </Card>
                 )}
 
-                {imagesInSelectedGallery.length === 0 && !editGallery && (
-                  <p className="text-[#6B5E50] text-center py-8">No images in this gallery yet. Click "Add Image".</p>
+                {imagesInSelectedGallery.length === 0 && !editGallery && !bulkAddMode && (
+                  <p className="text-[#6B5E50] text-center py-8">No images in this gallery yet. Click "Add Image" or "Bulk Add".</p>
                 )}
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {imagesInSelectedGallery.map(g => (
                     <Card key={g.id} className="bg-[#1A1814] border-[#2A2520] overflow-hidden">
                       <div className="aspect-video bg-[#0F0D0A] relative">
-                        {g.image_url ? <img src={normalizeImageUrl(g.image_url)} alt={g.title} className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full text-[#2A2520]"><Image size={32} /></div>}
+                        {g.image_url ? <img src={normalizeImageUrl(g.image_url)} alt={g.alt_text || g.title || 'Gallery photo'} className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full text-[#2A2520]"><Image size={32} /></div>}
                       </div>
                       <CardContent className="p-3">
                         <h4 className="text-sm font-semibold text-white truncate">{g.title}</h4>
