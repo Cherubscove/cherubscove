@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import {
-  Calendar, Download, Image, Settings, Users, LogOut, Plus, Trash2, Edit2, Save, X, Eye, EyeOff, FileDown, ArrowUpDown, ClipboardList, FileText, ToggleLeft, ToggleRight,
+  Calendar, Download, Image, Settings, Users, LogOut, Plus, Trash2, Edit2, Save, X, Eye, EyeOff, FileDown, ArrowUpDown, ClipboardList, FileText, ToggleLeft, ToggleRight, CheckSquare, Square, FolderInput,
 } from 'lucide-react';
 import FormFieldBuilder from '@/components/admin/FormFieldBuilder';
 import { SEED_EVENTS, SEED_DOWNLOADS, SEED_GALLERIES } from '@/lib/seedData';
@@ -121,6 +121,10 @@ export default function AdminPage() {
   const [bulkAddMode, setBulkAddMode] = useState(false);
   const [bulkUrls, setBulkUrls] = useState('');
   const [importingBulk, setImportingBulk] = useState(false);
+
+  // Bulk image selection (move / delete)
+  const [selectedImageIds, setSelectedImageIds] = useState<Set<string>>(new Set());
+  const [bulkCategoryTarget, setBulkCategoryTarget] = useState<string>('');
 
   // Gallery collections (stored as JSON in site_settings["galleries_json"])
   const [galleries, setGalleries] = useState<GalleryCollection[]>([]);
@@ -470,6 +474,57 @@ export default function AdminPage() {
     if (!confirm('Delete this gallery item?')) return;
     await supabase.from('gallery').delete().eq('id', id);
     toast.success('Gallery item deleted.');
+    loadAllData();
+  };
+
+  /* ── Bulk image selection (move / delete) ────────────────────────────── */
+
+  const toggleSelectImage = (id: string) => {
+    setSelectedImageIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAllImages = (ids: string[]) => {
+    setSelectedImageIds(prev => {
+      if (prev.size === ids.length && [...prev].every(id => ids.includes(id))) {
+        return new Set();
+      }
+      return new Set(ids);
+    });
+  };
+
+  const bulkDeleteImages = async () => {
+    if (selectedImageIds.size === 0) return;
+    if (!confirm(`Delete ${selectedImageIds.size} image(s)?`)) return;
+    const ids = [...selectedImageIds];
+    const { error } = await supabase.from('gallery').delete().in('id', ids);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`${ids.length} image(s) deleted.`);
+    setSelectedImageIds(new Set());
+    loadAllData();
+  };
+
+  const bulkMoveImages = async () => {
+    if (selectedImageIds.size === 0 || !bulkCategoryTarget) return;
+    const ids = [...selectedImageIds];
+    const targetVal = bulkCategoryTarget;
+    const { error } = await supabase.from('gallery').update({ category: targetVal }).in('id', ids);
+    if (error) {
+      if (error.code === '23514') {
+        toast.error('The selected category was rejected by the database. Try using the gallery name or ID.');
+      } else {
+        toast.error(error.message);
+      }
+      return;
+    }
+    const catName = galleries.find(g => g.id === targetVal || g.name === targetVal)?.name || targetVal;
+    toast.success(`${ids.length} image(s) moved to "${catName}".`);
+    setSelectedImageIds(new Set());
+    setBulkCategoryTarget('');
     loadAllData();
   };
 
@@ -1028,13 +1083,68 @@ export default function AdminPage() {
                     return !category || !galleries.some(gc => gc.id === category || gc.name === category);
                   }) && (
                   <div className="pt-6">
-                    <h3 className="text-sm font-bold tracking-[2px] uppercase text-[#6B5E50] mb-3">Unassigned Images</h3>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-bold tracking-[2px] uppercase text-[#6B5E50]">Unassigned Images</h3>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const uncatIds = gallery.filter(g => {
+                            const cat = (g.category || '').trim();
+                            return !cat || !galleries.some(gc => gc.id === cat || gc.name === cat);
+                          }).map(g => g.id).filter(Boolean) as string[];
+                          selectAllImages(uncatIds);
+                        }}
+                        className="text-[10px] tracking-[1px] uppercase text-[#E8620A] hover:text-[#cf5709] font-semibold"
+                      >
+                        {(() => {
+                          const uncatIds = gallery.filter(g => {
+                            const cat = (g.category || '').trim();
+                            return !cat || !galleries.some(gc => gc.id === cat || gc.name === cat);
+                          }).map(g => g.id!).filter(Boolean);
+                          const allSelected = uncatIds.length > 0 && uncatIds.every(id => selectedImageIds.has(id));
+                          return allSelected ? 'Deselect All' : 'Select All';
+                        })()}
+                      </button>
+                    </div>
+
+                    {/* ── Bulk action toolbar for uncategorized ────────── */}
+                    {selectedImageIds.size > 0 && (
+                      <Card className="bg-[#1A1814] border-[#E8620A]/50 mb-3">
+                        <CardContent className="p-4 flex flex-wrap items-center gap-3">
+                          <span className="text-sm text-white font-medium">{selectedImageIds.size} selected</span>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <select
+                              value={bulkCategoryTarget}
+                              onChange={e => setBulkCategoryTarget(e.target.value)}
+                              className={`${inputCls} rounded-md px-3 py-1.5 border text-sm`}
+                            >
+                              <option value="">Move to category…</option>
+                              {galleries.map(gc => (
+                                <option key={gc.id} value={gc.id}>{gc.name}</option>
+                              ))}
+                            </select>
+                            <Button size="sm" onClick={bulkMoveImages} disabled={!bulkCategoryTarget} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><FolderInput size={14} className="mr-1" /> Move</Button>
+                            <Button size="sm" variant="outline" onClick={bulkDeleteImages} className="border-red-800 text-red-400 hover:bg-red-900/20"><Trash2 size={14} className="mr-1" /> Delete</Button>
+                            <Button size="sm" variant="ghost" onClick={() => { setSelectedImageIds(new Set()); setBulkCategoryTarget(''); }} className="text-[#6B5E50]"><X size={14} /></Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                       {gallery.filter(g => {
                         const category = (g.category || '').trim();
                         return !category || !galleries.some(gc => gc.id === category || gc.name === category);
                       }).map(g => (
-                        <Card key={g.id} className="bg-[#1A1814] border-yellow-800/40 overflow-hidden">
+                        <Card key={g.id} className="bg-[#1A1814] border-yellow-800/40 overflow-hidden relative">
+                          {/* Selection checkbox */}
+                          <button
+                            type="button"
+                            onClick={() => toggleSelectImage(g.id!)}
+                            className="absolute top-2 left-2 z-10 p-1 rounded-md bg-black/60 hover:bg-black/80 transition-colors"
+                          >
+                            {selectedImageIds.has(g.id!) ? <CheckSquare size={16} className="text-[#E8620A]" /> : <Square size={16} className="text-white/80" />}
+                          </button>
                           <div className="aspect-video bg-[#0F0D0A]">
                             {g.image_url ? <img src={normalizeImageUrl(g.image_url)} alt={g.alt_text || g.title || 'Gallery photo'} className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full text-[#2A2520]"><Image size={24} /></div>}
                           </div>
@@ -1056,7 +1166,7 @@ export default function AdminPage() {
                 {/* Gallery detail view */}
                 <div className="flex justify-between items-center flex-wrap gap-3">
                   <div className="flex items-center gap-3">
-                    <Button variant="outline" size="sm" onClick={() => { setSelectedGalleryId(null); setEditGallery(null); setBulkAddMode(false); setBulkUrls(''); }} className="border-[#2A2520] text-[#B5A898]">← Back</Button>
+                    <Button variant="outline" size="sm" onClick={() => { setSelectedGalleryId(null); setEditGallery(null); setBulkAddMode(false); setBulkUrls(''); setBulkCategoryTarget(''); }} className="border-[#2A2520] text-[#B5A898]">← Back</Button>
                     <div>
                       <h2 className="text-xl font-semibold">{selectedGallery.name}</h2>
                       <p className="text-xs text-[#6B5E50]">{imagesInSelectedGallery.length} image{imagesInSelectedGallery.length !== 1 ? 's' : ''}</p>
@@ -1064,7 +1174,7 @@ export default function AdminPage() {
                   </div>
                   <div className="flex gap-2">
                     <Button
-                      onClick={() => { setBulkAddMode(false); setEditGallery({ ...emptyGallery, category: selectedGallery.id }); }}
+                      onClick={() => { setBulkAddMode(false); setBulkCategoryTarget(''); setEditGallery({ ...emptyGallery, category: selectedGallery.id }); }}
                       className="bg-[#E8620A] hover:bg-[#cf5709] text-white"
                     >
                       <Plus size={16} className="mr-1" /> Add Image
@@ -1085,6 +1195,19 @@ export default function AdminPage() {
                     <CardContent className="p-5 space-y-3">
                       <h3 className="font-semibold text-[#E8620A]">Bulk Import Images — <span className="text-white/70">{selectedGallery.name}</span></h3>
                       <p className="text-xs text-[#6B5E50]">Paste one URL per line. Titles and alt text will be auto-generated from filenames. You can edit them individually afterward.</p>
+                      <Field label="Target Category" hint="All imported images will be assigned to this category.">
+                        <select
+                          value={bulkCategoryTarget || selectedGallery?.id || ''}
+                          onChange={e => setBulkCategoryTarget(e.target.value)}
+                          className={`${inputCls} rounded-md px-3 py-2 border text-sm w-full`}
+                        >
+                          <option value="">— Use current gallery —</option>
+                          {galleries.map(gc => (
+                            <option key={gc.id} value={gc.id}>{gc.name}</option>
+                          ))}
+                          <option value="__none__">— Uncategorized —</option>
+                        </select>
+                      </Field>
                       <Textarea
                         rows={8}
                         placeholder={
@@ -1112,7 +1235,10 @@ export default function AdminPage() {
                                 image_url: normalizeImageUrl(url),
                                 caption: '',
                               };
-                              if (selectedGallery?.id) row.category = selectedGallery.id;
+                              let effectiveCategory = bulkCategoryTarget;
+                              if (effectiveCategory === '__none__') effectiveCategory = '';
+                              if (!effectiveCategory && selectedGallery?.id) effectiveCategory = selectedGallery.id;
+                              if (effectiveCategory) row.category = effectiveCategory;
                               if (hasAltColumn) row.alt_text = `Photo: ${title}`;
 
                               const tryInsert = async (data: Record<string, string>) => await supabase.from('gallery').insert(data);
@@ -1153,7 +1279,7 @@ export default function AdminPage() {
                         >
                           {importingBulk ? 'Importing…' : `Import ${bulkUrls.split('\n').map(s => s.trim()).filter(Boolean).length || ''} Images`}
                         </Button>
-                        <Button variant="outline" onClick={() => { setBulkAddMode(false); setBulkUrls(''); }} className="border-[#2A2520] text-[#B5A898]"><X size={14} className="mr-1" /> Cancel</Button>
+                        <Button variant="outline" onClick={() => { setBulkAddMode(false); setBulkUrls(''); setBulkCategoryTarget(''); }} className="border-[#2A2520] text-[#B5A898]"><X size={14} className="mr-1" /> Cancel</Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -1174,6 +1300,18 @@ export default function AdminPage() {
                       </div>
                       <Field label="Caption" hint="Optional secondary line">
                         <Input placeholder="Optional" value={editGallery.caption} onChange={e => setEditGallery({ ...editGallery, caption: e.target.value })} className={inputCls} />
+                      </Field>
+                      <Field label="Category" hint="Which gallery this image belongs to.">
+                        <select
+                          value={editGallery.category || ''}
+                          onChange={e => setEditGallery({ ...editGallery, category: e.target.value })}
+                          className={`${inputCls} rounded-md px-3 py-2 border text-sm w-full`}
+                        >
+                          <option value="">— Uncategorized —</option>
+                          {galleries.map(gc => (
+                            <option key={gc.id} value={gc.id}>{gc.name}</option>
+                          ))}
+                        </select>
                       </Field>
                       <Field label="Image URL *" hint="Upload a file or paste a URL.">
                         <div className="border border-[#2A2520] rounded-lg p-4 space-y-3">
@@ -1200,9 +1338,42 @@ export default function AdminPage() {
                 {imagesInSelectedGallery.length === 0 && !editGallery && !bulkAddMode && (
                   <p className="text-[#6B5E50] text-center py-8">No images in this gallery yet. Click "Add Image" or "Bulk Add".</p>
                 )}
+
+                {/* ── Bulk action toolbar ──────────────────────────────── */}
+                {selectedImageIds.size > 0 && (
+                  <Card className="bg-[#1A1814] border-[#E8620A]/50">
+                    <CardContent className="p-4 flex flex-wrap items-center gap-3">
+                      <span className="text-sm text-white font-medium">{selectedImageIds.size} selected</span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <select
+                          value={bulkCategoryTarget}
+                          onChange={e => setBulkCategoryTarget(e.target.value)}
+                          className={`${inputCls} rounded-md px-3 py-1.5 border text-sm`}
+                        >
+                          <option value="">Move to category…</option>
+                          {galleries.map(gc => (
+                            <option key={gc.id} value={gc.id}>{gc.name}</option>
+                          ))}
+                        </select>
+                        <Button size="sm" onClick={bulkMoveImages} disabled={!bulkCategoryTarget} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><FolderInput size={14} className="mr-1" /> Move</Button>
+                        <Button size="sm" variant="outline" onClick={bulkDeleteImages} className="border-red-800 text-red-400 hover:bg-red-900/20"><Trash2 size={14} className="mr-1" /> Delete</Button>
+                        <Button size="sm" variant="ghost" onClick={() => { setSelectedImageIds(new Set()); setBulkCategoryTarget(''); }} className="text-[#6B5E50]"><X size={14} /></Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {imagesInSelectedGallery.map(g => (
-                    <Card key={g.id} className="bg-[#1A1814] border-[#2A2520] overflow-hidden">
+                    <Card key={g.id} className="bg-[#1A1814] border-[#2A2520] overflow-hidden relative">
+                      {/* Selection checkbox */}
+                      <button
+                        type="button"
+                        onClick={() => toggleSelectImage(g.id!)}
+                        className="absolute top-2 left-2 z-10 p-1 rounded-md bg-black/60 hover:bg-black/80 transition-colors"
+                      >
+                        {selectedImageIds.has(g.id!) ? <CheckSquare size={16} className="text-[#E8620A]" /> : <Square size={16} className="text-white/80" />}
+                      </button>
                       <div className="aspect-video bg-[#0F0D0A] relative">
                         {g.image_url ? <img src={normalizeImageUrl(g.image_url)} alt={g.alt_text || g.title || 'Gallery photo'} className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full text-[#2A2520]"><Image size={32} /></div>}
                       </div>
