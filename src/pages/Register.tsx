@@ -1,15 +1,19 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ScrollToTop from '@/components/ScrollToTop';
 import { supabase } from '@/lib/supabaseClient';
 import { buildEventRegistrationLink, formatEventDateRange, type FormFieldConfig } from '@/lib/adminTypes';
+import { CalendarDays, MapPin, Clock, ArrowRight, CheckCircle, AlertTriangle } from 'lucide-react';
+
+/* ── Types ────────────────────────────────────────────────────────────── */
 
 interface EventWithReg {
   id: string;
   title: string;
+  theme?: string;
   status: string;
   date: string;
   end_date?: string;
@@ -17,74 +21,135 @@ interface EventWithReg {
   end_time?: string;
   description: string;
   location: string;
+  image_url: string;
   registration_enabled: boolean;
   form_fields: string;
 }
 
-export default function RegisterPage() {
-  const ref = useScrollReveal();
-  const { eventId } = useParams();
-  const [events, setEvents] = useState<EventWithReg[]>([]);
-  const [selectedEventId, setSelectedEventId] = useState<string>('');
+/* ── Helpers ─────────────────────────────────────────────────────────── */
+
+function normalizeImageUrl(url: string): string {
+  if (!url) return '';
+  const m = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:[^&]*&)*id=)([a-zA-Z0-9_-]+)/);
+  if (m) return `https://lh3.googleusercontent.com/d/${m[1]}=w1600`;
+  return url;
+}
+
+/* ── Gallery Card ────────────────────────────────────────────────────── */
+
+function EventCard({ event }: { event: EventWithReg }) {
+  const imgSrc = normalizeImageUrl(event.image_url);
+  const dateStr = formatEventDateRange(event);
+
+  return (
+    <Link
+      to={buildEventRegistrationLink(event)}
+      className="group block rounded-xl overflow-hidden border border-border bg-card hover:border-primary/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_12px_40px_hsl(var(--orange)/0.12)]"
+    >
+      {/* Image */}
+      <div className="relative h-44 sm:h-52 overflow-hidden">
+        {imgSrc ? (
+          <img
+            src={imgSrc}
+            alt={event.title}
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-[#2A2520] to-[#1A1814] flex items-center justify-center">
+            <span className="text-4xl font-display text-[#B5A898]/30">{event.title.charAt(0)}</span>
+          </div>
+        )}
+        {/* Gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0F0D0A]/90 via-[#0F0D0A]/30 to-transparent" />
+
+        {/* Status badge */}
+        <div className="absolute top-3 left-3">
+          <span className={`text-[9px] font-bold tracking-[2px] uppercase px-2.5 py-1 rounded-full ${
+            event.status === 'upcoming'
+              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+              : event.status === 'recurring'
+              ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+              : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
+          }`}>
+            {event.status}
+          </span>
+        </div>
+
+        {/* Date at bottom of image */}
+        {dateStr && (
+          <div className="absolute bottom-3 left-3 right-3">
+            <div className="inline-flex items-center gap-1.5 text-[10px] font-medium text-white/80 bg-black/40 backdrop-blur-sm px-2.5 py-1 rounded-full">
+              <CalendarDays size={11} />
+              {dateStr}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="p-5 space-y-2">
+        <h3 className="font-heading text-lg font-semibold text-foreground group-hover:text-primary transition-colors leading-snug">
+          {event.title}
+        </h3>
+        {event.theme && (
+          <p className="text-xs italic text-muted-foreground/80">"{event.theme}"</p>
+        )}
+        {event.location && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <MapPin size={11} />
+            {event.location}
+          </div>
+        )}
+        {event.description && (
+          <p className="text-xs text-muted-foreground/70 line-clamp-2 leading-relaxed">
+            {event.description}
+          </p>
+        )}
+        <div className="pt-2">
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-bold tracking-[2px] uppercase text-primary group-hover:gap-2.5 transition-all">
+            Register <ArrowRight size={12} />
+          </span>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+/* ── Registration Form ────────────────────────────────────────────────── */
+
+function RegistrationForm({
+  event,
+  onSuccess,
+}: {
+  event: EventWithReg;
+  onSuccess?: () => void;
+}) {
   const [formValues, setFormValues] = useState<Record<string, string | string[]>>({});
   const [regStatus, setRegStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
   const formRef = useRef<HTMLFormElement>(null);
 
-  const loadEvents = async () => {
-    let query = supabase.from('events').select('*').order('date', { ascending: true });
-
-    if (eventId) {
-      query = query.eq('id', eventId);
-    } else {
-      query = query.eq('registration_enabled', true);
-    }
-
-    const { data } = await query;
-    if (data?.length) {
-      const visibleEvents = eventId ? data : data.filter((e: EventWithReg) => e.registration_enabled);
-      setEvents(visibleEvents);
-      const upcoming = visibleEvents.find((e: EventWithReg) => e.status === 'upcoming');
-      setSelectedEventId(upcoming?.id || visibleEvents[0].id);
-    } else {
-      setEvents([]);
-      setSelectedEventId('');
-    }
-  };
-
-  useEffect(() => {
-    loadEvents();
-    const channel = supabase
-      .channel('register-events-rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, () => loadEvents())
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [eventId]);
-
-  const selectedEvent = events.find(e => e.id === selectedEventId);
   const formFields: FormFieldConfig[] = (() => {
-    try { return JSON.parse(selectedEvent?.form_fields || '[]'); } catch { return []; }
+    try { return JSON.parse(event.form_fields || '[]'); } catch { return []; }
   })();
 
   const handleRegister = async (e: FormEvent) => {
     e.preventDefault();
-    if (!selectedEvent) return;
     setRegStatus('idle');
     setMessage('');
 
-    // Extract standard fields from formValues
     const s = (v: string | string[] | undefined): string =>
       Array.isArray(v) ? v.join(', ') : (v || '');
     const { error } = await supabase.from('registrations').insert({
-      event_id: selectedEvent.id,
-      event_title: selectedEvent.title,
+      event_id: event.id,
+      event_title: event.title,
       first_name: s(formValues['first_name']) || s(formValues['First Name']),
       last_name: s(formValues['last_name']) || s(formValues['Last Name']),
       email: s(formValues['email']) || s(formValues['Email Address']),
       phone: s(formValues['phone']) || s(formValues['Phone Number']),
       location: s(formValues['location']) || s(formValues['State / City']),
       note: s(formValues['note']) || s(formValues['Prayer Request or Note']),
-      program: selectedEvent.title,
+      program: event.title,
       form_data: JSON.stringify(formValues),
       created_at: new Date().toISOString(),
     });
@@ -99,262 +164,358 @@ export default function RegisterPage() {
     setMessage('Registration submitted successfully. Thank you!');
     setFormValues({});
     formRef.current?.reset();
+    onSuccess?.();
   };
 
   const inputClass =
     'w-full px-3.5 py-2.5 rounded-md border-[1.5px] border-border bg-card text-sm text-foreground outline-none transition-all focus:border-primary focus:shadow-[0_0_0_3px_hsl(var(--orange)/0.1)] placeholder:text-muted-foreground';
 
-  // Separate upcoming conference from other events
-  const mainEvent = events.find(e => e.status === 'upcoming');
-  const otherEvents = events.filter(e => e.id !== mainEvent?.id);
+  return (
+    <form onSubmit={handleRegister} ref={formRef} className="space-y-4">
+      {formFields.map((field) => (
+        <div key={field.id} className="space-y-1.5">
+          <label className="text-[9.5px] font-bold tracking-[2px] uppercase text-muted-foreground">
+            {field.label} {field.required && <span className="text-rose-400">*</span>}
+          </label>
+          {field.type === 'textarea' ? (
+            <textarea
+              placeholder={field.placeholder}
+              required={field.required}
+              value={(formValues[field.id] as string) || ''}
+              onChange={e => setFormValues(prev => ({ ...prev, [field.id]: e.target.value }))}
+              className={`${inputClass} resize-y min-h-[80px]`}
+            />
+          ) : field.type === 'select' ? (
+            <select
+              required={field.required}
+              value={(formValues[field.id] as string) || ''}
+              onChange={e => setFormValues(prev => ({ ...prev, [field.id]: e.target.value }))}
+              className={`${inputClass} appearance-none`}
+            >
+              <option value="">{field.placeholder || 'Select...'}</option>
+              {(field.options || []).map(opt => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
+          ) : field.type === 'radio' ? (
+            <div className="space-y-2 pt-1">
+              {(field.options || []).map(opt => (
+                <label key={opt} className="flex items-center gap-2.5 text-sm cursor-pointer group">
+                  <input
+                    type="radio"
+                    name={field.id}
+                    value={opt}
+                    required={field.required}
+                    checked={(formValues[field.id] as string) === opt}
+                    onChange={e => setFormValues(prev => ({ ...prev, [field.id]: e.target.value }))}
+                    className="accent-primary w-3.5 h-3.5"
+                  />
+                  <span className="group-hover:text-foreground transition-colors">{opt}</span>
+                </label>
+              ))}
+            </div>
+          ) : field.type === 'checkbox' ? (
+            <div className="space-y-2 pt-1">
+              {(field.options || []).map(opt => {
+                const raw = formValues[field.id];
+                const arr: string[] = Array.isArray(raw) ? raw : [];
+                const checked = arr.includes(opt);
+                return (
+                  <label key={opt} className="flex items-center gap-2.5 text-sm cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={e => {
+                        const next = e.target.checked ? [...arr, opt] : arr.filter(v => v !== opt);
+                        setFormValues(prev => ({ ...prev, [field.id]: next }));
+                      }}
+                      className="accent-primary w-3.5 h-3.5"
+                    />
+                    <span className="group-hover:text-foreground transition-colors">{opt}</span>
+                  </label>
+                );
+              })}
+            </div>
+          ) : (
+            <input
+              type={field.type}
+              placeholder={field.placeholder}
+              required={field.required}
+              value={(formValues[field.id] as string) || ''}
+              onChange={e => setFormValues(prev => ({ ...prev, [field.id]: e.target.value }))}
+              className={inputClass}
+            />
+          )}
+        </div>
+      ))}
 
+      {formFields.length === 0 && (
+        <p className="text-sm text-muted-foreground text-center py-6">
+          Registration form is being set up. Please check back soon.
+        </p>
+      )}
+
+      {formFields.length > 0 && (
+        <button
+          type="submit"
+          className={`w-full py-3.5 rounded-md font-body text-[11px] font-bold tracking-[3px] uppercase transition-all duration-250 ${
+            regStatus === 'success'
+              ? 'bg-emerald-600 text-white cursor-default'
+              : 'bg-primary text-white hover:bg-primary/90 hover:-translate-y-0.5 hover:shadow-[0_6px_22px_hsl(var(--orange)/0.3)] active:translate-y-0'
+          }`}
+        >
+          {regStatus === 'success' ? (
+            <span className="inline-flex items-center gap-2"><CheckCircle size={14} /> Registered!</span>
+          ) : (
+            'Complete Registration →'
+          )}
+        </button>
+      )}
+
+      {message && (
+        <p className={`text-[11px] text-center mt-3 ${regStatus === 'error' ? 'text-rose-400' : 'text-emerald-400'}`}>
+          {message}
+        </p>
+      )}
+    </form>
+  );
+}
+
+/* ── Main Page Component ──────────────────────────────────────────────── */
+
+export default function RegisterPage() {
+  const ref = useScrollReveal();
+  const { eventId } = useParams();
+  const [events, setEvents] = useState<EventWithReg[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadEvents = async () => {
+    setLoading(true);
+    try {
+      if (eventId) {
+        // Standalone mode — load the specific event
+        const { data } = await supabase
+          .from('events')
+          .select('*')
+          .eq('id', eventId)
+          .single();
+        setEvents(data ? [data] : []);
+      } else {
+        // Gallery mode — load all events with registration enabled
+        const { data } = await supabase
+          .from('events')
+          .select('*')
+          .eq('registration_enabled', true)
+          .order('date', { ascending: true });
+        setEvents(data ?? []);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadEvents();
+    const channel = supabase
+      .channel('register-events-rt')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, () => loadEvents())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [eventId]);
+
+  const singleEvent = eventId ? events[0] ?? null : null;
+
+  /* ── Loading State ──────────────────────────────────────────────────── */
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <div className="pt-[70px] min-h-screen bg-background flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm text-muted-foreground">Loading events…</p>
+          </div>
+        </div>
+        <Footer />
+      </>
+    );
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════
+     STANDALONE EVENT VIEW  (/register/:eventId)
+     ═══════════════════════════════════════════════════════════════════ */
+  if (singleEvent) {
+    const ev = singleEvent;
+    const imgSrc = normalizeImageUrl(ev.image_url);
+    const dateStr = formatEventDateRange(ev);
+
+    return (
+      <>
+        <Navbar />
+        <div className="pt-[70px] min-h-screen bg-background" ref={ref}>
+          {/* ── Hero ──────────────────────────────────────────────────── */}
+          <section className="relative overflow-hidden">
+            <div className="relative h-[320px] sm:h-[420px]">
+              {imgSrc ? (
+                <img src={imgSrc} alt={ev.title} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-[#2E1C0A] via-[#1A1008] to-[#0F0D0A]" />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0F0D0A] via-[#0F0D0A]/60 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#0F0D0A]/40 to-transparent" />
+
+              <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-10">
+                <div className="max-w-4xl mx-auto">
+                  {ev.status && (
+                    <span className={`inline-block text-[9px] font-bold tracking-[2px] uppercase px-3 py-1 rounded-full mb-3 ${
+                      ev.status === 'upcoming'
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                        : ev.status === 'recurring'
+                        ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                        : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
+                    }`}>
+                      {ev.status}
+                    </span>
+                  )}
+                  <h1 className="font-heading text-[clamp(28px,4vw,48px)] font-bold text-white leading-tight">
+                    {ev.title}
+                  </h1>
+                  {ev.theme && (
+                    <p className="mt-2 text-lg sm:text-xl italic text-white/70 font-heading">
+                      “{ev.theme}”
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* ── Body ──────────────────────────────────────────────────── */}
+          <section className="max-w-4xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-10 items-start">
+              {/* Event details */}
+              <div className="space-y-6">
+                {/* Info chips */}
+                <div className="flex flex-wrap gap-4">
+                  {dateStr && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card border border-border rounded-full px-4 py-2">
+                      <CalendarDays size={14} className="text-primary" />
+                      {dateStr}
+                    </div>
+                  )}
+                  {ev.time && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card border border-border rounded-full px-4 py-2">
+                      <Clock size={14} className="text-primary" />
+                      {ev.time}{ev.end_time ? ` – ${ev.end_time}` : ''}
+                    </div>
+                  )}
+                  {ev.location && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card border border-border rounded-full px-4 py-2">
+                      <MapPin size={14} className="text-primary" />
+                      {ev.location}
+                    </div>
+                  )}
+                </div>
+
+                {/* Description */}
+                {ev.description && (
+                  <div className="text-sm leading-[1.85] text-muted-foreground bg-card border border-border rounded-xl p-6">
+                    {ev.description}
+                  </div>
+                )}
+
+                {/* Back link */}
+                <Link
+                  to="/register"
+                  className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+                >
+                  ← View all events
+                </Link>
+              </div>
+
+              {/* Registration form */}
+              <div className="bg-card border border-border rounded-xl p-6 lg:sticky lg:top-[90px]">
+                {!ev.registration_enabled ? (
+                  <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 p-4 text-center">
+                    <AlertTriangle size={24} className="mx-auto mb-2 text-amber-400" />
+                    <p className="text-xs font-semibold text-amber-300 uppercase tracking-wider">Registration Closed</p>
+                    <p className="text-xs text-amber-200/70 mt-1">
+                      Registration for this event is currently disabled.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-center mb-6">
+                      <div className="font-heading text-xl font-semibold text-foreground">Register Now</div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Secure your spot for <span className="text-primary font-medium">{ev.title}</span>
+                      </p>
+                    </div>
+                    <RegistrationForm event={ev} />
+                  </>
+                )}
+              </div>
+            </div>
+          </section>
+        </div>
+        <Footer />
+        <ScrollToTop />
+      </>
+    );
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════
+     GALLERY VIEW  (/register)
+     ═══════════════════════════════════════════════════════════════════ */
   return (
     <>
       <Navbar />
       <div className="pt-[70px] min-h-screen bg-background" ref={ref}>
         {/* Hero Banner */}
-        {mainEvent && (
-          <div
-            className="py-20 px-8 text-center"
-            style={{ background: 'linear-gradient(135deg, #1A1008, #2E1C0A)' }}
-          >
-            <div className="max-w-[600px] mx-auto">
-              <div className="font-display text-[clamp(20px,3vw,30px)] font-semibold text-primary tracking-[3px] mb-2">
-                {mainEvent.title}
-              </div>
-              <div className="font-heading text-[15px] italic tracking-wider mb-4 text-white/65">
-                {mainEvent.description?.slice(0, 80)}
-              </div>
-              <div className="inline-block bg-primary px-4 py-1.5 rounded-full text-[9px] font-bold tracking-[2px] uppercase text-white">
-                Registrations Open
-              </div>
+        <section className="relative py-20 sm:py-28 px-6 text-center overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-[#2E1C0A] via-[#1A1008] to-[#0F0D0A]" />
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-primary/5 rounded-full blur-3xl" />
+          <div className="relative z-10 max-w-2xl mx-auto">
+            <div className="inline-block bg-primary/10 border border-primary/20 px-4 py-1.5 rounded-full text-[9px] font-bold tracking-[2px] uppercase text-primary mb-5">
+              Programs &amp; Events
             </div>
+            <h1 className="font-heading text-[clamp(32px,5vw,56px)] font-bold text-white leading-[1.1]">
+              Upcoming <em className="italic text-primary not-italic">Gatherings</em>
+            </h1>
+            <p className="mt-4 text-sm sm:text-base text-white/60 max-w-lg mx-auto leading-relaxed">
+              Browse our upcoming events and register to join us. Each event has its own registration page — pick one below to get started.
+            </p>
           </div>
-        )}
+        </section>
 
-        <div className="container py-16">
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_480px] gap-16 items-start">
-            {/* Left: Event Info */}
-            <div>
-              <div className="eyebrow reveal">Programs &amp; Events</div>
-              <h1 className="section-title reveal">
-                Upcoming <em>Gatherings</em>
-              </h1>
-
-              {/* Selected event details */}
-              {selectedEvent && (
-                <div className="border border-border rounded-lg overflow-hidden bg-card reveal card-lift mb-8">
-                  <div className="p-8">
-                    <h2 className="font-heading text-xl font-medium text-foreground mb-4">{selectedEvent.title}</h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 my-4">
-                      {[
-                        { lbl: (selectedEvent.end_date && selectedEvent.end_date !== selectedEvent.date) ? 'Dates' : 'Date', val: formatEventDateRange({ date: selectedEvent.date, end_date: selectedEvent.end_date }) || 'TBA' },
-                        { lbl: 'Time', val: (selectedEvent.time && selectedEvent.end_time) ? `${selectedEvent.time} – ${selectedEvent.end_time}` : (selectedEvent.time || 'TBA') },
-                        { lbl: 'Venue', val: selectedEvent.location || 'To Be Announced' },
-                        { lbl: 'Attendance', val: 'Free — Open to All' },
-                      ].map((d, i) => (
-                        <div key={i}>
-                          <div className="text-[9.5px] font-bold tracking-[2px] uppercase text-muted-foreground mb-1">
-                            {d.lbl}
-                          </div>
-                          <div className="text-sm text-foreground">{d.val}</div>
-                        </div>
-                      ))}
-                    </div>
-                    {selectedEvent.description && (
-                      <div className="text-sm leading-[1.85] text-muted-foreground pt-6 border-t border-border mt-4">
-                        {selectedEvent.description}
-                      </div>
-                    )}
-                    {selectedEvent.registration_enabled && (
-                      <div className="mt-4 rounded-md border border-primary/20 bg-primary/5 p-3 text-[11px] uppercase tracking-[2px] text-primary">
-                        Public link: <a href={buildEventRegistrationLink(selectedEvent)} className="ml-1 underline">{buildEventRegistrationLink(selectedEvent)}</a>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Other events with registration */}
-              {otherEvents.length > 0 && (
-                <div className="flex flex-col gap-3 reveal">
-                  <h3 className="text-xs font-bold tracking-[2px] uppercase text-muted-foreground mb-1">Other Events Open for Registration</h3>
-                  {otherEvents.map(ev => (
-                    <button
-                      key={ev.id}
-                      onClick={() => { setSelectedEventId(ev.id); setFormValues({}); setRegStatus('idle'); setMessage(''); }}
-                      className={`p-5 rounded-lg border text-left transition-all card-lift ${
-                        selectedEventId === ev.id
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border bg-card hover:border-primary/50'
-                      }`}
-                    >
-                      <div className="text-[9.5px] font-bold tracking-[2px] uppercase text-primary mb-1">
-                        {ev.status === 'recurring' ? 'Recurring' : ev.status}
-                      </div>
-                      <div className="font-heading text-[17px] text-foreground">{ev.title}</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">{ev.time || ev.date}</div>
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {events.length === 0 && (
-                <div className="text-center py-12 text-muted-foreground">
-                  <p className="text-sm">No events with open registration at the moment.</p>
-                  <p className="text-xs mt-2">Check back soon for upcoming gatherings.</p>
-                </div>
-              )}
+        {/* Events Grid */}
+        <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-20 -mt-6 relative z-10">
+          {events.length === 0 ? (
+            <div className="text-center py-20 bg-card border border-border rounded-2xl">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
+                <CalendarDays size={24} className="text-muted-foreground" />
+              </div>
+              <h2 className="font-heading text-xl text-foreground mb-2">No Events Right Now</h2>
+              <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+                There are no events with open registration at the moment. Check back soon for upcoming gatherings.
+              </p>
             </div>
-
-            {/* Right: Dynamic Registration Form */}
-            <div className="bg-card border border-border rounded-lg p-8 lg:sticky lg:top-[90px] reveal card-lift">
-              {selectedEvent ? (
-                <>
-                  <div className="font-heading text-2xl font-medium mb-1 text-foreground">Register Now</div>
-                  <div className="text-[13px] text-muted-foreground mb-7">
-                    Register for: <span className="text-primary font-medium">{selectedEvent.title}</span>
-                  </div>
-
-                  {/* Event selector if multiple events */}
-                  {events.length > 1 && (
-                    <div className="mb-5 space-y-1.5">
-                      <label className="text-[9.5px] font-bold tracking-[2px] uppercase text-muted-foreground">
-                        Select Event
-                      </label>
-                      <select
-                        value={selectedEventId}
-                        onChange={e => { setSelectedEventId(e.target.value); setFormValues({}); setRegStatus('idle'); setMessage(''); }}
-                        className={`${inputClass} appearance-none`}
-                      >
-                        {events.map(ev => (
-                          <option key={ev.id} value={ev.id}>{ev.title}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-
-                  {!selectedEvent.registration_enabled ? (
-                    <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-300">
-                      Registration for this event is currently disabled by the admin.
-                    </div>
-                  ) : (
-                    <form onSubmit={handleRegister} ref={formRef}>
-                      <div className="space-y-4">
-                        {formFields.map((field, i) => (
-                        <div key={field.id} className="space-y-1.5">
-                          <label className="text-[9.5px] font-bold tracking-[2px] uppercase text-muted-foreground">
-                            {field.label} {field.required && '*'}
-                          </label>
-                          {field.type === 'textarea' ? (
-                            <textarea
-                              placeholder={field.placeholder}
-                              required={field.required}
-                              value={formValues[field.id] || ''}
-                              onChange={e => setFormValues(prev => ({ ...prev, [field.id]: e.target.value }))}
-                              className={`${inputClass} resize-y min-h-[75px]`}
-                            />
-                          ) : field.type === 'select' ? (
-                            <select
-                              required={field.required}
-                              value={formValues[field.id] || ''}
-                              onChange={e => setFormValues(prev => ({ ...prev, [field.id]: e.target.value }))}
-                              className={`${inputClass} appearance-none`}
-                            >
-                              <option value="">{field.placeholder || 'Select...'}</option>
-                              {(field.options || []).map(opt => (
-                                <option key={opt} value={opt}>{opt}</option>
-                              ))}
-                            </select>
-                          ) : field.type === 'radio' ? (
-                            <div className="space-y-2 pt-1">
-                              {(field.options || []).map(opt => (
-                                <label key={opt} className="flex items-center gap-2 text-sm cursor-pointer">
-                                  <input
-                                    type="radio"
-                                    name={field.id}
-                                    value={opt}
-                                    required={field.required}
-                                    checked={formValues[field.id] === opt}
-                                    onChange={e => setFormValues(prev => ({ ...prev, [field.id]: e.target.value }))}
-                                    className="accent-primary"
-                                  />
-                                  {opt}
-                                </label>
-                              ))}
-                            </div>
-                          ) : field.type === 'checkbox' ? (
-                            <div className="space-y-2 pt-1">
-                              {(field.options || []).map(opt => {
-                                const raw = formValues[field.id];
-                                const arr: string[] = Array.isArray(raw) ? raw : [];
-                                const checked = arr.includes(opt);
-                                return (
-                                  <label key={opt} className="flex items-center gap-2 text-sm cursor-pointer">
-                                    <input
-                                      type="checkbox"
-                                      checked={checked}
-                                      onChange={e => {
-                                        const next = e.target.checked ? [...arr, opt] : arr.filter(v => v !== opt);
-                                        setFormValues(prev => ({ ...prev, [field.id]: next }));
-                                      }}
-                                      className="accent-primary"
-                                    />
-                                    {opt}
-                                  </label>
-                                );
-                              })}
-                            </div>
-                          ) : (
-                            <input
-                              type={field.type}
-                              placeholder={field.placeholder}
-                              required={field.required}
-                              value={formValues[field.id] || ''}
-                              onChange={e => setFormValues(prev => ({ ...prev, [field.id]: e.target.value }))}
-                              className={inputClass}
-                            />
-                          )}
-                        </div>
-                      ))}
-                    </div>
-
-                      {formFields.length === 0 && (
-                        <p className="text-sm text-muted-foreground text-center py-6">
-                          Registration form is being set up. Please check back soon.
-                        </p>
-                      )}
-
-                      {formFields.length > 0 && (
-                        <button
-                          type="submit"
-                          className={`w-full py-3.5 rounded-md font-body text-[11px] font-bold tracking-[3px] uppercase transition-all duration-250 mt-5 ${
-                            regStatus === 'success'
-                              ? 'bg-emerald-600 text-white'
-                              : 'bg-primary text-white hover:bg-primary/90 hover:-translate-y-0.5 hover:shadow-[0_6px_22px_hsl(var(--orange)/0.3)]'
-                          }`}
-                        >
-                          {regStatus === 'success' ? 'Registered! ✓' : 'Complete Registration →'}
-                        </button>
-                      )}
-
-                      {message && (
-                        <p className={`text-[11px] text-center mt-3 ${regStatus === 'error' ? 'text-rose-400' : 'text-emerald-400'}`}>
-                          {message}
-                        </p>
-                      )}
-                    </form>
-                  )}
-                </>
-              ) : (
-                <div className="text-center py-12">
-                  <div className="font-heading text-xl text-foreground mb-2">No Registration Available</div>
-                  <p className="text-sm text-muted-foreground">There are no events with open registration at this time.</p>
-                </div>
+          ) : (
+            <>
+              {events.length > 1 && (
+                <p className="text-sm text-muted-foreground mb-6">
+                  <span className="text-foreground font-semibold">{events.length}</span> event{events.length !== 1 ? 's' : ''} open for registration
+                </p>
               )}
-            </div>
-          </div>
-        </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {events.map(ev => (
+                  <EventCard key={ev.id} event={ev} />
+                ))}
+              </div>
+            </>
+          )}
+        </section>
       </div>
       <Footer />
       <ScrollToTop />
