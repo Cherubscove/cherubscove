@@ -690,7 +690,7 @@ export default function AdminPage() {
                       <span className="text-xs text-[#6B5E50]">or paste an image URL</span>
                     </div>
                     <Input placeholder="https://…" value={editEvent.image_url} onChange={e => setEditEvent({ ...editEvent, image_url: e.target.value })} className={inputCls} />
-                    {editEvent.image_url && <img src={editEvent.image_url} alt="Preview" className="w-40 h-28 object-cover rounded-md border border-[#2A2520]" />}
+                    {editEvent.image_url && <img src={normalizeImageUrl(editEvent.image_url)} alt="Preview" className="w-40 h-28 object-cover rounded-md border border-[#2A2520]" />}
                   </div>
 
                   <Textarea placeholder="Description" value={editEvent.description} onChange={e => setEditEvent({ ...editEvent, description: e.target.value })} className={inputCls} rows={3} />
@@ -882,7 +882,7 @@ export default function AdminPage() {
                         <button onClick={() => setSelectedGalleryId(col.id)} className="block w-full text-left">
                           <div className="aspect-video bg-[#0F0D0A] relative">
                             {cover?.image_url
-                              ? <img src={cover.image_url} alt={col.name} className="w-full h-full object-cover" />
+                              ? <img src={normalizeImageUrl(cover.image_url!)} alt={col.name} className="w-full h-full object-cover" />
                               : <div className="flex items-center justify-center h-full text-[#2A2520]"><Image size={40} /></div>}
                             <div className="absolute top-2 right-2 bg-[#E8620A] text-white text-xs font-bold px-2 py-0.5 rounded-full">{imgs.length}</div>
                           </div>
@@ -912,7 +912,7 @@ export default function AdminPage() {
                       {gallery.filter(g => !(g.category || '').trim() || !galleries.some(gc => gc.name === (g.category || '').trim())).map(g => (
                         <Card key={g.id} className="bg-[#1A1814] border-yellow-800/40 overflow-hidden">
                           <div className="aspect-video bg-[#0F0D0A]">
-                            {g.image_url ? <img src={g.image_url} alt={g.title} className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full text-[#2A2520]"><Image size={24} /></div>}
+                            {g.image_url ? <img src={normalizeImageUrl(g.image_url)} alt={g.title} className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full text-[#2A2520]"><Image size={24} /></div>}
                           </div>
                           <CardContent className="p-2">
                             <h4 className="text-xs font-semibold text-white truncate">{g.title}</h4>
@@ -966,7 +966,7 @@ export default function AdminPage() {
                             <span className="text-xs text-[#6B5E50]">or paste an image URL</span>
                           </div>
                           <Input placeholder="https://…" value={editGallery.image_url} onChange={e => setEditGallery({ ...editGallery, image_url: e.target.value })} className={inputCls} />
-                          {editGallery.image_url && <img src={editGallery.image_url} alt="Preview" className="w-40 h-28 object-cover rounded-md border border-[#2A2520]" />}
+                          {editGallery.image_url && <img src={normalizeImageUrl(editGallery.image_url)} alt="Preview" className="w-40 h-28 object-cover rounded-md border border-[#2A2520]" />}
                         </div>
                       </Field>
                       <div className="flex gap-2">
@@ -984,7 +984,7 @@ export default function AdminPage() {
                   {imagesInSelectedGallery.map(g => (
                     <Card key={g.id} className="bg-[#1A1814] border-[#2A2520] overflow-hidden">
                       <div className="aspect-video bg-[#0F0D0A] relative">
-                        {g.image_url ? <img src={g.image_url} alt={g.title} className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full text-[#2A2520]"><Image size={32} /></div>}
+                        {g.image_url ? <img src={normalizeImageUrl(g.image_url)} alt={g.title} className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full text-[#2A2520]"><Image size={32} /></div>}
                       </div>
                       <CardContent className="p-3">
                         <h4 className="text-sm font-semibold text-white truncate">{g.title}</h4>
