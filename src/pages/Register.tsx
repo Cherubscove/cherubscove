@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react';
+import { useParams } from 'react-router-dom';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ScrollToTop from '@/components/ScrollToTop';
 import { supabase } from '@/lib/supabaseClient';
-import { formatEventDateRange, type FormFieldConfig } from '@/lib/adminTypes';
+import { buildEventRegistrationLink, formatEventDateRange, type FormFieldConfig } from '@/lib/adminTypes';
 
 interface EventWithReg {
   id: string;
@@ -22,6 +23,7 @@ interface EventWithReg {
 
 export default function RegisterPage() {
   const ref = useScrollReveal();
+  const { eventId } = useParams();
   const [events, setEvents] = useState<EventWithReg[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string>('');
   const [formValues, setFormValues] = useState<Record<string, string | string[]>>({});
@@ -30,16 +32,23 @@ export default function RegisterPage() {
   const formRef = useRef<HTMLFormElement>(null);
 
   const loadEvents = async () => {
-    const { data } = await supabase
-      .from('events')
-      .select('*')
-      .eq('registration_enabled', true)
-      .order('date', { ascending: true });
+    let query = supabase.from('events').select('*').order('date', { ascending: true });
+
+    if (eventId) {
+      query = query.eq('id', eventId);
+    } else {
+      query = query.eq('registration_enabled', true);
+    }
+
+    const { data } = await query;
     if (data?.length) {
-      setEvents(data);
-      // Auto-select the first upcoming event, or the first event
-      const upcoming = data.find((e: any) => e.status === 'upcoming');
-      setSelectedEventId(upcoming?.id || data[0].id);
+      const visibleEvents = eventId ? data : data.filter((e: EventWithReg) => e.registration_enabled);
+      setEvents(visibleEvents);
+      const upcoming = visibleEvents.find((e: EventWithReg) => e.status === 'upcoming');
+      setSelectedEventId(upcoming?.id || visibleEvents[0].id);
+    } else {
+      setEvents([]);
+      setSelectedEventId('');
     }
   };
 
@@ -50,7 +59,7 @@ export default function RegisterPage() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, () => loadEvents())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, []);
+  }, [eventId]);
 
   const selectedEvent = events.find(e => e.id === selectedEventId);
   const formFields: FormFieldConfig[] = (() => {
@@ -157,6 +166,11 @@ export default function RegisterPage() {
                         {selectedEvent.description}
                       </div>
                     )}
+                    {selectedEvent.registration_enabled && (
+                      <div className="mt-4 rounded-md border border-primary/20 bg-primary/5 p-3 text-[11px] uppercase tracking-[2px] text-primary">
+                        Public link: <a href={buildEventRegistrationLink(selectedEvent)} className="ml-1 underline">{buildEventRegistrationLink(selectedEvent)}</a>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -220,9 +234,14 @@ export default function RegisterPage() {
                     </div>
                   )}
 
-                  <form onSubmit={handleRegister} ref={formRef}>
-                    <div className="space-y-4">
-                      {formFields.map((field, i) => (
+                  {!selectedEvent.registration_enabled ? (
+                    <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-300">
+                      Registration for this event is currently disabled by the admin.
+                    </div>
+                  ) : (
+                    <form onSubmit={handleRegister} ref={formRef}>
+                      <div className="space-y-4">
+                        {formFields.map((field, i) => (
                         <div key={field.id} className="space-y-1.5">
                           <label className="text-[9.5px] font-bold tracking-[2px] uppercase text-muted-foreground">
                             {field.label} {field.required && '*'}
@@ -300,31 +319,32 @@ export default function RegisterPage() {
                       ))}
                     </div>
 
-                    {formFields.length === 0 && (
-                      <p className="text-sm text-muted-foreground text-center py-6">
-                        Registration form is being set up. Please check back soon.
-                      </p>
-                    )}
+                      {formFields.length === 0 && (
+                        <p className="text-sm text-muted-foreground text-center py-6">
+                          Registration form is being set up. Please check back soon.
+                        </p>
+                      )}
 
-                    {formFields.length > 0 && (
-                      <button
-                        type="submit"
-                        className={`w-full py-3.5 rounded-md font-body text-[11px] font-bold tracking-[3px] uppercase transition-all duration-250 mt-5 ${
-                          regStatus === 'success'
-                            ? 'bg-emerald-600 text-white'
-                            : 'bg-primary text-white hover:bg-primary/90 hover:-translate-y-0.5 hover:shadow-[0_6px_22px_hsl(var(--orange)/0.3)]'
-                        }`}
-                      >
-                        {regStatus === 'success' ? 'Registered! ✓' : 'Complete Registration →'}
-                      </button>
-                    )}
+                      {formFields.length > 0 && (
+                        <button
+                          type="submit"
+                          className={`w-full py-3.5 rounded-md font-body text-[11px] font-bold tracking-[3px] uppercase transition-all duration-250 mt-5 ${
+                            regStatus === 'success'
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-primary text-white hover:bg-primary/90 hover:-translate-y-0.5 hover:shadow-[0_6px_22px_hsl(var(--orange)/0.3)]'
+                          }`}
+                        >
+                          {regStatus === 'success' ? 'Registered! ✓' : 'Complete Registration →'}
+                        </button>
+                      )}
 
-                    {message && (
-                      <p className={`text-[11px] text-center mt-3 ${regStatus === 'error' ? 'text-rose-400' : 'text-emerald-400'}`}>
-                        {message}
-                      </p>
-                    )}
-                  </form>
+                      {message && (
+                        <p className={`text-[11px] text-center mt-3 ${regStatus === 'error' ? 'text-rose-400' : 'text-emerald-400'}`}>
+                          {message}
+                        </p>
+                      )}
+                    </form>
+                  )}
                 </>
               ) : (
                 <div className="text-center py-12">

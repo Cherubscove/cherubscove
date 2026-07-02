@@ -28,6 +28,11 @@ export interface EventRecord {
   form_fields?: string;
 }
 
+export interface EventDateTimeValidationResult {
+  isValid: boolean;
+  message?: string;
+}
+
 export interface GalleryCollection {
   id: string;
   name: string;
@@ -51,6 +56,57 @@ export const emptyEvent: EventRecord = {
   image_url: '', description: '', location: '',
   registration_enabled: false, form_fields: '[]',
 };
+
+function parseEventTime(value?: string): number | null {
+  if (!value) return null;
+  const normalized = value.trim().toLowerCase().replace(/\s+/g, ' ');
+  const match = normalized.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/);
+  if (!match) return null;
+
+  let hours = Number(match[1]);
+  const minutes = Number(match[2] || '0');
+  const meridiem = match[3];
+
+  if (hours > 23 || minutes > 59) return null;
+  if (meridiem === 'pm' && hours < 12) hours += 12;
+  if (meridiem === 'am' && hours === 12) hours = 0;
+  return hours * 60 + minutes;
+}
+
+export function validateEventDateTime(ev: { date?: string; end_date?: string; time?: string; end_time?: string }): EventDateTimeValidationResult {
+  if (!ev.date) {
+    return { isValid: false, message: 'Please choose a start date for the event.' };
+  }
+
+  const startDate = new Date(`${ev.date}T00:00:00`);
+  if (Number.isNaN(startDate.getTime())) {
+    return { isValid: false, message: 'The start date format is invalid.' };
+  }
+
+  if (ev.end_date) {
+    const endDate = new Date(`${ev.end_date}T00:00:00`);
+    if (Number.isNaN(endDate.getTime())) {
+      return { isValid: false, message: 'The end date format is invalid.' };
+    }
+    if (endDate < startDate) {
+      return { isValid: false, message: 'End date cannot be earlier than the start date.' };
+    }
+  }
+
+  if (ev.time && ev.end_time && (!ev.end_date || ev.end_date === ev.date)) {
+    const startMinutes = parseEventTime(ev.time);
+    const endMinutes = parseEventTime(ev.end_time);
+    if (startMinutes !== null && endMinutes !== null && endMinutes <= startMinutes) {
+      return { isValid: false, message: 'End time must be later than the start time for one-day events.' };
+    }
+  }
+
+  return { isValid: true };
+}
+
+export function buildEventRegistrationLink(event: Pick<EventRecord, 'id'>): string {
+  return event.id ? `/register/${encodeURIComponent(event.id)}` : '/register';
+}
 export const emptyDownload: DownloadRecord = { title: '', url: '', description: '', category: '', type: '' };
 export const emptyGallery: GalleryRecord = { title: '', image_url: '', caption: '', category: '' };
 

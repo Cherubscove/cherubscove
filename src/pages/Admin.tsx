@@ -19,7 +19,7 @@ import type {
   EventRecord, DownloadRecord, GalleryRecord, RegistrationRecord, FormFieldConfig, GalleryCollection,
   emptyEvent as _ee, emptyDownload as _ed, emptyGallery as _eg,
 } from '@/lib/adminTypes';
-import { emptyEvent, emptyDownload, emptyGallery, formatEventDateRange } from '@/lib/adminTypes';
+import { emptyEvent, emptyDownload, emptyGallery, formatEventDateRange, validateEventDateTime, buildEventRegistrationLink } from '@/lib/adminTypes';
 
 /* ── Content Keys (seed defaults for every editable frontend text) ────── */
 
@@ -250,6 +250,13 @@ export default function AdminPage() {
   const saveEvent = async () => {
     if (!editEvent) return;
     if (!editEvent.title) { toast.error('Event title is required.'); return; }
+
+    const validation = validateEventDateTime(editEvent);
+    if (!validation.isValid) {
+      toast.error(validation.message ?? 'Please check the event dates and times.');
+      return;
+    }
+
     const payload: any = {
       title: editEvent.title,
       theme: editEvent.theme || null,
@@ -263,17 +270,22 @@ export default function AdminPage() {
       registration_enabled: editEvent.registration_enabled ?? false,
       form_fields: editEvent.form_fields ?? '[]',
     };
-    if (editEvent.id) {
-      const { error } = await supabase.from('events').update(payload).eq('id', editEvent.id);
-      if (error) { toast.error(error.message + (error.message.includes('column') ? ' — Run the migration in the note below.' : '')); return; }
-      toast.success('Event updated.');
-    } else {
-      const { error } = await supabase.from('events').insert(payload);
-      if (error) { toast.error(error.message + (error.message.includes('column') ? ' — Run the migration in the note below.' : '')); return; }
-      toast.success('Event created.');
+
+    try {
+      if (editEvent.id) {
+        const { error } = await supabase.from('events').update(payload).eq('id', editEvent.id);
+        if (error) throw error;
+        toast.success('Event updated.');
+      } else {
+        const { error } = await supabase.from('events').insert(payload);
+        if (error) throw error;
+        toast.success('Event created.');
+      }
+      setEditEvent(null);
+      await loadAllData();
+    } catch (error: any) {
+      toast.error(error.message + (error.message.includes('column') ? ' — Run the migration in the note below.' : ''));
     }
-    setEditEvent(null);
-    loadAllData();
   };
 
   const uploadEventImage = async (file: File) => {
@@ -581,6 +593,7 @@ export default function AdminPage() {
   /* ── Render: Dashboard ───────────────────────────────────────────────── */
 
   const inputCls = "bg-[#0F0D0A] border-[#2A2520] text-white placeholder:text-[#6B5E50] focus:border-[#E8620A]";
+  const eventValidation = editEvent ? validateEventDateTime(editEvent) : { isValid: true };
 
   const SortBtn = ({ col, label }: { col: keyof RegistrationRecord; label: string }) => (
     <button onClick={() => toggleSort(col)} className={`text-[10px] font-bold tracking-[1.5px] uppercase inline-flex items-center gap-1 ${regSort.col === col ? 'text-[#E8620A]' : 'text-[#6B5E50]'}`}>
@@ -669,13 +682,21 @@ export default function AdminPage() {
                     </div>
                     <div>
                       <label className="text-[10px] text-[#6B5E50] uppercase tracking-wider">Start Time</label>
-                      <Input placeholder="e.g. 10:00 AM" value={editEvent.time} onChange={e => setEditEvent({ ...editEvent, time: e.target.value })} className={inputCls} />
+                      <Input type="time" value={editEvent.time || ''} onChange={e => setEditEvent({ ...editEvent, time: e.target.value })} className={inputCls} />
                     </div>
                     <div>
                       <label className="text-[10px] text-[#6B5E50] uppercase tracking-wider">End Time</label>
-                      <Input placeholder="e.g. 4:00 PM" value={editEvent.end_time || ''} onChange={e => setEditEvent({ ...editEvent, end_time: e.target.value })} className={inputCls} />
+                      <Input type="time" value={editEvent.end_time || ''} onChange={e => setEditEvent({ ...editEvent, end_time: e.target.value })} className={inputCls} />
                     </div>
                     <Input placeholder="Location" value={editEvent.location} onChange={e => setEditEvent({ ...editEvent, location: e.target.value })} className={`${inputCls} md:col-span-2`} />
+                  </div>
+
+                  <div className={`rounded-md border px-3 py-2 text-sm ${eventValidation.isValid ? 'border-[#2A2520] bg-[#0F0D0A] text-[#B5A898]' : 'border-red-500/40 bg-red-500/10 text-red-300'}`}>
+                    {eventValidation.isValid
+                      ? (editEvent.end_date && editEvent.end_date !== editEvent.date
+                        ? 'Multi-day events can use separate start and end dates, while one-day events can leave the end date blank.'
+                        : 'Use the start and end time fields for one-day events. Multi-day events can keep the same time range across the full span.')
+                      : eventValidation.message}
                   </div>
 
                   {/* Image: file upload OR URL */}
@@ -712,10 +733,22 @@ export default function AdminPage() {
                     </div>
 
                     {editEvent.registration_enabled && (
-                      <FormFieldBuilder
-                        fields={getFormFields(editEvent)}
-                        onChange={(fields) => setEditEvent({ ...editEvent, form_fields: JSON.stringify(fields) })}
-                      />
+                      <>
+                        <div className="rounded-md border border-[#2A2520] bg-[#0F0D0A] p-3 text-sm text-[#B5A898]">
+                          <div className="text-[10px] font-semibold uppercase tracking-[2px] text-[#E8620A]">Public registration page</div>
+                          {editEvent.id ? (
+                            <a href={buildEventRegistrationLink(editEvent)} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center text-[#E8620A] hover:underline">
+                              {buildEventRegistrationLink(editEvent)}
+                            </a>
+                          ) : (
+                            <p className="mt-1">Save this event first to generate a dedicated public registration page.</p>
+                          )}
+                        </div>
+                        <FormFieldBuilder
+                          fields={getFormFields(editEvent)}
+                          onChange={(fields) => setEditEvent({ ...editEvent, form_fields: JSON.stringify(fields) })}
+                        />
+                      </>
                     )}
                   </div>
 
@@ -744,7 +777,12 @@ export default function AdminPage() {
                       </div>
                       <p className="text-sm text-[#6B5E50] mt-0.5">{formatEventDateRange(ev) || 'No date set'}{ev.location && ` • ${ev.location}`}</p>
                       {ev.registration_enabled && (
-                        <p className="text-xs text-[#B5A898] mt-1">{getFormFields(ev).length} form field(s)</p>
+                        <div className="flex flex-wrap items-center gap-2 mt-2 text-xs text-[#B5A898]">
+                          <span>{getFormFields(ev).length} form field(s)</span>
+                          <a href={buildEventRegistrationLink(ev)} target="_blank" rel="noreferrer" className="text-[#E8620A] hover:underline">
+                            Open registration page
+                          </a>
+                        </div>
                       )}
                     </div>
                     <div className="flex gap-1 ml-2">
