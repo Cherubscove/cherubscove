@@ -22,12 +22,6 @@ type EventRow = {
   registration_enabled?: boolean;
 };
 
-type GalleryCollection = {
-  id: string;
-  name: string;
-  description?: string;
-};
-
 type GalleryCover = {
   image_url?: string;
   category?: string;
@@ -49,28 +43,28 @@ export default function EventsPreview() {
   };
 
   const loadGalleryCovers = async () => {
-    // Get gallery collections from site settings
-    const raw = getSetting(s, 'galleries_json', '[]');
-    let galleries: GalleryCollection[] = [];
-    try { galleries = JSON.parse(raw); } catch { galleries = []; }
+    // Direct query: get up to 4 gallery images, preferring featured ones,
+    // one per category, so we show a variety of gallery covers
+    const { data } = await supabase
+      .from('gallery')
+      .select('image_url,category,title,featured')
+      .not('image_url', 'is', null)
+      .order('featured', { ascending: false })
+      .order('created_at', { ascending: false });
 
-    if (!galleries.length) return;
-
-    // Get featured image from each collection
-    const covers: GalleryCover[] = [];
-    for (const gc of galleries) {
-      const { data } = await supabase
-        .from('gallery')
-        .select('image_url,category,title,featured')
-        .or(`category.eq.${gc.id},category.eq.${gc.name}`)
-        .order('featured', { ascending: false })
-        .order('created_at', { ascending: false })
-        .limit(1);
-      if (data?.length) {
-        covers.push(data[0]);
+    if (data?.length) {
+      // Deduplicate by category — one cover per category
+      const seen = new Set<string>();
+      const covers: GalleryCover[] = [];
+      for (const g of data) {
+        const key = g.category || 'uncategorized';
+        if (!seen.has(key) && covers.length < 4) {
+          seen.add(key);
+          covers.push(g);
+        }
       }
+      setGalleryCovers(covers);
     }
-    if (covers.length) setGalleryCovers(covers);
   };
 
   useEffect(() => {

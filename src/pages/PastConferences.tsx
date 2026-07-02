@@ -87,28 +87,43 @@ export default function PastConferencesPage() {
   }, []);
 
   // Build collections: match images to gallery collections by ID or name
+  // Falls back to raw category grouping when settings aren't loaded yet
   const collections = useMemo(() => {
-    const usedCats = new Set<string>();
     const result: { id: string; name: string; description?: string; images: GalleryRow[] }[] = [];
 
-    galleries.forEach(gc => {
-      const images = items.filter(g => {
-        const category = (g.category || '').trim();
-        return category === gc.id || category === gc.name;
+    if (galleries.length > 0) {
+      // Use gallery collections from site_settings
+      const usedCats = new Set<string>();
+      galleries.forEach(gc => {
+        const images = items.filter(g => {
+          const category = (g.category || '').trim();
+          return category === gc.id || category === gc.name;
+        });
+        if (images.length > 0) {
+          images.forEach(g => usedCats.add(g.id!));
+          result.push({ id: gc.id, name: gc.name, description: gc.description, images });
+        }
       });
-      if (images.length > 0) {
-        images.forEach(g => usedCats.add(g.id!));
-        result.push({ id: gc.id, name: gc.name, description: gc.description, images });
-      }
-    });
 
-    // Uncategorized
-    const uncategorized = items.filter(g => {
-      const cat = (g.category || '').trim();
-      return !cat || !galleries.some(gc => gc.id === cat || gc.name === cat);
-    });
-    if (uncategorized.length > 0) {
-      result.push({ id: 'uncategorized', name: 'Gallery', description: 'Additional photos', images: uncategorized });
+      // Uncategorized
+      const uncategorized = items.filter(g => {
+        const cat = (g.category || '').trim();
+        return !cat || !galleries.some(gc => gc.id === cat || gc.name === cat);
+      });
+      if (uncategorized.length > 0) {
+        result.push({ id: 'uncategorized', name: 'Gallery', description: 'Additional photos', images: uncategorized });
+      }
+    } else {
+      // Fallback: group by raw category
+      const map = new Map<string, GalleryRow[]>();
+      items.forEach(g => {
+        const key = (g.category || '').trim() || 'Gallery';
+        if (!map.has(key)) map.set(key, []);
+        map.get(key)!.push(g);
+      });
+      map.forEach((images, name) => {
+        result.push({ id: name, name, images });
+      });
     }
 
     return result;
