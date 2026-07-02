@@ -24,7 +24,7 @@ export default function RegisterPage() {
   const ref = useScrollReveal();
   const [events, setEvents] = useState<EventWithReg[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string>('');
-  const [formValues, setFormValues] = useState<Record<string, string>>({});
+  const [formValues, setFormValues] = useState<Record<string, string | string[]>>({});
   const [regStatus, setRegStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
   const formRef = useRef<HTMLFormElement>(null);
