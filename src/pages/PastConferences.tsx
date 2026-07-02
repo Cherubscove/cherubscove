@@ -151,7 +151,7 @@ export default function PastConferencesPage() {
         <div className="container py-16">
           {/* Conference history */}
           {pastEvents.length > 0 && (
-            <div className="mb-16 reveal">
+            <div className="mb-16">
               <h2 className="font-heading text-[28px] font-normal italic text-foreground mb-6">
                 Conference <em className="text-primary">History</em>
               </h2>
@@ -175,7 +175,7 @@ export default function PastConferencesPage() {
               {collections.map(col => {
                 const coverImg = col.images.find(g => g.featured) || col.images[0];
                 return (
-                  <div key={col.id} className="reveal">
+                  <div key={col.id}>
                     <div className="flex items-end justify-between mb-3 border-b border-border pb-3">
                       <div>
                         <h2 className="font-heading text-[24px] md:text-[28px] font-normal italic text-foreground">

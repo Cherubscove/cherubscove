@@ -213,7 +213,7 @@ export default function EventsPreview() {
 
         {/* Gallery Collections teaser */}
         {galleryCovers.length > 0 && (
-          <div className="mt-16 reveal">
+          <div className="mt-16">
             <div className="flex items-center justify-between mb-6">
               <h3 className="font-heading text-[22px] font-normal italic text-foreground">
                 Past <em className="text-primary">Conferences</em>
