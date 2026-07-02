@@ -58,7 +58,7 @@ export default function EventsConferencesPage() {
   const pastEvents = events.filter(e => e.status === 'past');
   const recurringEvents = events.filter(e => e.status === 'recurring');
   const featuredUpcoming = upcomingEvents[0];
-  const hasAny = upcomingEvents.length > 0 || pastEvents.length > 0;
+  const hasAny = upcomingEvents.length > 0 || pastEvents.length > 0 || recurringEvents.length > 0;
 
   return (
     <>

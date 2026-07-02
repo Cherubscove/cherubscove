@@ -20,11 +20,30 @@ export function useScrollReveal<T extends HTMLElement = HTMLDivElement>() {
     );
 
     // Observe element and all children with .reveal class
-    const revealEls = el.querySelectorAll('.reveal');
-    revealEls.forEach((child) => observer.observe(child));
-    if (el.classList.contains('reveal')) observer.observe(el);
+    const observeAll = () => {
+      const revealEls = el.querySelectorAll('.reveal');
+      revealEls.forEach((child) => {
+        if (!child.classList.contains('visible')) {
+          observer.observe(child);
+        }
+      });
+      if (el.classList.contains('reveal') && !el.classList.contains('visible')) {
+        observer.observe(el);
+      }
+    };
 
-    return () => observer.disconnect();
+    observeAll();
+
+    // Watch for new .reveal elements added dynamically (e.g. after async data load)
+    const mutationObserver = new MutationObserver(() => {
+      observeAll();
+    });
+    mutationObserver.observe(el, { childList: true, subtree: true });
+
+    return () => {
+      observer.disconnect();
+      mutationObserver.disconnect();
+    };
   }, []);
 
   return ref;
