@@ -370,7 +370,8 @@ export default function AdminPage() {
     const title = editGallery.title || titleFromUrl(editGallery.image_url) || 'Gallery Photo';
     // Auto-generate alt_text from title if not explicitly provided
     const alt_text = editGallery.alt_text || `Photo: ${title}`;
-    const payload: Record<string, string> = { title, image_url: editGallery.image_url, caption: editGallery.caption, category: editGallery.category };
+    const payload: Record<string, string> = { title, image_url: editGallery.image_url, caption: editGallery.caption };
+    if (editGallery.category) payload.category = editGallery.category;
     payload.alt_text = alt_text;
     const trySave = async (data: Record<string, string>) => {
       if (editGallery.id) {
@@ -379,14 +380,31 @@ export default function AdminPage() {
       return supabase.from('gallery').insert(data);
     };
     let { error } = await trySave(payload);
-    // If alt_text column doesn't exist yet, retry without it
-    if (error && error.message?.includes('alt_text')) {
-      delete payload.alt_text;
-      const r = await trySave(payload);
-      error = r.error;
+    if (error) {
+      if (payload.alt_text && error.message?.includes('alt_text')) {
+        delete payload.alt_text;
+        const r = await trySave(payload);
+        error = r.error;
+      }
+    }
+    if (error) {
+      if (payload.category && error.message?.includes('gallery_category_check')) {
+        delete payload.category;
+        const r = await trySave(payload);
+        error = r.error;
+        if (!error) {
+          toast.success(editGallery.id ? 'Gallery item updated without category.' : 'Gallery item created without category.');
+        }
+      }
     }
     if (error) { toast.error(error.message); return; }
-    toast.success(editGallery.id ? 'Gallery item updated.' : 'Gallery item created.');
+    if (!error) {
+      if (!payload.category) {
+        toast.success(editGallery.id ? 'Gallery item updated without category.' : 'Gallery item created without category.');
+      } else {
+        toast.success(editGallery.id ? 'Gallery item updated.' : 'Gallery item created.');
+      }
+    }
     setEditGallery(null);
     loadAllData();
   };
@@ -1055,20 +1073,41 @@ export default function AdminPage() {
                             let hasAltColumn = true;
                             for (const url of urls) {
                               const title = titleFromUrl(url) || 'Gallery Photo';
-                              const row: Record<string, string> = { title, image_url: url, caption: '', category: selectedGallery.id };
+                              const row: Record<string, string> = { title, image_url: url, caption: '' };
+                              if (selectedGallery?.id) row.category = selectedGallery.id;
                               if (hasAltColumn) row.alt_text = `Photo: ${title}`;
                               const { error } = await supabase.from('gallery').insert(row);
                               if (error) {
-                                // If alt_text column is missing, retry without it once
                                 if (hasAltColumn && error.message?.includes('alt_text')) {
                                   hasAltColumn = false;
-                                  const { error: retryErr } = await supabase.from('gallery').insert({
-                                    title, image_url: url, caption: '', category: selectedGallery.id,
-                                  });
-                                  if (!retryErr) success++;
-                                  else console.error('Bulk insert retry failed', retryErr);
+                                  delete row.alt_text;
+                                  const { error: retryErr } = await supabase.from('gallery').insert(row);
+                                  if (!retryErr) {
+                                    success++;
+                                  } else {
+                                    console.error('Bulk insert retry without alt_text failed', retryErr, { url, row });
+                                    if (retryErr.message?.includes('gallery_category_check')) {
+                                      delete row.category;
+                                      const { error: retryErr2 } = await supabase.from('gallery').insert(row);
+                                      if (!retryErr2) {
+                                        success++;
+                                        toast.error('Category was rejected by database, image imported uncategorized.');
+                                      } else {
+                                        console.error('Bulk insert retry without category failed', retryErr2, { url, row });
+                                      }
+                                    }
+                                  }
+                                } else if (error.message?.includes('gallery_category_check')) {
+                                  delete row.category;
+                                  const { error: retryErr } = await supabase.from('gallery').insert(row);
+                                  if (!retryErr) {
+                                    success++;
+                                    toast.error('Category was rejected by database, image imported uncategorized.');
+                                  } else {
+                                    console.error('Bulk insert retry without category failed', retryErr, { url, row });
+                                  }
                                 } else {
-                                  console.error('Bulk insert failed', error, { url, category: selectedGallery.id, row });
+                                  console.error('Bulk insert failed', error, { url, row });
                                 }
                               } else {
                                 success++;
