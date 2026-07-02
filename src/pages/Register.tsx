@@ -24,7 +24,7 @@ export default function RegisterPage() {
   const ref = useScrollReveal();
   const [events, setEvents] = useState<EventWithReg[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string>('');
-  const [formValues, setFormValues] = useState<Record<string, string>>({});
+  const [formValues, setFormValues] = useState<Record<string, string | string[]>>({});
   const [regStatus, setRegStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
   const formRef = useRef<HTMLFormElement>(null);
@@ -64,15 +64,17 @@ export default function RegisterPage() {
     setMessage('');
 
     // Extract standard fields from formValues
+    const s = (v: string | string[] | undefined): string =>
+      Array.isArray(v) ? v.join(', ') : (v || '');
     const { error } = await supabase.from('registrations').insert({
       event_id: selectedEvent.id,
       event_title: selectedEvent.title,
-      first_name: formValues['first_name'] || formValues['First Name'] || '',
-      last_name: formValues['last_name'] || formValues['Last Name'] || '',
-      email: formValues['email'] || formValues['Email Address'] || '',
-      phone: formValues['phone'] || formValues['Phone Number'] || '',
-      location: formValues['location'] || formValues['State / City'] || '',
-      note: formValues['note'] || formValues['Prayer Request or Note'] || '',
+      first_name: s(formValues['first_name']) || s(formValues['First Name']),
+      last_name: s(formValues['last_name']) || s(formValues['Last Name']),
+      email: s(formValues['email']) || s(formValues['Email Address']),
+      phone: s(formValues['phone']) || s(formValues['Phone Number']),
+      location: s(formValues['location']) || s(formValues['State / City']),
+      note: s(formValues['note']) || s(formValues['Prayer Request or Note']),
       program: selectedEvent.title,
       form_data: JSON.stringify(formValues),
       created_at: new Date().toISOString(),
@@ -245,6 +247,45 @@ export default function RegisterPage() {
                                 <option key={opt} value={opt}>{opt}</option>
                               ))}
                             </select>
+                          ) : field.type === 'radio' ? (
+                            <div className="space-y-2 pt-1">
+                              {(field.options || []).map(opt => (
+                                <label key={opt} className="flex items-center gap-2 text-sm cursor-pointer">
+                                  <input
+                                    type="radio"
+                                    name={field.id}
+                                    value={opt}
+                                    required={field.required}
+                                    checked={formValues[field.id] === opt}
+                                    onChange={e => setFormValues(prev => ({ ...prev, [field.id]: e.target.value }))}
+                                    className="accent-primary"
+                                  />
+                                  {opt}
+                                </label>
+                              ))}
+                            </div>
+                          ) : field.type === 'checkbox' ? (
+                            <div className="space-y-2 pt-1">
+                              {(field.options || []).map(opt => {
+                                const raw = formValues[field.id];
+                                const arr: string[] = Array.isArray(raw) ? raw : [];
+                                const checked = arr.includes(opt);
+                                return (
+                                  <label key={opt} className="flex items-center gap-2 text-sm cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      onChange={e => {
+                                        const next = e.target.checked ? [...arr, opt] : arr.filter(v => v !== opt);
+                                        setFormValues(prev => ({ ...prev, [field.id]: next }));
+                                      }}
+                                      className="accent-primary"
+                                    />
+                                    {opt}
+                                  </label>
+                                );
+                              })}
+                            </div>
                           ) : (
                             <input
                               type={field.type}

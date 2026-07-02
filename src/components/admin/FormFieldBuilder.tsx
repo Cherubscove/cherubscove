@@ -10,7 +10,8 @@ interface Props {
   onChange: (fields: FormFieldConfig[]) => void;
 }
 
-const FIELD_TYPES = ['text', 'email', 'tel', 'textarea', 'select'] as const;
+const FIELD_TYPES = ['text', 'email', 'tel', 'textarea', 'select', 'checkbox', 'radio'] as const;
+const OPTION_TYPES = ['select', 'checkbox', 'radio'];
 
 const inputCls = "bg-[#0F0D0A] border-[#2A2520] text-white placeholder:text-[#6B5E50] focus:border-[#E8620A]";
 
@@ -99,7 +100,7 @@ export default function FormFieldBuilder({ fields, onChange }: Props) {
                 </div>
               </div>
             </div>
-            {field.type === 'select' && (
+            {OPTION_TYPES.includes(field.type) && (
               <Input
                 placeholder="Options (comma-separated)"
                 value={(field.options || []).join(', ')}

@@ -1,7 +1,7 @@
 export interface FormFieldConfig {
   id: string;
   label: string;
-  type: 'text' | 'email' | 'tel' | 'textarea' | 'select';
+  type: 'text' | 'email' | 'tel' | 'textarea' | 'select' | 'checkbox' | 'radio';
   required: boolean;
   placeholder: string;
   options?: string[];

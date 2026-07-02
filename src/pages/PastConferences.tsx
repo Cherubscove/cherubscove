@@ -4,6 +4,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ScrollToTop from '@/components/ScrollToTop';
 import { supabase } from '@/lib/supabaseClient';
+import { normalizeImageUrl } from '@/pages/Admin';
 
 type GalleryRow = {
   id: string;
@@ -110,7 +111,7 @@ export default function PastConferencesPage() {
                       >
                         {g.image_url ? (
                           <img
-                            src={g.image_url}
+                            src={normalizeImageUrl(g.image_url)}
                             alt={g.title}
                             className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                           />
