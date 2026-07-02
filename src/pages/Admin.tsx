@@ -128,7 +128,10 @@ export default function AdminPage() {
   const [editCollection, setEditCollection] = useState<GalleryCollection | null>(null);
   const selectedGallery = galleries.find(g => g.id === selectedGalleryId) || null;
   const imagesInSelectedGallery = selectedGallery
-    ? gallery.filter(g => (g.category || '').trim() === selectedGallery.name)
+    ? gallery.filter(g => {
+        const category = (g.category || '').trim();
+        return category === selectedGallery.id || category === selectedGallery.name;
+      })
     : [];
 
   // Group registrations by event
@@ -936,7 +939,10 @@ export default function AdminPage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {galleries.map(col => {
-                    const imgs = gallery.filter(g => (g.category || '').trim() === col.name);
+                    const imgs = gallery.filter(g => {
+                      const category = (g.category || '').trim();
+                      return category === col.id || category === col.name;
+                    });
                     const cover = imgs.find(i => i.image_url);
                     return (
                       <Card key={col.id} className="bg-[#1A1814] border-[#2A2520] overflow-hidden">
@@ -966,11 +972,17 @@ export default function AdminPage() {
                 </div>
 
                 {/* Standalone / uncategorized images */}
-                {gallery.some(g => !(g.category || '').trim() || !galleries.some(gc => gc.name === (g.category || '').trim())) && (
+                {gallery.some(g => {
+                    const category = (g.category || '').trim();
+                    return !category || !galleries.some(gc => gc.id === category || gc.name === category);
+                  }) && (
                   <div className="pt-6">
                     <h3 className="text-sm font-bold tracking-[2px] uppercase text-[#6B5E50] mb-3">Unassigned Images</h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      {gallery.filter(g => !(g.category || '').trim() || !galleries.some(gc => gc.name === (g.category || '').trim())).map(g => (
+                      {gallery.filter(g => {
+                        const category = (g.category || '').trim();
+                        return !category || !galleries.some(gc => gc.id === category || gc.name === category);
+                      }).map(g => (
                         <Card key={g.id} className="bg-[#1A1814] border-yellow-800/40 overflow-hidden">
                           <div className="aspect-video bg-[#0F0D0A]">
                             {g.image_url ? <img src={normalizeImageUrl(g.image_url)} alt={g.alt_text || g.title || 'Gallery photo'} className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full text-[#2A2520]"><Image size={24} /></div>}
@@ -1001,7 +1013,7 @@ export default function AdminPage() {
                   </div>
                   <div className="flex gap-2">
                     <Button
-                      onClick={() => { setBulkAddMode(false); setEditGallery({ ...emptyGallery, category: selectedGallery.name }); }}
+                      onClick={() => { setBulkAddMode(false); setEditGallery({ ...emptyGallery, category: selectedGallery.id }); }}
                       className="bg-[#E8620A] hover:bg-[#cf5709] text-white"
                     >
                       <Plus size={16} className="mr-1" /> Add Image
@@ -1043,7 +1055,7 @@ export default function AdminPage() {
                             let hasAltColumn = true;
                             for (const url of urls) {
                               const title = titleFromUrl(url) || 'Gallery Photo';
-                              const row: Record<string, string> = { title, image_url: url, caption: '', category: selectedGallery.name };
+                              const row: Record<string, string> = { title, image_url: url, caption: '', category: selectedGallery.id };
                               if (hasAltColumn) row.alt_text = `Photo: ${title}`;
                               const { error } = await supabase.from('gallery').insert(row);
                               if (error) {
@@ -1051,9 +1063,12 @@ export default function AdminPage() {
                                 if (hasAltColumn && error.message?.includes('alt_text')) {
                                   hasAltColumn = false;
                                   const { error: retryErr } = await supabase.from('gallery').insert({
-                                    title, image_url: url, caption: '', category: selectedGallery.name,
+                                    title, image_url: url, caption: '', category: selectedGallery.id,
                                   });
                                   if (!retryErr) success++;
+                                  else console.error('Bulk insert retry failed', retryErr);
+                                } else {
+                                  console.error('Bulk insert failed', error, { url, category: selectedGallery.id, row });
                                 }
                               } else {
                                 success++;
