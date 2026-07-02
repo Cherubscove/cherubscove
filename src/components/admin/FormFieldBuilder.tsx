@@ -100,7 +100,7 @@ export default function FormFieldBuilder({ fields, onChange }: Props) {
                 </div>
               </div>
             </div>
-            {field.type === 'select' && (
+            {OPTION_TYPES.includes(field.type) && (
               <Input
                 placeholder="Options (comma-separated)"
                 value={(field.options || []).join(', ')}
