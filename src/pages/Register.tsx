@@ -64,15 +64,17 @@ export default function RegisterPage() {
     setMessage('');
 
     // Extract standard fields from formValues
+    const s = (v: string | string[] | undefined): string =>
+      Array.isArray(v) ? v.join(', ') : (v || '');
     const { error } = await supabase.from('registrations').insert({
       event_id: selectedEvent.id,
       event_title: selectedEvent.title,
-      first_name: formValues['first_name'] || formValues['First Name'] || '',
-      last_name: formValues['last_name'] || formValues['Last Name'] || '',
-      email: formValues['email'] || formValues['Email Address'] || '',
-      phone: formValues['phone'] || formValues['Phone Number'] || '',
-      location: formValues['location'] || formValues['State / City'] || '',
-      note: formValues['note'] || formValues['Prayer Request or Note'] || '',
+      first_name: s(formValues['first_name']) || s(formValues['First Name']),
+      last_name: s(formValues['last_name']) || s(formValues['Last Name']),
+      email: s(formValues['email']) || s(formValues['Email Address']),
+      phone: s(formValues['phone']) || s(formValues['Phone Number']),
+      location: s(formValues['location']) || s(formValues['State / City']),
+      note: s(formValues['note']) || s(formValues['Prayer Request or Note']),
       program: selectedEvent.title,
       form_data: JSON.stringify(formValues),
       created_at: new Date().toISOString(),
