@@ -357,53 +357,86 @@ export default function AdminPage() {
   /** Extract a readable title from a URL's filename. */
   function titleFromUrl(url: string): string {
     try {
+      if (url.includes('drive.google.com')) {
+        return 'Google Drive Image';
+      }
       const filename = url.split('/').pop()?.split('?')[0]?.split('#')[0] || '';
       const name = filename.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ');
       return name.charAt(0).toUpperCase() + name.slice(1);
     } catch { return ''; }
   }
 
+  const trySaveGallery = async (data: Record<string, string>) => {
+    if (!editGallery) return { data: null, error: { message: 'No gallery item.' } } as any;
+    if (editGallery.id) {
+      return supabase.from('gallery').update(data).eq('id', editGallery.id);
+    }
+    return supabase.from('gallery').insert(data);
+  };
+
   const saveGallery = async () => {
     if (!editGallery) return;
     if (!editGallery.image_url) { toast.error('Image URL is required.'); return; }
-    // Auto-generate title from URL if empty
     const title = editGallery.title || titleFromUrl(editGallery.image_url) || 'Gallery Photo';
-    // Auto-generate alt_text from title if not explicitly provided
     const alt_text = editGallery.alt_text || `Photo: ${title}`;
-    const payload: Record<string, string> = { title, image_url: editGallery.image_url, caption: editGallery.caption };
-    if (editGallery.category) payload.category = editGallery.category;
-    payload.alt_text = alt_text;
-    const trySave = async (data: Record<string, string>) => {
-      if (editGallery.id) {
-        return supabase.from('gallery').update(data).eq('id', editGallery.id);
-      }
-      return supabase.from('gallery').insert(data);
+    const normalizedImageUrl = normalizeImageUrl(editGallery.image_url);
+    const payload: Record<string, string> = {
+      title,
+      image_url: normalizedImageUrl,
+      caption: editGallery.caption,
+      alt_text,
     };
-    let { error } = await trySave(payload);
+
+    const categoryCandidates: string[] = [];
+    if (editGallery.category) categoryCandidates.push(editGallery.category);
+    const selectedGallery = galleries.find(g => g.id === selectedGalleryId);
+    if (selectedGallery && selectedGallery.name && !categoryCandidates.includes(selectedGallery.name)) {
+      categoryCandidates.push(selectedGallery.name);
+    }
+
+    if (categoryCandidates.length) {
+      payload.category = categoryCandidates[0];
+    }
+
+    let { error } = await trySaveGallery(payload);
     if (error) {
-      if (payload.alt_text && error.message?.includes('alt_text')) {
+      if (payload.alt_text && error.code === '42703') {
         delete payload.alt_text;
-        const r = await trySave(payload);
-        error = r.error;
+        const retry = await trySaveGallery(payload);
+        error = retry.error;
       }
     }
-    if (error) {
-      if (payload.category && error.message?.includes('gallery_category_check')) {
-        delete payload.category;
-        const r = await trySave(payload);
-        error = r.error;
-        if (!error) {
-          toast.success(editGallery.id ? 'Gallery item updated without category.' : 'Gallery item created without category.');
+
+    if (error && payload.category) {
+      for (let i = 0; i < categoryCandidates.length; i += 1) {
+        const candidate = categoryCandidates[i];
+        payload.category = candidate;
+        const retry = await trySaveGallery(payload);
+        if (!retry.error) {
+          error = null;
+          break;
+        }
+        if (retry.error.code !== '23514') {
+          error = retry.error;
+          break;
         }
       }
     }
-    if (error) { toast.error(error.message); return; }
-    if (!error) {
-      if (!payload.category) {
+
+    if (error && payload.category) {
+      delete payload.category;
+      const retry = await trySaveGallery(payload);
+      error = retry.error;
+      if (!error) {
         toast.success(editGallery.id ? 'Gallery item updated without category.' : 'Gallery item created without category.');
-      } else {
-        toast.success(editGallery.id ? 'Gallery item updated.' : 'Gallery item created.');
       }
+    }
+
+    if (error) { toast.error(error.message || 'Unable to save gallery item.'); return; }
+    if (!payload.category) {
+      toast.success(editGallery.id ? 'Gallery item updated without category.' : 'Gallery item created without category.');
+    } else {
+      toast.success(editGallery.id ? 'Gallery item updated.' : 'Gallery item created.');
     }
     setEditGallery(null);
     loadAllData();
@@ -1070,52 +1103,48 @@ export default function AdminPage() {
                             if (!urls.length) { toast.error('Paste at least one URL.'); return; }
                             setImportingBulk(true);
                             let success = 0;
+                            let uncategorizedCount = 0;
                             let hasAltColumn = true;
                             for (const url of urls) {
                               const title = titleFromUrl(url) || 'Gallery Photo';
-                              const row: Record<string, string> = { title, image_url: url, caption: '' };
+                              const row: Record<string, string> = {
+                                title,
+                                image_url: normalizeImageUrl(url),
+                                caption: '',
+                              };
                               if (selectedGallery?.id) row.category = selectedGallery.id;
                               if (hasAltColumn) row.alt_text = `Photo: ${title}`;
-                              const { error } = await supabase.from('gallery').insert(row);
-                              if (error) {
-                                if (hasAltColumn && error.message?.includes('alt_text')) {
-                                  hasAltColumn = false;
-                                  delete row.alt_text;
-                                  const { error: retryErr } = await supabase.from('gallery').insert(row);
-                                  if (!retryErr) {
-                                    success++;
-                                  } else {
-                                    console.error('Bulk insert retry without alt_text failed', retryErr, { url, row });
-                                    if (retryErr.message?.includes('gallery_category_check')) {
-                                      delete row.category;
-                                      const { error: retryErr2 } = await supabase.from('gallery').insert(row);
-                                      if (!retryErr2) {
-                                        success++;
-                                        toast.error('Category was rejected by database, image imported uncategorized.');
-                                      } else {
-                                        console.error('Bulk insert retry without category failed', retryErr2, { url, row });
-                                      }
-                                    }
-                                  }
-                                } else if (error.message?.includes('gallery_category_check')) {
-                                  delete row.category;
-                                  const { error: retryErr } = await supabase.from('gallery').insert(row);
-                                  if (!retryErr) {
-                                    success++;
-                                    toast.error('Category was rejected by database, image imported uncategorized.');
-                                  } else {
-                                    console.error('Bulk insert retry without category failed', retryErr, { url, row });
-                                  }
-                                } else {
-                                  console.error('Bulk insert failed', error, { url, row });
+
+                              const tryInsert = async (data: Record<string, string>) => await supabase.from('gallery').insert(data);
+                              let { error } = await tryInsert(row);
+                              if (error && row.alt_text && error.code === '42703') {
+                                delete row.alt_text;
+                                const retry = await tryInsert(row);
+                                error = retry.error;
+                              }
+                              if (error && row.category && error.code === '23514') {
+                                delete row.category;
+                                const retry = await tryInsert(row);
+                                error = retry.error;
+                                if (!error) {
+                                  uncategorizedCount += 1;
                                 }
+                              }
+                              if (error) {
+                                console.error('Bulk insert failed', error, { url, row });
                               } else {
-                                success++;
+                                success += 1;
                               }
                             }
                             setImportingBulk(false);
-                            if (success) toast.success(`${success} of ${urls.length} images imported.`);
-                            else toast.error('Failed to import images. Check console for details.');
+                            if (success) {
+                              toast.success(`${success} of ${urls.length} images imported.`);
+                              if (uncategorizedCount) {
+                                toast('Some images were imported without category because the database rejected the selected gallery category.');
+                              }
+                            } else {
+                              toast.error('Failed to import images. Check console for details.');
+                            }
                             setBulkUrls('');
                             loadAllData();
                           }}
