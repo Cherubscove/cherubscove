@@ -1,8 +1,7 @@
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { Plus, Trash2, GripVertical } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import type { FormFieldConfig } from '@/lib/adminTypes';
 
 interface Props {
@@ -11,6 +10,15 @@ interface Props {
 }
 
 const FIELD_TYPES = ['text', 'email', 'tel', 'textarea', 'select', 'checkbox', 'radio'] as const;
+const FIELD_TYPE_LABELS: Record<typeof FIELD_TYPES[number], string> = {
+  text: 'Text',
+  email: 'Email',
+  tel: 'Phone',
+  textarea: 'Paragraph',
+  select: 'Dropdown',
+  checkbox: 'Checkboxes',
+  radio: 'Radio buttons',
+};
 const OPTION_TYPES = ['select', 'checkbox', 'radio'];
 
 const inputCls = "bg-[#0F0D0A] border-[#2A2520] text-white placeholder:text-[#6B5E50] focus:border-[#E8620A]";
@@ -76,7 +84,7 @@ export default function FormFieldBuilder({ fields, onChange }: Props) {
                   onChange={e => updateField(i, { type: e.target.value as FormFieldConfig['type'] })}
                   className={`${inputCls} rounded-md px-2 h-8 text-xs border`}
                 >
-                  {FIELD_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                  {FIELD_TYPES.map(t => <option key={t} value={t}>{FIELD_TYPE_LABELS[t]}</option>)}
                 </select>
                 <Input
                   placeholder="Placeholder"
@@ -101,12 +109,15 @@ export default function FormFieldBuilder({ fields, onChange }: Props) {
               </div>
             </div>
             {OPTION_TYPES.includes(field.type) && (
-              <Input
-                placeholder="Options (comma-separated)"
-                value={(field.options || []).join(', ')}
-                onChange={e => updateField(i, { options: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
-                className={`${inputCls} h-8 text-xs`}
-              />
+              <div>
+                <label className="text-xs text-[#B5A898] block mb-1">Options (one per line)</label>
+                <textarea
+                  placeholder="Enter one option per line"
+                  value={(field.options || []).join('\n')}
+                  onChange={e => updateField(i, { options: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) })}
+                  className={`${inputCls} min-h-[88px] text-xs rounded-md w-full resize-y p-2`}
+                />
+              </div>
             )}
           </CardContent>
         </Card>
