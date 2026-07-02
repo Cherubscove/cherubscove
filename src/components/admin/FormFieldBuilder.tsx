@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Edit2, Check, X } from 'lucide-react';
 import type { FormFieldConfig } from '@/lib/adminTypes';
 
 interface Props {
@@ -24,6 +25,8 @@ const OPTION_TYPES = ['select', 'checkbox', 'radio'];
 const inputCls = "bg-[#0F0D0A] border-[#2A2520] text-white placeholder:text-[#6B5E50] focus:border-[#E8620A]";
 
 export default function FormFieldBuilder({ fields, onChange }: Props) {
+  const [editingOption, setEditingOption] = useState<{ fieldId: string; index: number; value: string } | null>(null);
+
   const addField = () => {
     onChange([...fields, {
       id: `field_${Date.now()}`,
@@ -49,6 +52,26 @@ export default function FormFieldBuilder({ fields, onChange }: Props) {
     const updated = [...fields];
     [updated[index], updated[newIndex]] = [updated[newIndex], updated[index]];
     onChange(updated);
+  };
+
+  const addOption = (fieldIndex: number) => {
+    const field = fields[fieldIndex];
+    const newOptions = [...(field.options || []), ''];
+    updateField(fieldIndex, { options: newOptions });
+    setEditingOption({ fieldId: field.id, index: newOptions.length - 1, value: '' });
+  };
+
+  const updateOption = (fieldIndex: number, optionIndex: number, value: string) => {
+    const field = fields[fieldIndex];
+    const newOptions = [...(field.options || [])];
+    newOptions[optionIndex] = value;
+    updateField(fieldIndex, { options: newOptions });
+  };
+
+  const removeOption = (fieldIndex: number, optionIndex: number) => {
+    const field = fields[fieldIndex];
+    const newOptions = (field.options || []).filter((_, i) => i !== optionIndex);
+    updateField(fieldIndex, { options: newOptions });
   };
 
   return (
@@ -109,14 +132,97 @@ export default function FormFieldBuilder({ fields, onChange }: Props) {
               </div>
             </div>
             {OPTION_TYPES.includes(field.type) && (
-              <div>
-                <label className="text-xs text-[#B5A898] block mb-1">Options (one per line)</label>
-                <textarea
-                  placeholder="Enter one option per line"
-                  value={(field.options || []).join('\n')}
-                  onChange={e => updateField(i, { options: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) })}
-                  className={`${inputCls} min-h-[88px] text-xs rounded-md w-full resize-y p-2`}
-                />
+              <div className="rounded-md border border-[#2A2520] bg-[#1A1814] p-3 space-y-2">
+                <div className="text-xs font-semibold text-[#B5A898] mb-2">
+                  {field.type === 'select' && 'Dropdown Options'}
+                  {field.type === 'checkbox' && 'Checkbox Options'}
+                  {field.type === 'radio' && 'Radio Button Options'}
+                </div>
+
+                <div className="space-y-1.5">
+                  {(field.options || []).map((option, optionIdx) => (
+                    <div key={optionIdx} className="flex items-center gap-2 bg-[#0F0D0A] rounded p-2">
+                      {field.type === 'checkbox' && (
+                        <input
+                          type="checkbox"
+                          disabled
+                          className="accent-[#E8620A]"
+                        />
+                      )}
+                      {field.type === 'radio' && (
+                        <input
+                          type="radio"
+                          disabled
+                          className="accent-[#E8620A]"
+                        />
+                      )}
+                      {field.type === 'select' && (
+                        <span className="text-xs text-[#6B5E50]">•</span>
+                      )}
+
+                      {editingOption?.fieldId === field.id && editingOption?.index === optionIdx ? (
+                        <input
+                          type="text"
+                          value={editingOption.value}
+                          onChange={e => setEditingOption({ ...editingOption, value: e.target.value })}
+                          autoFocus
+                          className={`${inputCls} flex-1 h-7 text-xs rounded px-2`}
+                        />
+                      ) : (
+                        <span className="text-xs text-white flex-1">{option}</span>
+                      )}
+
+                      <div className="flex gap-1">
+                        {editingOption?.fieldId === field.id && editingOption?.index === optionIdx ? (
+                          <>
+                            <button
+                              onClick={() => {
+                                updateOption(i, optionIdx, editingOption.value);
+                                setEditingOption(null);
+                              }}
+                              className="text-green-400 hover:text-green-300 p-0.5"
+                              title="Save"
+                            >
+                              <Check size={14} />
+                            </button>
+                            <button
+                              onClick={() => setEditingOption(null)}
+                              className="text-[#6B5E50] hover:text-white p-0.5"
+                              title="Cancel"
+                            >
+                              <X size={14} />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => setEditingOption({ fieldId: field.id, index: optionIdx, value: option })}
+                              className="text-[#B5A898] hover:text-white p-0.5"
+                              title="Edit"
+                            >
+                              <Edit2 size={14} />
+                            </button>
+                            <button
+                              onClick={() => removeOption(i, optionIdx)}
+                              className="text-red-400 hover:text-red-300 p-0.5"
+                              title="Delete"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <Button
+                  size="sm"
+                  onClick={() => addOption(i)}
+                  className="w-full bg-[#E8620A] hover:bg-[#cf5709] text-white h-7 text-xs mt-2"
+                >
+                  <Plus size={12} className="mr-1" /> Add Option
+                </Button>
               </div>
             )}
           </CardContent>
