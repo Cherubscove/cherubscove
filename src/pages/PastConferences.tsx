@@ -6,6 +6,7 @@ import Footer from '@/components/Footer';
 import ScrollToTop from '@/components/ScrollToTop';
 import { supabase } from '@/lib/supabaseClient';
 import { normalizeImageUrl } from '@/pages/Admin';
+import { Eye, ChevronDown, ChevronUp } from 'lucide-react';
 
 type GalleryRow = {
   id: string;
@@ -30,11 +31,14 @@ type ConfEvent = {
   desc: string;
 };
 
+const INITIAL_VISIBLE = 5;
+
 export default function PastConferencesPage() {
   const ref = useScrollReveal();
   const settings = useSiteSettings();
   const [items, setItems] = useState<GalleryRow[]>([]);
   const [pastEvents, setPastEvents] = useState<ConfEvent[]>([]);
+  const [expandedCols, setExpandedCols] = useState<Set<string>>(new Set());
 
   const galleries: GalleryCollection[] = useMemo(() => {
     const raw = getSetting(settings, 'galleries_json', '[]');
@@ -62,7 +66,6 @@ export default function PastConferencesPage() {
         desc: e.description || '',
       })));
     } else {
-      // Fallback history
       setPastEvents([
         { year: '2023', theme: 'Arrows', desc: 'The inaugural edition — a prophetic call to the next generation.' },
         { year: '2023', theme: 'Awakening', desc: 'Northern Edition — expanding the reach across the nation.' },
@@ -70,6 +73,15 @@ export default function PastConferencesPage() {
         { year: '2025', theme: 'Immersion', desc: 'Diving deep into the presence and purpose of God.' },
       ]);
     }
+  };
+
+  const toggleExpand = (id: string) => {
+    setExpandedCols(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   useEffect(() => {
@@ -86,13 +98,11 @@ export default function PastConferencesPage() {
     return () => { supabase.removeChannel(ch1); supabase.removeChannel(ch2); };
   }, []);
 
-  // Build collections: match images to gallery collections by ID or name
-  // Falls back to raw category grouping when settings aren't loaded yet
+  // Build collections
   const collections = useMemo(() => {
     const result: { id: string; name: string; description?: string; images: GalleryRow[] }[] = [];
 
     if (galleries.length > 0) {
-      // Use gallery collections from site_settings
       const usedCats = new Set<string>();
       galleries.forEach(gc => {
         const images = items.filter(g => {
@@ -105,7 +115,6 @@ export default function PastConferencesPage() {
         }
       });
 
-      // Uncategorized
       const uncategorized = items.filter(g => {
         const cat = (g.category || '').trim();
         return !cat || !galleries.some(gc => gc.id === cat || gc.name === cat);
@@ -114,7 +123,6 @@ export default function PastConferencesPage() {
         result.push({ id: 'uncategorized', name: 'Gallery', description: 'Additional photos', images: uncategorized });
       }
     } else {
-      // Fallback: group by raw category
       const map = new Map<string, GalleryRow[]>();
       items.forEach(g => {
         const key = (g.category || '').trim() || 'Gallery';
@@ -133,11 +141,13 @@ export default function PastConferencesPage() {
     <>
       <Navbar />
       <div className="pt-[70px] min-h-screen bg-background" ref={ref}>
+        {/* Hero Banner */}
         <div
-          className="py-20 px-8 text-center"
+          className="py-20 px-8 text-center relative overflow-hidden"
           style={{ background: 'linear-gradient(135deg, #1A1008, #2E1C0A)' }}
         >
-          <div className="max-w-[700px] mx-auto">
+          <div className="absolute inset-0 opacity-10" style={{ background: 'radial-gradient(circle at 30% 50%, #E8620A, transparent 60%), radial-gradient(circle at 70% 50%, #E8620A, transparent 60%)' }} />
+          <div className="max-w-[700px] mx-auto relative z-[1]">
             <div className="eyebrow justify-center text-primary/80 reveal">Cherubs Cove Ministry</div>
             <h1 className="font-heading text-[clamp(32px,5vw,56px)] font-normal leading-tight mt-4 text-white reveal">
               Past Conferences <em className="italic text-primary">Archive</em>
@@ -149,15 +159,20 @@ export default function PastConferencesPage() {
         </div>
 
         <div className="container py-16">
-          {/* Conference history */}
+          {/* Past Events */}
           {pastEvents.length > 0 && (
-            <div className="mb-16">
-              <h2 className="font-heading text-[28px] font-normal italic text-foreground mb-6">
-                Conference <em className="text-primary">History</em>
-              </h2>
+            <div className="mb-20">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="h-px flex-1 bg-border" />
+                <h2 className="font-heading text-[28px] font-normal italic text-foreground whitespace-nowrap">
+                  Past <em className="text-primary">Events</em>
+                </h2>
+                <div className="h-px flex-1 bg-border" />
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {pastEvents.map((ed, i) => (
-                  <div key={i} className="p-6 rounded-lg border border-border bg-card card-lift">
+                  <div key={i} className="group p-6 rounded-lg border border-border bg-card card-lift relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-primary scale-y-0 group-hover:scale-y-100 transition-transform duration-300 origin-top" />
                     <div className="font-heading text-[36px] text-primary leading-none mb-2">{ed.year}</div>
                     <div className="font-heading text-lg italic text-foreground mb-2">"{ed.theme}"</div>
                     <p className="text-xs text-muted-foreground leading-relaxed">{ed.desc}</p>
@@ -169,14 +184,21 @@ export default function PastConferencesPage() {
 
           {/* Gallery Collections */}
           {collections.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">Galleries will appear here once images are added in the admin dashboard.</p>
+            <div className="text-center py-16">
+              <div className="text-5xl mb-4 opacity-20">📸</div>
+              <p className="text-muted-foreground">Galleries will appear here once images are added in the admin dashboard.</p>
+            </div>
           ) : (
-            <div className="space-y-16">
+            <div className="space-y-20">
               {collections.map(col => {
-                const coverImg = col.images.find(g => g.featured) || col.images[0];
+                const isExpanded = expandedCols.has(col.id);
+                const visibleImages = isExpanded ? col.images : col.images.slice(0, INITIAL_VISIBLE);
+                const hiddenCount = col.images.length - INITIAL_VISIBLE;
+
                 return (
                   <div key={col.id}>
-                    <div className="flex items-end justify-between mb-3 border-b border-border pb-3">
+                    {/* Collection header */}
+                    <div className="flex items-end justify-between mb-5 border-b border-border pb-3">
                       <div>
                         <h2 className="font-heading text-[24px] md:text-[28px] font-normal italic text-foreground">
                           <em className="text-primary">{col.name}</em>
@@ -187,34 +209,72 @@ export default function PastConferencesPage() {
                       </div>
                       <span className="text-[11px] tracking-[2px] uppercase text-muted-foreground whitespace-nowrap">{col.images.length} photo{col.images.length !== 1 ? 's' : ''}</span>
                     </div>
+
+                    {/* Image grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {col.images.map((g, i) => {
-                        const isCover = g.featured || (i === 0 && col.images.length > 1);
+                      {visibleImages.map((g, i) => {
+                        const isCover = g.featured || (i === 0 && !isExpanded && col.images.length > 1);
                         return (
                           <div
                             key={g.id}
-                            className={`rounded-lg overflow-hidden relative group cursor-pointer ${isCover ? 'sm:col-span-2 lg:col-span-2 min-h-[300px]' : 'min-h-[220px]'}`}
+                            className={`group rounded-xl overflow-hidden relative cursor-pointer ${isCover ? 'sm:col-span-2 lg:col-span-2 min-h-[300px]' : 'min-h-[220px]'}`}
                           >
                             {g.image_url ? (
-                              <img
-                                src={normalizeImageUrl(g.image_url)}
-                                alt={g.alt_text || g.title || 'Gallery photo'}
-                                className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                              />
+                              <>
+                                <img
+                                  src={normalizeImageUrl(g.image_url)}
+                                  alt={g.alt_text || g.title || 'Gallery photo'}
+                                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                />
+                                {/* Hover overlay */}
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
+                                {g.featured && (
+                                  <div className="absolute top-3 left-3 bg-primary/90 text-primary-foreground text-[9px] font-bold px-2 py-0.5 rounded-full tracking-wider uppercase z-[2]">
+                                    Featured
+                                  </div>
+                                )}
+                              </>
                             ) : (
                               <div className="w-full h-full bg-gradient-to-br from-[hsl(var(--bg-subtle))] to-[hsl(var(--border))] flex items-center justify-center transition-transform duration-500 group-hover:scale-105 absolute inset-0">
                                 <span className="text-[11px] tracking-[3px] uppercase text-muted-foreground">Gallery Photo</span>
                               </div>
                             )}
-                            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-[1]">
-                              <p className="text-[10.5px] tracking-[2px] uppercase text-white/80">{col.name}</p>
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent z-[1]" />
+                            <div className="absolute bottom-0 left-0 right-0 p-4 z-[2]">
+                              <p className="text-[10.5px] tracking-[2px] uppercase text-white/70">{col.name}</p>
                               <h4 className="font-heading text-[15px] italic text-white">{g.title}</h4>
-                              {g.caption && <p className="text-[11px] text-white/70 mt-0.5">{g.caption}</p>}
+                              {g.caption && <p className="text-[11px] text-white/60 mt-0.5">{g.caption}</p>}
                             </div>
                           </div>
                         );
                       })}
+
+                      {/* "View all" placeholder card */}
+                      {!isExpanded && hiddenCount > 0 && (
+                        <button
+                          onClick={() => toggleExpand(col.id)}
+                          className="min-h-[220px] rounded-xl border-2 border-dashed border-border bg-card/50 hover:bg-card hover:border-primary/50 transition-all duration-300 flex flex-col items-center justify-center gap-2 group cursor-pointer"
+                        >
+                          <Eye size={24} className="text-muted-foreground group-hover:text-primary transition-colors" />
+                          <span className="text-sm font-medium text-muted-foreground group-hover:text-primary transition-colors">
+                            View all {col.images.length} photos
+                          </span>
+                          <ChevronDown size={18} className="text-muted-foreground group-hover:text-primary transition-colors" />
+                        </button>
+                      )}
                     </div>
+
+                    {/* Collapse button (when expanded) */}
+                    {isExpanded && col.images.length > INITIAL_VISIBLE && (
+                      <div className="mt-4 text-center">
+                        <button
+                          onClick={() => toggleExpand(col.id)}
+                          className="inline-flex items-center gap-2 text-[11px] font-bold tracking-[2px] uppercase text-muted-foreground hover:text-primary transition-colors"
+                        >
+                          <ChevronUp size={14} /> Show less
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
