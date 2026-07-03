@@ -19,7 +19,7 @@ import type {
   EventRecord, DownloadRecord, GalleryRecord, RegistrationRecord, FormFieldConfig, GalleryCollection,
   emptyEvent as _ee, emptyDownload as _ed, emptyGallery as _eg,
 } from '@/lib/adminTypes';
-import { emptyEvent, emptyDownload, emptyGallery, formatEventDateRange, validateEventDateTime, buildEventRegistrationLink, generateDefaultImageTitle, generateGalleryAbbreviation } from '@/lib/adminTypes';
+import { emptyEvent, emptyDownload, emptyGallery, formatEventDateRange, validateEventDateTime, buildEventRegistrationLink, generateNextImageTitle, generateGalleryAbbreviation } from '@/lib/adminTypes';
 
 /* ── Content Keys (seed defaults for every editable frontend text) ────── */
 
@@ -393,18 +393,19 @@ export default function AdminPage() {
       if (fromUrl) {
         title = fromUrl;
       } else if (effectiveGal) {
-        const countInGal = gallery.filter(g => {
+        // Find max existing index in this gallery for stable numbering
+        const imagesInGal = gallery.filter(g => {
           const cat = (g.category || '').trim();
           return (cat === effectiveGal.id || cat === effectiveGal.name) && g.id !== editGallery.id;
-        }).length;
-        title = generateDefaultImageTitle(effectiveGal.name, countInGal);
+        });
+        title = generateNextImageTitle(imagesInGal, effectiveGal.name);
       } else {
-        // Uncategorized — count all uncategorized images
-        const uncatCount = gallery.filter(g => {
+        // Uncategorized — find max index for stable numbering
+        const uncatImages = gallery.filter(g => {
           const cat = (g.category || '').trim();
           return !cat || !galleries.some(gc => gc.id === cat || gc.name === cat);
-        }).length;
-        title = generateDefaultImageTitle(null, uncatCount);
+        });
+        title = generateNextImageTitle(uncatImages, null);
       }
     }
 
@@ -548,16 +549,35 @@ export default function AdminPage() {
       return;
     }
     const catName = galleries.find(g => g.id === targetVal || g.name === targetVal)?.name || targetVal;
-    // Update titles of moved images to reflect new gallery
+    // Update titles of moved images — each gets the next available index
     const { data: movedImgs } = await supabase
       .from('gallery')
-      .select('id')
+      .select('id, title')
       .in('id', ids)
       .order('created_at', { ascending: true });
     if (movedImgs) {
-      for (let idx = 0; idx < movedImgs.length; idx++) {
-        const newTitle = generateDefaultImageTitle(catName, idx);
-        await supabase.from('gallery').update({ title: newTitle }).eq('id', movedImgs[idx].id);
+      // First, find all existing images already in the target gallery (excluding the ones being moved)
+      const existingTargetIds = new Set(ids);
+      const existingTargetImgs = gallery.filter(g => {
+        const cat = (g.category || '').trim();
+        return (cat === targetVal || cat === catName) && !existingTargetIds.has(g.id!);
+      });
+      // Track current max index, then assign sequentially
+      let nextIdx = 1;
+      for (const img of existingTargetImgs) {
+        const t = img.title || '';
+        if (t.startsWith(catName ? generateGalleryAbbreviation(catName) : 'Uncategorized')) {
+          const match = t.match(/-(\d{3})$/);
+          if (match) {
+            const idx = parseInt(match[1], 10);
+            if (idx >= nextIdx) nextIdx = idx + 1;
+          }
+        }
+      }
+      for (const img of movedImgs) {
+        const newTitle = `${catName ? generateGalleryAbbreviation(catName) : 'Uncategorized'}-${String(nextIdx).padStart(3, '0')}`;
+        await supabase.from('gallery').update({ title: newTitle }).eq('id', img.id);
+        nextIdx++;
       }
     }
     toast.success(`${ids.length} image(s) moved to "${catName}".`);
@@ -565,6 +585,84 @@ export default function AdminPage() {
     setBulkCategoryTarget('');
     loadAllData();
   };
+
+  /* ── One-time migration: retitle existing images ─────────────────────── */
+
+  const migrateExistingImageTitles = async () => {
+    if (!gallery.length) return;
+
+    const oldTitlePattern = /google drive image|gallery photo/i;
+    const needsMigration = gallery.some(g => oldTitlePattern.test(g.title || '') || !(g.title || '').match(/-(\d{3})$/));
+    if (!needsMigration) return;
+
+    console.log('[migrate] Retitling existing gallery images…');
+
+    // Group images by effective gallery
+    const byGallery = new Map<string, typeof gallery>();
+    const uncategorized: typeof gallery = [];
+
+    for (const img of gallery) {
+      const cat = (img.category || '').trim();
+      const gal = cat ? galleries.find(g => g.id === cat || g.name === cat) : null;
+      if (gal) {
+        const key = gal.name;
+        if (!byGallery.has(key)) byGallery.set(key, []);
+        byGallery.get(key)!.push(img);
+      } else {
+        uncategorized.push(img);
+      }
+    }
+
+    // Helper: compute next stable index for a set of images given an abbreviation
+    const reindexGroup = async (images: typeof gallery, abbr: string) => {
+      let nextIdx = 1;
+      // First pass: find max existing index from titles that already match the pattern
+      for (const img of images) {
+        const t = img.title || '';
+        if (t.startsWith(abbr)) {
+          const match = t.match(/-(\d{3})$/);
+          if (match) {
+            const idx = parseInt(match[1], 10);
+            if (idx >= nextIdx) nextIdx = idx + 1;
+          }
+        }
+      }
+      // Second pass: assign new titles to images that don't follow the pattern
+      for (const img of images) {
+        const t = img.title || '';
+        if (oldTitlePattern.test(t) || !t.match(/-(\d{3})$/)) {
+          const newTitle = `${abbr}-${String(nextIdx).padStart(3, '0')}`;
+          await supabase.from('gallery').update({ title: newTitle }).eq('id', img.id);
+          nextIdx++;
+        }
+      }
+    };
+
+    for (const [galName, images] of byGallery.entries()) {
+      const abbr = generateGalleryAbbreviation(galName);
+      await reindexGroup(images, abbr);
+    }
+    if (uncategorized.length) {
+      await reindexGroup(uncategorized, 'Uncategorized');
+    }
+
+    const total = gallery.length;
+    const migrated = gallery.filter(g => oldTitlePattern.test(g.title || '') || !(g.title || '').match(/-(\d{3})$/)).length;
+    if (migrated > 0) {
+      toast.success(`Re-titled ${migrated} existing image(s) to gallery-based naming.`);
+      loadAllData();
+    }
+  };
+
+  // Run migration once when gallery data is ready
+  const [migrationDone, setMigrationDone] = useState(false);
+  useEffect(() => {
+    if (gallery.length > 0 && !migrationDone) {
+      migrateExistingImageTitles();
+      setMigrationDone(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gallery.length, galleries.length]);
 
   /* ── Site Settings ───────────────────────────────────────────────────── */
 
@@ -1061,16 +1159,20 @@ export default function AdminPage() {
                             // Rename category + image titles if name changed
                             if (oldName && oldName !== name) {
                               await supabase.from('gallery').update({ category: name }).eq('category', oldName);
-                              // Update image titles to reflect new gallery abbreviation
+                              // Update image titles to reflect new gallery abbreviation (preserve existing indices)
                               const { data: imgs } = await supabase
                                 .from('gallery')
-                                .select('id')
+                                .select('id, title')
                                 .eq('category', name)
                                 .order('created_at', { ascending: true });
                               if (imgs) {
-                                for (let idx = 0; idx < imgs.length; idx++) {
-                                  const newTitle = generateDefaultImageTitle(name, idx);
-                                  await supabase.from('gallery').update({ title: newTitle }).eq('id', imgs[idx].id);
+                                const newAbbr = generateGalleryAbbreviation(name);
+                                for (const img of imgs) {
+                                  const oldTitle = img.title || '';
+                                  const match = oldTitle.match(/-(\d{3})$/);
+                                  const num = match ? match[1] : '001';
+                                  const newTitle = `${newAbbr}-${num}`;
+                                  await supabase.from('gallery').update({ title: newTitle }).eq('id', img.id);
                                 }
                               }
                             }
@@ -1278,20 +1380,39 @@ export default function AdminPage() {
                             let success = 0;
                             let uncategorizedCount = 0;
                             let hasAltColumn = true;
-                            let bulkIndex = 0;
+                            // Pre-compute the first available index for stable numbering
+                            const catForBulk = bulkCategoryTarget && bulkCategoryTarget !== '__none__'
+                              ? bulkCategoryTarget
+                              : (selectedGallery?.id || '');
+                            const galForBulk = galleries.find(g => g.id === catForBulk || g.name === catForBulk);
+                            const bulkAbbr = galForBulk ? generateGalleryAbbreviation(galForBulk.name) : 'Uncategorized';
+                            const existingBulkTitles = catForBulk
+                              ? gallery.filter(g => {
+                                  const c = (g.category || '').trim();
+                                  return c === catForBulk || c === (galForBulk?.name || '');
+                                })
+                              : gallery.filter(g => {
+                                  const c = (g.category || '').trim();
+                                  return !c || !galleries.some(gc => gc.id === c || gc.name === c);
+                                });
+                            let bulkNextIdx = 1;
+                            for (const img of existingBulkTitles) {
+                              const t = img.title || '';
+                              if (t.startsWith(bulkAbbr)) {
+                                const match = t.match(/-(\d{3})$/);
+                                if (match) {
+                                  const idx = parseInt(match[1], 10);
+                                  if (idx >= bulkNextIdx) bulkNextIdx = idx + 1;
+                                }
+                              }
+                            }
                             for (const url of urls) {
                               // Gallery-based title for bulk imports
                               let title = titleFromUrl(url);
                               if (!title) {
-                                const catForTitle = bulkCategoryTarget && bulkCategoryTarget !== '__none__'
-                                  ? bulkCategoryTarget
-                                  : (selectedGallery?.id || '');
-                                const galForTitle = galleries.find(g => g.id === catForTitle || g.name === catForTitle);
-                                title = galForTitle
-                                  ? generateDefaultImageTitle(galForTitle.name, bulkIndex)
-                                  : generateDefaultImageTitle(null, bulkIndex);
+                                title = `${bulkAbbr}-${String(bulkNextIdx).padStart(3, '0')}`;
+                                bulkNextIdx++;
                               }
-                              bulkIndex++;
                               const row: Record<string, string> = {
                                 title,
                                 image_url: normalizeImageUrl(url),
@@ -1374,17 +1495,17 @@ export default function AdminPage() {
                             const currentTitle = editGallery.title || '';
                             if (!currentTitle || autoPattern.test(currentTitle)) {
                               if (newGal) {
-                                const countInGal = gallery.filter(g => {
+                                const imagesInGal = gallery.filter(g => {
                                   const cat = (g.category || '').trim();
                                   return (cat === newGal.id || cat === newGal.name) && g.id !== editGallery.id;
-                                }).length;
-                                setEditGallery({ ...editGallery, category: newCat, title: generateDefaultImageTitle(newGal.name, countInGal) });
+                                });
+                                setEditGallery({ ...editGallery, category: newCat, title: generateNextImageTitle(imagesInGal, newGal.name) });
                               } else {
-                                const uncatCount = gallery.filter(g => {
+                                const uncatImages = gallery.filter(g => {
                                   const cat = (g.category || '').trim();
                                   return !cat || !galleries.some(gc => gc.id === cat || gc.name === cat);
-                                }).length;
-                                setEditGallery({ ...editGallery, category: newCat, title: generateDefaultImageTitle(null, uncatCount) });
+                                });
+                                setEditGallery({ ...editGallery, category: newCat, title: generateNextImageTitle(uncatImages, null) });
                               }
                             } else {
                               setEditGallery({ ...editGallery, category: newCat });

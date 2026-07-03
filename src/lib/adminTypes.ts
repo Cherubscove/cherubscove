@@ -155,6 +155,41 @@ export function generateDefaultImageTitle(
   return `Uncategorized-${String(index + 1).padStart(3, '0')}`;
 }
 
+/**
+ * Generate the next auto-title for an image, ensuring stable numbering:
+ * finds the highest existing index among images in the same gallery (or
+ * uncategorized) and increments it.  Deleting an image never re-numbers
+ * the remaining ones.
+ *
+ * @param existingImages – all images belonging to the same gallery (or
+ *   uncategorized).  It is safe to include *all* gallery images; the
+ *   function only uses their titles to find the max index.
+ * @param galleryName – display name of the gallery, or null for
+ *   uncategorized.
+ */
+export function generateNextImageTitle(
+  existingImages: { title?: string | null }[],
+  galleryName: string | null | undefined,
+): string {
+  const abbr = galleryName
+    ? generateGalleryAbbreviation(galleryName)
+    : 'Uncategorized';
+
+  let maxIndex = 0;
+  for (const img of existingImages) {
+    const t = img.title || '';
+    if (t.startsWith(abbr)) {
+      const match = t.match(/-(\d{3})$/);
+      if (match) {
+        const idx = parseInt(match[1], 10);
+        if (idx > maxIndex) maxIndex = idx;
+      }
+    }
+  }
+  // maxIndex is the highest 1‑based number; next one is maxIndex + 1.
+  return `${abbr}-${String(maxIndex + 1).padStart(3, '0')}`;
+}
+
 /** Format event date range for display. */
 export function formatEventDateRange(ev: { date?: string; end_date?: string; time?: string; end_time?: string }): string {
   const start = ev.date ? new Date(ev.date) : null;
