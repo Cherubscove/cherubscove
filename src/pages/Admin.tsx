@@ -870,24 +870,95 @@ export default function AdminPage() {
     setRegSort(prev => prev.col === col ? { col, asc: !prev.asc } : { col, asc: true });
   };
 
-  const exportCSV = () => {
-    if (!sortedRegistrations.length) { toast.error('No registrations to export.'); return; }
+  const exportRows = () => {
     const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Event', 'Location', 'Note', 'Date', 'Extra Data'];
     const rows = sortedRegistrations.map(r => [
-      r.first_name, r.last_name, r.email, r.phone, r.event_title || r.program || '',
-      r.location, `"${(r.note || '').replace(/"/g, '""')}"`,
-      new Date(r.created_at).toLocaleDateString(),
-      `"${(r.form_data || '').replace(/"/g, '""')}"`,
+      r.first_name || '', r.last_name || '', r.email || '', r.phone || '',
+      r.event_title || r.program || '', r.location || '', r.note || '',
+      new Date(r.created_at).toLocaleString(), r.form_data || '',
     ]);
-    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
+    return { headers, rows };
+  };
+
+  const exportCSV = () => {
+    if (!sortedRegistrations.length) { toast.error('No registrations to export.'); return; }
+    const { headers, rows } = exportRows();
+    const esc = (v: string) => `"${String(v).replace(/"/g, '""')}"`;
+    const csv = [headers.map(esc).join(','), ...rows.map(r => r.map(esc).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = `registrations-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
+    a.href = url; a.download = `registrations-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
     URL.revokeObjectURL(url);
     toast.success('CSV exported.');
+  };
+
+  const exportXLSX = async () => {
+    if (!sortedRegistrations.length) { toast.error('No registrations to export.'); return; }
+    const XLSX = await import('xlsx');
+    const { headers, rows } = exportRows();
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    const sheetName = (regGroups.find(g => g.key === regSelectedGroupKey)?.title || 'Registrations').slice(0, 28);
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    XLSX.writeFile(wb, `registrations-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    toast.success('Excel exported.');
+  };
+
+  const exportPDF = async () => {
+    if (!sortedRegistrations.length) { toast.error('No registrations to export.'); return; }
+    const [{ default: jsPDF }, autoTableMod] = await Promise.all([
+      import('jspdf'),
+      import('jspdf-autotable'),
+    ]);
+    const autoTable = (autoTableMod as any).default || (autoTableMod as any).autoTable;
+    const doc = new jsPDF({ orientation: 'landscape' });
+    const title = regGroups.find(g => g.key === regSelectedGroupKey)?.title || 'Registrations';
+    doc.setFontSize(14);
+    doc.text(title, 14, 14);
+    doc.setFontSize(9);
+    doc.text(`Exported ${new Date().toLocaleString()} · ${sortedRegistrations.length} registrations`, 14, 20);
+    const headers = ['Name', 'Email', 'Phone', 'Location', 'Note', 'Date'];
+    const rows = sortedRegistrations.map(r => [
+      `${r.first_name || ''} ${r.last_name || ''}`.trim(),
+      r.email || '', r.phone || '', r.location || '',
+      (r.note || '').slice(0, 80),
+      new Date(r.created_at).toLocaleDateString(),
+    ]);
+    autoTable(doc, { head: [headers], body: rows, startY: 26, styles: { fontSize: 8 }, headStyles: { fillColor: [232, 98, 10] } });
+    doc.save(`registrations-${new Date().toISOString().slice(0, 10)}.pdf`);
+    toast.success('PDF exported.');
+  };
+
+  const seedTestRegistrations = async () => {
+    const grp = regGroups.find(g => g.key === regSelectedGroupKey);
+    let eventId: string | undefined;
+    let eventTitle = 'Test Event';
+    if (grp && grp.items.length && grp.items[0].event_id) {
+      eventId = grp.items[0].event_id;
+      eventTitle = grp.title;
+    } else {
+      // find any registration-enabled event
+      const target = events.find(e => e.registration_enabled) || events[0];
+      if (!target?.id) { toast.error('Create an event first.'); return; }
+      eventId = target.id;
+      eventTitle = target.title;
+    }
+    const samples = [
+      { first_name: 'Grace', last_name: 'Adekunle', email: 'grace.a@example.com', phone: '+2348012345671', location: 'Lagos', note: 'Excited to attend!' },
+      { first_name: 'Daniel', last_name: 'Okafor', email: 'daniel.o@example.com', phone: '+2348012345672', location: 'Abuja', note: 'Bringing 3 friends.' },
+      { first_name: 'Blessing', last_name: 'Uche', email: 'blessing.u@example.com', phone: '+2348012345673', location: 'Port Harcourt', note: '' },
+      { first_name: 'Samuel', last_name: 'Ibrahim', email: 'samuel.i@example.com', phone: '+2348012345674', location: 'Kano', note: 'Please pray for my family.' },
+      { first_name: 'Faith', last_name: 'Adeyemi', email: 'faith.a@example.com', phone: '+2348012345675', location: 'Ibadan', note: 'First time joining.' },
+    ];
+    const payload = samples.map(s => ({
+      ...s, event_id: eventId, event_title: eventTitle, program: eventTitle,
+      form_data: JSON.stringify(s),
+    }));
+    const { error } = await supabase.from('registrations').insert(payload);
+    if (error) { toast.error(`Seed failed: ${error.message}`); return; }
+    toast.success('5 test registrations added.');
+    loadAllData();
   };
 
   const deleteRegistration = async (id: string) => {
