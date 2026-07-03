@@ -1794,8 +1794,13 @@ export default function AdminPage() {
             {!regSelectedGroupKey ? (
               <>
                 <div className="flex justify-between items-center flex-wrap gap-3">
-                  <h2 className="text-xl font-semibold">Registrations by Event</h2>
-                  <p className="text-sm text-[#6B5E50]">Click an event to see its registrations.</p>
+                  <div>
+                    <h2 className="text-xl font-semibold">Registrations by Event</h2>
+                    <p className="text-sm text-[#6B5E50]">Click an event to see its registrations.</p>
+                  </div>
+                  <Button onClick={seedTestRegistrations} variant="outline" className="border-[#E8620A]/60 text-[#E8620A] hover:bg-[#E8620A]/10">
+                    <Plus size={14} className="mr-1" /> Seed 5 Test Registrations
+                  </Button>
                 </div>
                 {regGroups.length === 0 && <p className="text-[#6B5E50] text-center py-8">No registrations yet.</p>}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
