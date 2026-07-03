@@ -2,7 +2,7 @@
 
 export const SEED_GALLERIES = [
   { id: 'quivers-arrows-2023', name: "Quiver's Arrows 2023", description: 'The inaugural edition — a prophetic call to the next generation.' },
-  { id: 'quivers-awakening-2023', name: "Quiver's Awakening 2023", description: 'Northern Edition — expanding the reach across the nation.' },
+  { id: 'quivers-awakening-2024', name: "Quiver's Awakening 2024", description: 'Northern Edition (February 2024) — expanding the reach across the nation.' },
   { id: 'quivers-forge-2024', name: "Quiver's Forge 2024", description: 'A furnace of refining — shaping vessels for honour.' },
   { id: 'quivers-immersion-2025', name: "Quiver's Immersion 2025", description: 'Diving deep into the presence and purpose of God.' },
 ];
