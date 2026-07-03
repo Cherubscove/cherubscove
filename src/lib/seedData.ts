@@ -131,7 +131,7 @@ export const SEED_DOWNLOADS = [
   {
     title: 'Positioned for Overflow',
     url: '#',
-    description: 'Guest Minister — Awakening 2023',
+    description: 'Guest Minister — Awakening 2024',
     category: 'Sermon',
     type: 'audio',
   },
