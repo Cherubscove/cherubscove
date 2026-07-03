@@ -59,14 +59,14 @@ const CONTENT_DEFAULTS: { key: string; label: string; value: string; group: stri
   { key: 'footer_tagline', label: 'Footer — Tagline', value: 'An interdenominational ministry raising burning youths for the Lord.', group: 'Footer' },
   { key: 'hero_verse', label: 'Hero — Scripture Verse', value: 'As arrows are in the hand of a mighty man; so are children of the youth.', group: 'Hero Section' },
   { key: 'hero_verse_ref', label: 'Hero — Scripture Reference', value: 'Psalm 127:4', group: 'Hero Section' },
-  { key: 'contact_email', label: 'Contact — Email', value: 'hello@cherubscove.org', group: 'Contact Info' },
-  { key: 'contact_phone', label: 'Contact — Phone', value: '+234 000 000 0000', group: 'Contact Info' },
+  { key: 'contact_email', label: 'Contact — Email', value: 'cherubscove@gmail.com', group: 'Contact Info' },
+  { key: 'contact_phone', label: 'Contact — Phone', value: '+234 817 930 3228', group: 'Contact Info' },
   { key: 'location', label: 'Contact — Location', value: 'Nigeria', group: 'Contact Info' },
-  { key: 'facebook_url', label: 'Facebook URL', value: '', group: 'Social Links' },
+  { key: 'facebook_url', label: 'Facebook URL', value: 'https://www.facebook.com/share/182S9YeQMr/?mibextid=wwXIfr', group: 'Social Links' },
   { key: 'instagram_url', label: 'Instagram URL', value: '', group: 'Social Links' },
-  { key: 'youtube_url', label: 'YouTube URL', value: '', group: 'Social Links' },
+  { key: 'youtube_url', label: 'YouTube URL', value: 'https://www.youtube.com/@jefaldera', group: 'Social Links' },
   { key: 'twitter_url', label: 'X/Twitter URL', value: '', group: 'Social Links' },
-  { key: 'whatsapp_url', label: 'WhatsApp URL', value: '', group: 'Social Links' },
+  { key: 'whatsapp_url', label: 'WhatsApp URL', value: 'https://wa.me/2348179303228', group: 'Social Links' },
 ];
 
 /* ── Component ──────────────────────────────────────────────────────────── */

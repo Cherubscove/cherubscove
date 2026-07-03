@@ -140,7 +140,8 @@ function RegistrationForm({
 
     const s = (v: string | string[] | undefined): string =>
       Array.isArray(v) ? v.join(', ') : (v || '');
-    const { error } = await supabase.from('registrations').insert({
+
+    const payload: Record<string, string> = {
       event_id: event.id,
       event_title: event.title,
       first_name: s(formValues['first_name']) || s(formValues['First Name']),
@@ -152,11 +153,35 @@ function RegistrationForm({
       program: event.title,
       form_data: JSON.stringify(formValues),
       created_at: new Date().toISOString(),
-    });
+    };
+
+    const doInsert = async (data: Record<string, string>) =>
+      supabase.from('registrations').insert(data);
+
+    let { error } = await doInsert(payload);
+
+    // Retry without form_data if that column doesn't exist
+    if (error && (error as any).code === '42703' && payload.form_data) {
+      delete payload.form_data;
+      const retry = await doInsert(payload);
+      error = retry.error;
+    }
 
     if (error) {
+      const err = error as any;
+      // User-friendly messages for common errors
+      if (err.code === '42703') {
+        setMessage('The registration form has an extra field the server doesn\'t recognise. Please contact the ministry team.');
+      } else if (err.code === '42501' || err.message?.toLowerCase().includes('row-level security')) {
+        setMessage('Registration is temporarily unavailable. Please try again later or contact us directly.');
+      } else if (err.code === '23505') {
+        setMessage('You have already registered for this event.');
+      } else if (err.message?.toLowerCase().includes('network') || err.message?.toLowerCase().includes('fetch')) {
+        setMessage('Network error. Please check your connection and try again.');
+      } else {
+        setMessage(err.message ?? 'Registration failed. Please try again.');
+      }
       setRegStatus('error');
-      setMessage(error.message ?? 'Registration failed.');
       return;
     }
 

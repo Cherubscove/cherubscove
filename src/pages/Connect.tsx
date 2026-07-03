@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { Mail, Phone, MapPin } from 'lucide-react';
+import { toast } from 'sonner';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -57,20 +58,45 @@ export default function ConnectPage() {
   }, []);
 
   const contactItems = [
-    { icon: <Mail size={18} />, label: 'Email', value: settings.contact_email || 'hello@cherubscove.org' },
-    { icon: <Phone size={18} />, label: 'Phone / WhatsApp', value: settings.contact_phone || '+234 000 000 0000' },
+    { icon: <Mail size={18} />, label: 'Email', value: settings.contact_email || 'cherubscove@gmail.com' },
+    { icon: <Phone size={18} />, label: 'Phone / WhatsApp', value: settings.contact_phone || '+234 817 930 3228' },
     { icon: <MapPin size={18} />, label: 'Based In', value: settings.location || 'Nigeria' },
   ];
 
   const activeSocials = socialKeys.filter(k => settings[k]);
 
-  const handleNewsletter = (e: FormEvent) => {
+  const handleNewsletter = async (e: FormEvent) => {
     e.preventDefault();
-    setNlStatus('success');
-    setTimeout(() => {
-      setNlStatus('idle');
-      (e.target as HTMLFormElement).reset();
-    }, 3500);
+    const form = e.target as HTMLFormElement;
+    const input = form.querySelector<HTMLInputElement>('input[type="email"]');
+    const email = input?.value.trim();
+    if (!email) return;
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast.error('Please enter a valid email address.');
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from('newsletter').insert({ email });
+      if (error) {
+        if (error.code === '23505') {
+          toast('You\'re already subscribed!');
+        } else {
+          toast.error(error.message || 'Something went wrong. Please try again.');
+        }
+        return;
+      }
+      setNlStatus('success');
+      setTimeout(() => {
+        setNlStatus('idle');
+        form.reset();
+      }, 3500);
+    } catch {
+      toast.error('Network error. Please try again later.');
+    }
   };
 
   return (
