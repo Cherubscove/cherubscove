@@ -2,7 +2,7 @@
 
 export const SEED_GALLERIES = [
   { id: 'quivers-arrows-2023', name: "Quiver's Arrows 2023", description: 'The inaugural edition — a prophetic call to the next generation.' },
-  { id: 'quivers-awakening-2023', name: "Quiver's Awakening 2023", description: 'Northern Edition — expanding the reach across the nation.' },
+  { id: 'quivers-awakening-2024', name: "Quiver's Awakening 2024", description: 'Northern Edition (February 2024) — expanding the reach across the nation.' },
   { id: 'quivers-forge-2024', name: "Quiver's Forge 2024", description: 'A furnace of refining — shaping vessels for honour.' },
   { id: 'quivers-immersion-2025', name: "Quiver's Immersion 2025", description: 'Diving deep into the presence and purpose of God.' },
 ];
@@ -22,10 +22,10 @@ export const SEED_EVENTS = [
     form_fields: '[]',
   },
   {
-    title: "Quiver's Conference 2023 (Northern)",
+    title: "Quiver's Conference 2024 (Northern)",
     theme: 'Awakening',
     status: 'past',
-    date: '2023-09-10',
+    date: '2024-02-10',
     description: 'Northern Edition',
     location: 'Kano, Nigeria',
     time: '10:00 AM',
@@ -131,7 +131,7 @@ export const SEED_DOWNLOADS = [
   {
     title: 'Positioned for Overflow',
     url: '#',
-    description: 'Guest Minister — Awakening 2023',
+    description: 'Guest Minister — Awakening 2024',
     category: 'Sermon',
     type: 'audio',
   },

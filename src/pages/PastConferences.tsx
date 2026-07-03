@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
 import { useSiteSettings, getSetting } from '@/hooks/useSiteSettings';
 import Navbar from '@/components/Navbar';
@@ -71,7 +71,7 @@ export default function PastConferencesPage() {
     } else {
       setPastEvents([
         { year: '2023', theme: 'Arrows', desc: 'The inaugural edition — a prophetic call to the next generation.' },
-        { year: '2023', theme: 'Awakening', desc: 'Northern Edition — expanding the reach across the nation.' },
+        { year: '2024', theme: 'Awakening', desc: 'Northern Edition (February 2024) — expanding the reach across the nation.' },
         { year: '2024', theme: 'Forge', desc: 'A furnace of refining — shaping vessels for honour.' },
         { year: '2025', theme: 'Immersion', desc: 'Diving deep into the presence and purpose of God.' },
       ]);

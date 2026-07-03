@@ -307,7 +307,7 @@ function RegistrationForm({
 
       {message && (
         regStatus === 'success' ? (
-          <div className={`text-[13px] text-center mt-3 leading-relaxed ${regStatus === 'error' ? 'text-rose-400' : 'text-emerald-400'}`} dangerouslySetInnerHTML={{ __html: message }} />
+          <div className="text-[13px] text-center mt-3 leading-relaxed text-emerald-400" dangerouslySetInnerHTML={{ __html: message }} />
         ) : (
           <p className={`text-[11px] text-center mt-3 ${regStatus === 'error' ? 'text-rose-400' : 'text-emerald-400'}`}>
             {message}
