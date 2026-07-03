@@ -1826,7 +1826,9 @@ export default function AdminPage() {
                   </div>
                   <div className="flex gap-2 flex-wrap">
                     <Input placeholder="Search…" value={regSearch} onChange={e => setRegSearch(e.target.value)} className={`${inputCls} w-48`} />
-                    <Button onClick={exportCSV} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><FileDown size={14} className="mr-1" /> Export CSV</Button>
+                    <Button onClick={exportCSV} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><FileDown size={14} className="mr-1" /> CSV</Button>
+                    <Button onClick={exportXLSX} className="bg-emerald-700 hover:bg-emerald-800 text-white"><FileDown size={14} className="mr-1" /> Excel</Button>
+                    <Button onClick={exportPDF} className="bg-rose-700 hover:bg-rose-800 text-white"><FileDown size={14} className="mr-1" /> PDF</Button>
                   </div>
                 </div>
                 <div className="flex gap-4 flex-wrap">
