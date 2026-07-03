@@ -146,34 +146,53 @@ function RegistrationForm({
     setRegStatus('idle');
     setMessage('');
 
-    const s = (v: string | string[] | undefined): string =>
-      Array.isArray(v) ? v.join(', ') : (v || '');
-
-    const payload: Record<string, string> = {
-      event_id: event.id,
-      event_title: event.title,
-      first_name: s(formValues['first_name']) || s(formValues['First Name']),
-      last_name: s(formValues['last_name']) || s(formValues['Last Name']),
-      email: s(formValues['email']) || s(formValues['Email Address']),
-      phone: s(formValues['phone']) || s(formValues['Phone Number']),
-      location: s(formValues['location']) || s(formValues['State / City']),
-      note: s(formValues['note']) || s(formValues['Prayer Request or Note']),
-      program: event.title,
-      form_data: JSON.stringify(formValues),
-      created_at: new Date().toISOString(),
+    const normalizeLabel = (value: string) => value.trim().toLowerCase();
+    const formatValue = (value: string | string[] | undefined): string | null => {
+      if (value === undefined || value === null) return null;
+      if (Array.isArray(value)) return value.length ? value.join(', ') : null;
+      return value.trim() ? value : null;
     };
 
-    const doInsert = async (data: Record<string, string>) =>
-      supabase.from('registrations').insert(data);
+    const matchesLabel = (field: FormFieldConfig, keywords: string[]) => {
+      const label = normalizeLabel(field.label || '');
+      return keywords.some(keyword => label.includes(keyword));
+    };
 
-    let { error } = await doInsert(payload);
+    const findField = (test: (field: FormFieldConfig) => boolean) =>
+      formFields.find(field => test(field));
 
-    // Retry without form_data if that column doesn't exist
-    if (error && (error as any).code === '42703' && payload.form_data) {
-      delete payload.form_data;
-      const retry = await doInsert(payload);
-      error = retry.error;
-    }
+    const getFieldValue = (field: FormFieldConfig | undefined) =>
+      field ? formatValue(formValues[field.id]) : null;
+
+    const findByTypeOrLabel = (type: FormFieldConfig['type'], labels: string[]) =>
+      findField(field => field.type === type && getFieldValue(field) !== null)
+      || findField(field => matchesLabel(field, labels) && getFieldValue(field) !== null);
+
+    const fullNameField = findField(field =>
+      field.type === 'text' && matchesLabel(field, ['name']) && !matchesLabel(field, ['first', 'last']) && getFieldValue(field) !== null
+    );
+    const firstNameField = findField(field =>
+      field.type === 'text' && matchesLabel(field, ['first']) && matchesLabel(field, ['name']) && getFieldValue(field) !== null
+    );
+    const lastNameField = findField(field =>
+      field.type === 'text' && matchesLabel(field, ['last']) && matchesLabel(field, ['name']) && getFieldValue(field) !== null
+    );
+
+    const fullName = fullNameField ? getFieldValue(fullNameField) : [getFieldValue(firstNameField), getFieldValue(lastNameField)]
+      .filter(Boolean).join(' ').trim() || null;
+
+    const payload = {
+      event_id: event.id,
+      full_name: fullName,
+      email: getFieldValue(findByTypeOrLabel('email', ['email', 'e-mail'])),
+      phone: getFieldValue(findByTypeOrLabel('tel', ['phone', 'tel', 'mobile', 'contact'])),
+      state_city: getFieldValue(findByTypeOrLabel('text', ['state', 'city', 'location', 'address'])),
+      prayer_note: getFieldValue(findByTypeOrLabel('textarea', ['prayer', 'note', 'request', 'comment', 'message', 'reason'])),
+      program: event.title,
+      form_data: formValues,
+    };
+
+    const { error } = await supabase.from('registrations').insert(payload);
 
     if (error) {
       const err = error as any;

@@ -6,20 +6,65 @@
 CREATE TABLE IF NOT EXISTS registrations (
   id         UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   event_id   TEXT,
-  event_title TEXT,
-  first_name TEXT NOT NULL DEFAULT '',
-  last_name  TEXT NOT NULL DEFAULT '',
-  email      TEXT NOT NULL DEFAULT '',
-  phone      TEXT NOT NULL DEFAULT '',
+  full_name  TEXT,
+  email      TEXT,
+  phone      TEXT,
   program    TEXT NOT NULL DEFAULT '',
-  location   TEXT NOT NULL DEFAULT '',
-  note       TEXT NOT NULL DEFAULT '',
-  form_data  TEXT NOT NULL DEFAULT '{}'
+  state_city TEXT,
+  prayer_note TEXT,
+  status     TEXT NOT NULL DEFAULT 'pending',
+  attended   BOOLEAN NOT NULL DEFAULT false,
+  form_data  JSONB NOT NULL DEFAULT '{}'::jsonb
 );
 
 -- Enable RLS (safe to run multiple times)
 ALTER TABLE registrations ENABLE ROW LEVEL SECURITY;
+
+-- Add missing columns for older schemas
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'registrations' AND column_name = 'full_name'
+  ) THEN
+    ALTER TABLE registrations ADD COLUMN full_name TEXT;
+  ELSE
+    ALTER TABLE registrations ALTER COLUMN full_name DROP NOT NULL;
+    ALTER TABLE registrations ALTER COLUMN full_name DROP DEFAULT;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'registrations' AND column_name = 'state_city'
+  ) THEN
+    ALTER TABLE registrations ADD COLUMN state_city TEXT;
+  ELSE
+    ALTER TABLE registrations ALTER COLUMN state_city DROP NOT NULL;
+    ALTER TABLE registrations ALTER COLUMN state_city DROP DEFAULT;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'registrations' AND column_name = 'prayer_note'
+  ) THEN
+    ALTER TABLE registrations ADD COLUMN prayer_note TEXT;
+  ELSE
+    ALTER TABLE registrations ALTER COLUMN prayer_note DROP NOT NULL;
+    ALTER TABLE registrations ALTER COLUMN prayer_note DROP DEFAULT;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'registrations' AND column_name = 'form_data'
+  ) THEN
+    ALTER TABLE registrations ADD COLUMN form_data JSONB NOT NULL DEFAULT '{}'::jsonb;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'registrations' AND column_name = 'updated_at'
+  ) THEN
+    ALTER TABLE registrations ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
+  END IF;
+END $$;
 
 -- Drop any existing policies first to avoid conflicts
 DROP POLICY IF EXISTS "Anyone can register" ON registrations;
@@ -41,24 +86,25 @@ CREATE POLICY "Authenticated users can delete registrations"
   ON registrations FOR DELETE
   USING (auth.role() = 'authenticated');
 
--- Add the form_data column if it's missing (safe for existing tables)
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'registrations' AND column_name = 'form_data'
-  ) THEN
-    ALTER TABLE registrations ADD COLUMN form_data TEXT NOT NULL DEFAULT '{}';
-  END IF;
-END $$;
-
 -- Ensure phone column exists (might have been added after initial creation)
 DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'registrations' AND column_name = 'email'
+  ) THEN
+    ALTER TABLE registrations ADD COLUMN email TEXT;
+  ELSE
+    ALTER TABLE registrations ALTER COLUMN email DROP NOT NULL;
+    ALTER TABLE registrations ALTER COLUMN email DROP DEFAULT;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
     WHERE table_name = 'registrations' AND column_name = 'phone'
   ) THEN
-    ALTER TABLE registrations ADD COLUMN phone TEXT NOT NULL DEFAULT '';
+    ALTER TABLE registrations ADD COLUMN phone TEXT;
+  ELSE
+    ALTER TABLE registrations ALTER COLUMN phone DROP NOT NULL;
+    ALTER TABLE registrations ALTER COLUMN phone DROP DEFAULT;
   END IF;
 END $$;

@@ -181,6 +181,54 @@ export default function AdminPage() {
   const [contentValues, setContentValues] = useState<Record<string, string>>({});
   const [contentGroup, setContentGroup] = useState('all');
 
+  const parseRegistrationFormData = (raw: RegistrationRecord['form_data']) => {
+    if (!raw) return null;
+    if (typeof raw === 'string') {
+      try { return JSON.parse(raw); } catch { return null; }
+    }
+    return raw;
+  };
+
+  const getRegistrationFormDataPairs = (registration: RegistrationRecord) => {
+    const raw = parseRegistrationFormData(registration.form_data);
+    if (!raw || typeof raw !== 'object') return [];
+
+    const event = events.find(ev => ev.id === registration.event_id);
+    let formFields: FormFieldConfig[] = [];
+    if (event?.form_fields) {
+      try { formFields = JSON.parse(event.form_fields); } catch { formFields = []; }
+    }
+
+    const rawMap = raw as Record<string, any>;
+    const result: { key: string; label: string; value: string }[] = [];
+    const seen = new Set<string>();
+
+    if (formFields.length) {
+      for (const field of formFields) {
+        if (Object.prototype.hasOwnProperty.call(rawMap, field.id)) {
+          const value = rawMap[field.id];
+          result.push({
+            key: field.id,
+            label: field.label,
+            value: Array.isArray(value) ? value.join(', ') : String(value ?? ''),
+          });
+          seen.add(field.id);
+        }
+      }
+    }
+
+    for (const [key, value] of Object.entries(rawMap)) {
+      if (seen.has(key)) continue;
+      result.push({
+        key,
+        label: key,
+        value: Array.isArray(value) ? value.join(', ') : String(value ?? ''),
+      });
+    }
+
+    return result;
+  };
+
   const [editEvent, setEditEvent] = useState<EventRecord | null>(null);
   const [editDownload, setEditDownload] = useState<DownloadRecord | null>(null);
   const [editGallery, setEditGallery] = useState<GalleryRecord | null>(null);
@@ -856,7 +904,7 @@ export default function AdminPage() {
     if (regSearch.trim()) {
       const q = regSearch.toLowerCase();
       filtered = filtered.filter(r =>
-        `${r.first_name} ${r.last_name} ${r.email} ${r.program} ${r.location} ${r.event_title || ''}`.toLowerCase().includes(q)
+        `${r.full_name || `${r.first_name || ''} ${r.last_name || ''}`.trim()} ${r.email || ''} ${r.program || ''} ${r.state_city || r.location || ''} ${r.prayer_note || r.note || ''} ${r.event_title || ''}`.toLowerCase().includes(q)
       );
     }
     return [...filtered].sort((a, b) => {
@@ -871,11 +919,12 @@ export default function AdminPage() {
   };
 
   const exportRows = () => {
-    const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Event', 'Location', 'Note', 'Date', 'Extra Data'];
+    const headers = ['Name', 'Email', 'Phone', 'Event', 'State / City', 'Prayer Note', 'Date', 'Extra Data'];
     const rows = sortedRegistrations.map(r => [
-      r.first_name || '', r.last_name || '', r.email || '', r.phone || '',
-      r.event_title || r.program || '', r.location || '', r.note || '',
-      new Date(r.created_at).toLocaleString(), r.form_data || '',
+      r.full_name || `${(r.first_name || '').trim()} ${(r.last_name || '').trim()}`.trim(),
+      r.email || '', r.phone || '',
+      r.event_title || r.program || '', r.state_city || r.location || '', r.prayer_note || r.note || '',
+      new Date(r.created_at).toLocaleString(), typeof r.form_data === 'string' ? r.form_data : JSON.stringify(r.form_data || {}, null, 2),
     ]);
     return { headers, rows };
   };
@@ -1849,21 +1898,42 @@ export default function AdminPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="font-semibold text-white">{r.first_name} {r.last_name}</h4>
+                          <h4 className="font-semibold text-white">{r.full_name || `${(r.first_name || '').trim()} ${(r.last_name || '').trim()}`.trim() || 'Registrant'}</h4>
                           <span className="text-xs px-2 py-0.5 rounded-full bg-[#E8620A]/20 text-[#E8620A]">{r.event_title || r.program || 'General'}</span>
                         </div>
                         <div className="flex gap-4 flex-wrap mt-1.5 text-sm text-[#6B5E50]">
                           <span>{r.email}</span>
                           {r.phone && <span>{r.phone}</span>}
-                          {r.location && <span>{r.location}</span>}
+                          {(r.state_city || r.location) && <span>{r.state_city || r.location}</span>}
                         </div>
-                        {r.note && <p className="text-xs text-[#B5A898] mt-2 italic">"{r.note}"</p>}
-                        {r.form_data && r.form_data !== '{}' && (
-                          <details className="mt-2">
-                            <summary className="text-xs text-[#6B5E50] cursor-pointer hover:text-[#B5A898]">View extra form data</summary>
-                            <pre className="text-xs text-[#B5A898] mt-1 bg-[#0F0D0A] p-2 rounded overflow-auto max-h-32">{JSON.stringify(JSON.parse(r.form_data || '{}'), null, 2)}</pre>
-                          </details>
-                        )}
+                        {(r.prayer_note || r.note) && <p className="text-xs text-[#B5A898] mt-2 italic">"{r.prayer_note || r.note}"</p>}
+                        {(() => {
+                          const formDataPairs = getRegistrationFormDataPairs(r);
+                          if (formDataPairs.length > 0) {
+                            return (
+                              <details className="mt-2">
+                                <summary className="text-xs text-[#6B5E50] cursor-pointer hover:text-[#B5A898]">View extra form data</summary>
+                                <div className="text-xs text-[#B5A898] mt-2 bg-[#0F0D0A] p-3 rounded overflow-auto max-h-40 space-y-2">
+                                  {formDataPairs.map(item => (
+                                    <div key={item.key} className="flex flex-col gap-1">
+                                      <span className="font-medium text-white">{item.label}:</span>
+                                      <span className="break-words">{item.value}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </details>
+                            );
+                          }
+                          if (r.form_data && r.form_data !== '{}') {
+                            return (
+                              <details className="mt-2">
+                                <summary className="text-xs text-[#6B5E50] cursor-pointer hover:text-[#B5A898]">View extra form data</summary>
+                                <pre className="text-xs text-[#B5A898] mt-1 bg-[#0F0D0A] p-2 rounded overflow-auto max-h-32">{typeof r.form_data === 'string' ? r.form_data : JSON.stringify(r.form_data, null, 2)}</pre>
+                              </details>
+                            );
+                          }
+                          return null;
+                        })()}
                         <p className="text-[10px] text-[#6B5E50] mt-1">{new Date(r.created_at).toLocaleString()}</p>
                       </div>
                       <Button size="sm" variant="ghost" onClick={() => deleteRegistration(r.id)} className="text-red-400 hover:text-red-300"><Trash2 size={14} /></Button>

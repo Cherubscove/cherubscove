@@ -48,9 +48,24 @@ export interface GalleryRecord {
   id?: string; title: string; image_url: string; caption: string; category: string; alt_text?: string;
 }
 export interface RegistrationRecord {
-  id: string; event_id?: string; event_title?: string; form_data?: string;
-  first_name: string; last_name: string; email: string; phone: string;
-  program: string; location: string; note: string; created_at: string;
+  id: string;
+  event_id?: string;
+  event_title?: string;
+  full_name?: string | null;
+  form_data?: Record<string, any> | string | null;
+  first_name?: string;
+  last_name?: string;
+  email?: string | null;
+  phone?: string | null;
+  program?: string | null;
+  location?: string | null;
+  state_city?: string | null;
+  note?: string | null;
+  prayer_note?: string | null;
+  status?: string;
+  attended?: boolean;
+  created_at: string;
+  updated_at?: string;
 }
 
 export const emptyEvent: EventRecord = {
