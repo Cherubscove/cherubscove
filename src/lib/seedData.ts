@@ -22,10 +22,10 @@ export const SEED_EVENTS = [
     form_fields: '[]',
   },
   {
-    title: "Quiver's Conference 2023 (Northern)",
+    title: "Quiver's Conference 2024 (Northern)",
     theme: 'Awakening',
     status: 'past',
-    date: '2023-09-10',
+    date: '2024-02-10',
     description: 'Northern Edition',
     location: 'Kano, Nigeria',
     time: '10:00 AM',
