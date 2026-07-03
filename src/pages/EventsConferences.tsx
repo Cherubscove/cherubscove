@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
+import { useSiteSettings, getSetting } from '@/hooks/useSiteSettings';
 import { Calendar, MapPin, Users, Sparkles, ArrowRight } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -26,6 +27,7 @@ type EventRow = {
 
 export default function EventsConferencesPage() {
   const ref = useScrollReveal();
+  const s = useSiteSettings();
   const [events, setEvents] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -71,13 +73,10 @@ export default function EventsConferencesPage() {
         >
           <div className="absolute inset-0 opacity-10" style={{ background: 'radial-gradient(circle at 30% 50%, #E8620A, transparent 60%), radial-gradient(circle at 70% 50%, #E8620A, transparent 60%)' }} />
           <div className="max-w-[700px] mx-auto relative z-[1]">
-            <div className="eyebrow justify-center text-primary/80 reveal">Cherubs Cove Ministry</div>
-            <h1 className="font-heading text-[clamp(32px,5vw,56px)] font-normal leading-tight mt-4 text-white reveal">
-              Events & <em className="italic text-primary">Conferences</em>
-            </h1>
+            <div className="eyebrow justify-center text-primary/80 reveal">{getSetting(s, 'events_page_eyebrow', 'Cherubs Cove Ministry')}</div>
+            <h1 className="font-heading text-[clamp(32px,5vw,56px)] font-normal leading-tight mt-4 text-white reveal" dangerouslySetInnerHTML={{ __html: getSetting(s, 'events_page_heading_html', 'Events & <em class="italic text-primary">Conferences</em>') }} />
             <p className="text-[14px] font-light leading-[1.8] mt-4 text-white/55 reveal">
-              Our annual convergence of believers — a sacred space for powerful teaching, prophetic
-              worship, and divine encounters that reshape destinies.
+              {getSetting(s, 'events_page_description', 'Our annual convergence of believers — a sacred space for powerful teaching, prophetic worship, and divine encounters that reshape destinies.')}
             </p>
           </div>
         </div>
@@ -93,8 +92,8 @@ export default function EventsConferencesPage() {
             <>
               {/* Editions Grid */}
               <div className="text-center mb-10 reveal">
-                <div className="eyebrow justify-center">International Quivers Conference</div>
-                <h2 className="section-title">Conference <em>Editions</em></h2>
+                <div className="eyebrow justify-center">{getSetting(s, 'events_page_editions_eyebrow', 'International Quivers Conference')}</div>
+                <h2 className="section-title" dangerouslySetInnerHTML={{ __html: getSetting(s, 'events_page_editions_heading_html', 'Conference <em>Editions</em>') }} />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-16 reveal">
@@ -172,7 +171,7 @@ export default function EventsConferencesPage() {
                       Join us next
                     </div>
                     <Link to={featuredUpcoming?.id ? `/register/${featuredUpcoming.id}` : '/register'} className="btn-solid-custom text-[10px] px-5 py-2.5">
-                      Register Free
+                      {getSetting(s, 'events_page_register_btn', 'Register Free')}
                     </Link>
                   </div>
                 </div>
@@ -311,7 +310,7 @@ export default function EventsConferencesPage() {
           {/* Past Conferences teaser */}
           <div className="mt-16 text-center reveal">
             <Link to="/past-conferences" className="btn-outline-custom inline-flex items-center gap-2">
-              View Past Conferences Archive <ArrowRight size={14} />
+              {getSetting(s, 'events_page_archive_link', 'View Past Conferences Archive')} <ArrowRight size={14} />
             </Link>
           </div>
         </div>

@@ -117,7 +117,7 @@ export default function GalleryDetailPage() {
               to="/past-conferences"
               className="inline-flex items-center gap-1.5 text-[10px] font-bold tracking-[2px] uppercase text-white/50 hover:text-primary transition-colors mb-4"
             >
-              <ArrowLeft size={12} /> Back to Archive
+              <ArrowLeft size={12} /> {getSetting(settings, 'gallery_back_link', 'Back to Archive')}
             </Link>
             <h1 className="font-heading text-[clamp(28px,5vw,48px)] font-normal leading-tight text-white">
               <em className="italic text-primary">{currentGallery?.name || decodedId}</em>
@@ -137,9 +137,9 @@ export default function GalleryDetailPage() {
           {images.length === 0 ? (
             <div className="text-center py-16">
               <div className="text-5xl mb-4 opacity-20">📸</div>
-              <p className="text-muted-foreground">No images found in this gallery.</p>
+              <p className="text-muted-foreground">{getSetting(settings, 'gallery_no_images', 'No images found in this gallery.')}</p>
               <Link to="/past-conferences" className="text-primary hover:underline text-sm mt-2 inline-block">
-                ← Back to Archive
+                ← {getSetting(settings, 'gallery_back_link', 'Back to Archive')}
               </Link>
             </div>
           ) : (

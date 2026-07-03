@@ -4,6 +4,7 @@ import {
   Search, X, ArrowUpDown, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
+import { useSiteSettings, getSetting } from '@/hooks/useSiteSettings';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ScrollToTop from '@/components/ScrollToTop';
@@ -44,6 +45,7 @@ type SortKey = 'title-asc' | 'title-desc' | 'type';
 const ITEMS_PER_PAGE = 6;
 
 export default function ResourcesPage() {
+  const s = useSiteSettings();
   const [filter, setFilter] = useState<'all' | ResType>('all');
   const [resources, setResources] = useState<Resource[]>(fallbackResources);
   const [searchQuery, setSearchQuery] = useState('');
@@ -141,10 +143,8 @@ export default function ResourcesPage() {
       <div className="pt-[70px] min-h-screen bg-background" ref={ref}>
         <div className="page-header">
           <div className="container">
-            <div className="eyebrow reveal">Ministry Resources</div>
-            <h1 className="section-title reveal" style={{ fontSize: 'clamp(26px,3.5vw,40px)', margin: '0.5rem 0 0' }}>
-              Sermons & <em>Downloads</em>
-            </h1>
+            <div className="eyebrow reveal">{getSetting(s, 'resources_eyebrow', 'Ministry Resources')}</div>
+            <h1 className="section-title reveal" style={{ fontSize: 'clamp(26px,3.5vw,40px)', margin: '0.5rem 0 0' }} dangerouslySetInnerHTML={{ __html: getSetting(s, 'resources_heading_html', 'Sermons & <em>Downloads</em>') }} />
           </div>
         </div>
 

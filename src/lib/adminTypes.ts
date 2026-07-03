@@ -26,6 +26,8 @@ export interface EventRecord {
   location: string;
   registration_enabled?: boolean;
   form_fields?: string;
+  /** Completion message shown after successful registration (supports HTML). */
+  completion_message?: string;
 }
 
 export interface EventDateTimeValidationResult {
@@ -54,7 +56,7 @@ export interface RegistrationRecord {
 export const emptyEvent: EventRecord = {
   title: '', theme: '', status: 'upcoming', date: '', end_date: '', time: '', end_time: '',
   image_url: '', description: '', location: '',
-  registration_enabled: false, form_fields: '[]',
+  registration_enabled: false, form_fields: '[]', completion_message: '',
 };
 
 function parseEventTime(value?: string): number | null {

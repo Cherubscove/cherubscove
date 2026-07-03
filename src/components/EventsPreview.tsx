@@ -132,7 +132,7 @@ export default function EventsPreview() {
                       <Calendar size={14} className="text-primary" />
                       <div>
                         <div className="text-[9px] font-bold tracking-[2px] uppercase text-muted-foreground mb-0.5">
-                          {featuredUpcoming.end_date && featuredUpcoming.end_date !== featuredUpcoming.date ? 'Dates' : 'Date'}
+                          {featuredUpcoming.end_date && featuredUpcoming.end_date !== featuredUpcoming.date ? getSetting(s, 'events_preview_dates_label', 'Dates') : getSetting(s, 'events_preview_date_label', 'Date')}
                         </div>
                         <div className="text-sm text-foreground">{formatEventDateRange(featuredUpcoming) || featuredUpcoming.date}</div>
                       </div>
@@ -140,8 +140,8 @@ export default function EventsPreview() {
                     <div className="flex items-center gap-2">
                       <MapPin size={14} className="text-primary" />
                       <div>
-                        <div className="text-[9px] font-bold tracking-[2px] uppercase text-muted-foreground mb-0.5">Location</div>
-                        <div className="text-sm text-foreground">{featuredUpcoming.location || 'To Be Announced'}</div>
+                        <div className="text-[9px] font-bold tracking-[2px] uppercase text-muted-foreground mb-0.5">{getSetting(s, 'events_preview_location_label', 'Location')}</div>
+                        <div className="text-sm text-foreground">{featuredUpcoming.location || getSetting(s, 'events_preview_venue_fallback', 'To Be Announced')}</div>
                       </div>
                     </div>
                   </div>
@@ -149,7 +149,7 @@ export default function EventsPreview() {
                     <p className="text-xs text-muted-foreground mb-4 line-clamp-2 leading-relaxed">{featuredUpcoming.description}</p>
                   )}
                   <Link to={featuredUpcoming.id ? `/register/${featuredUpcoming.id}` : '/register'} className="btn-solid-custom inline-flex items-center gap-2">
-                    Register Now <ArrowRight size={14} />
+                    {getSetting(s, 'events_preview_register_btn', 'Register Now')} <ArrowRight size={14} />
                   </Link>
                 </div>
               </>
@@ -173,20 +173,20 @@ export default function EventsPreview() {
                   <div className="flex items-center gap-2">
                     <Calendar size={14} className="text-primary" />
                     <div>
-                      <div className="text-[9px] font-bold tracking-[2px] uppercase text-muted-foreground mb-0.5">Venue</div>
+                      <div className="text-[9px] font-bold tracking-[2px] uppercase text-muted-foreground mb-0.5">{getSetting(s, 'events_preview_location_label', 'Location') === 'Location' ? 'Venue' : getSetting(s, 'events_preview_location_label', 'Location')}</div>
                       <div className="text-sm text-foreground">{getSetting(s, 'conf_venue', 'To Be Announced')}</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Clock size={14} className="text-primary" />
                     <div>
-                      <div className="text-[9px] font-bold tracking-[2px] uppercase text-muted-foreground mb-0.5">Attendance</div>
+                      <div className="text-[9px] font-bold tracking-[2px] uppercase text-muted-foreground mb-0.5">{getSetting(s, 'events_preview_attendance_label', 'Attendance')}</div>
                       <div className="text-sm text-foreground">{getSetting(s, 'conf_attendance', 'Free — Open to All')}</div>
                     </div>
                   </div>
                 </div>
                 <Link to="/register" className="btn-solid-custom inline-flex items-center gap-2">
-                  Register Now <ArrowRight size={14} />
+                  {getSetting(s, 'events_preview_register_btn', 'Register Now')} <ArrowRight size={14} />
                 </Link>
               </div>
             )}
@@ -199,7 +199,7 @@ export default function EventsPreview() {
                 <div className="text-[9.5px] font-bold tracking-[2px] uppercase text-primary mb-1">{ev.status || 'Event'}</div>
                 <div className="font-heading text-base text-foreground">{ev.title}</div>
                 <div className="text-xs text-muted-foreground mt-1">
-                  {[formatEventDateRange(ev), ev.location].filter(Boolean).join(' · ') || 'Details coming soon'}
+                  {[formatEventDateRange(ev), ev.location].filter(Boolean).join(' · ') || getSetting(s, 'events_preview_details_fallback', 'Details coming soon')}
                 </div>
               </div>
             )) : (

@@ -7,14 +7,16 @@ import hero4 from '@/assets/hero/hero4.jpg';
 import hero5 from '@/assets/hero/hero5.jpg';
 import welcomeImg from '@/assets/welcome.jpg';
 import logo from '@/assets/logo/logo.png';
+import { useSiteSettings, getSetting } from '@/hooks/useSiteSettings';
 import { supabase } from '@/lib/supabaseClient';
 
 const slides = [hero2, hero3, hero4, hero5, hero1, welcomeImg];
 
 export default function HeroSection() {
+  const s = useSiteSettings();
   const [current, setCurrent] = useState(0);
-  const [verse, setVerse] = useState('"Each will be like a refuge from the wind and a shelter from the storm."');
-  const [verseRef, setVerseRef] = useState('— Isaiah 32:2');
+  const [verse, setVerse] = useState('');
+  const [verseRef, setVerseRef] = useState('');
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -36,7 +38,7 @@ export default function HeroSection() {
         });
       }
     };
-    load();
+    if (!s['hero_verse']) load(); // Load from DB if not yet in cache
 
     const channel = supabase
       .channel('hero-settings')
@@ -76,22 +78,18 @@ export default function HeroSection() {
         <div className="relative z-[2] px-6 md:px-16 pb-16 md:pb-20 pt-16 max-w-[820px]">
           <div className="inline-flex items-center gap-2.5 text-[10px] font-bold tracking-[5px] uppercase text-white/55 mb-5">
             <span className="w-[18px] h-px bg-primary inline-block" />
-            Welcome to Cherubs Cove Ministry
+            {getSetting(s, 'hero_eyebrow', 'Welcome to Cherubs Cove Ministry')}
           </div>
-          <h1 className="font-heading text-[clamp(48px,7.5vw,96px)] font-normal leading-[0.95] mb-2.5 text-white">
-            The <em className="text-primary italic">Making</em>
-            <br />
-            Place.
-          </h1>
+          <h1 className="font-heading text-[clamp(48px,7.5vw,96px)] font-normal leading-[0.95] mb-2.5 text-white" dangerouslySetInnerHTML={{ __html: getSetting(s, 'hero_heading_html', 'The <em class="text-primary italic">Making</em><br />Place.') }} />
           <p className="font-heading text-[clamp(16px,2vw,21px)] font-normal italic mb-8 text-white/65">
-            An interdenominational ministry raising burning youths for the Lord.
+            {getSetting(s, 'hero_tagline', 'An interdenominational ministry raising burning youths for the Lord.')}
           </p>
           <div className="flex gap-4 flex-wrap">
-            <Link to="/register" className="btn-primary-custom">
-              Register for Quiver's 2026
+            <Link to={getSetting(s, 'hero_btn_1_link', '/register')} className="btn-primary-custom">
+              {getSetting(s, 'hero_btn_1_text', "Register for Quiver's 2026")}
             </Link>
-            <Link to="/about-jesse" className="btn-ghost-custom">
-              Meet Jesse Falodun
+            <Link to={getSetting(s, 'hero_btn_2_link', '/about-jesse')} className="btn-ghost-custom">
+              {getSetting(s, 'hero_btn_2_text', 'Meet Jesse Falodun')}
             </Link>
           </div>
         </div>
@@ -116,10 +114,10 @@ export default function HeroSection() {
           <img src={logo} alt="Cherubs Cove" className="h-12 w-12 rounded-full object-contain hidden sm:block flex-shrink-0" />
           <div className="text-center sm:text-left">
             <p className="font-heading text-[clamp(16px,2.2vw,22px)] italic leading-snug text-white/90 font-medium">
-              {verse}
+              {verse || `"${getSetting(s, 'hero_verse', 'As arrows are in the hand of a mighty man; so are children of the youth.')}"`}
             </p>
             <p className="font-display text-[11px] tracking-[3px] uppercase mt-2 text-primary font-semibold">
-              {verseRef}
+              {verseRef || `— ${getSetting(s, 'hero_verse_ref', 'Psalm 127:4')}`}
             </p>
           </div>
         </div>

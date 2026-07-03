@@ -67,6 +67,83 @@ const CONTENT_DEFAULTS: { key: string; label: string; value: string; group: stri
   { key: 'youtube_url', label: 'YouTube URL', value: 'https://www.youtube.com/@jefaldera', group: 'Social Links' },
   { key: 'twitter_url', label: 'X/Twitter URL', value: '', group: 'Social Links' },
   { key: 'whatsapp_url', label: 'WhatsApp URL', value: 'https://wa.me/2348179303228', group: 'Social Links' },
+
+  // Registration completion
+  { key: 'registration_completion_default', label: 'Registration — Default Completion Msg (HTML)', value: 'Registration submitted successfully. Thank you!', group: 'Registration' },
+
+  // Hero Section
+  { key: 'hero_eyebrow', label: 'Hero — Eyebrow', value: 'Welcome to Cherubs Cove Ministry', group: 'Hero Section' },
+  { key: 'hero_heading_html', label: 'Hero — Heading (HTML)', value: 'The <em class="text-primary italic">Making</em><br />Place.', group: 'Hero Section' },
+  { key: 'hero_tagline', label: 'Hero — Tagline', value: 'An interdenominational ministry raising burning youths for the Lord.', group: 'Hero Section' },
+  { key: 'hero_btn_1_text', label: 'Hero — Button 1 Text', value: 'Register for Quiver\'s 2026', group: 'Hero Section' },
+  { key: 'hero_btn_1_link', label: 'Hero — Button 1 Link', value: '/register', group: 'Hero Section' },
+  { key: 'hero_btn_2_text', label: 'Hero — Button 2 Text', value: 'Meet Jesse Falodun', group: 'Hero Section' },
+  { key: 'hero_btn_2_link', label: 'Hero — Button 2 Link', value: '/about-jesse', group: 'Hero Section' },
+
+  // Welcome Section
+  { key: 'welcome_logo_title', label: 'Welcome — Logo Title', value: 'Cherubs Cove', group: 'Welcome Section' },
+  { key: 'welcome_logo_subtitle', label: 'Welcome — Logo Subtitle', value: 'The Making Place', group: 'Welcome Section' },
+  { key: 'welcome_heading_html', label: 'Welcome — Heading (HTML)', value: 'The <em class="not-italic text-primary">Making</em> Place', group: 'Welcome Section' },
+  { key: 'welcome_btn_1_text', label: 'Welcome — Button 1 Text', value: 'Events & Conferences', group: 'Welcome Section' },
+  { key: 'welcome_btn_1_link', label: 'Welcome — Button 1 Link', value: '/events-conferences', group: 'Welcome Section' },
+  { key: 'welcome_btn_2_text', label: 'Welcome — Button 2 Text', value: 'Our President', group: 'Welcome Section' },
+  { key: 'welcome_btn_2_link', label: 'Welcome — Button 2 Link', value: '/about-jesse', group: 'Welcome Section' },
+
+  // Events & Conferences Page
+  { key: 'events_page_eyebrow', label: 'Events Page — Eyebrow', value: 'Cherubs Cove Ministry', group: 'Events Page' },
+  { key: 'events_page_heading_html', label: 'Events Page — Heading (HTML)', value: 'Events & <em class="italic text-primary">Conferences</em>', group: 'Events Page' },
+  { key: 'events_page_description', label: 'Events Page — Description', value: 'Our annual convergence of believers — a sacred space for powerful teaching, prophetic worship, and divine encounters that reshape destinies.', group: 'Events Page' },
+  { key: 'events_page_editions_eyebrow', label: 'Events Page — Editions Eyebrow', value: 'International Quivers Conference', group: 'Events Page' },
+  { key: 'events_page_editions_heading_html', label: 'Events Page — Editions Heading (HTML)', value: 'Conference <em>Editions</em>', group: 'Events Page' },
+  { key: 'events_page_register_btn', label: 'Events Page — Register Button', value: 'Register Free', group: 'Events Page' },
+  { key: 'events_page_archive_link', label: 'Events Page — Archive Link Text', value: 'View Past Conferences Archive', group: 'Events Page' },
+
+  // Past Conferences Page
+  { key: 'pastconferences_eyebrow', label: 'Past Conferences — Eyebrow', value: 'Cherubs Cove Ministry', group: 'Past Conferences' },
+  { key: 'pastconferences_heading_html', label: 'Past Conferences — Heading (HTML)', value: 'Past Conferences <em class="italic text-primary">Archive</em>', group: 'Past Conferences' },
+  { key: 'pastconferences_description', label: 'Past Conferences — Description', value: 'Moments from past editions of the International Quivers Conference — a visual journey through years of encounter, worship, and transformation.', group: 'Past Conferences' },
+  { key: 'pastconferences_section_heading_html', label: 'Past Conferences — Section Heading (HTML)', value: 'Past <em class="text-primary">Events</em>', group: 'Past Conferences' },
+
+  // Connect Page
+  { key: 'connect_eyebrow', label: 'Connect — Eyebrow', value: 'Get in Touch', group: 'Connect Page' },
+  { key: 'connect_heading_html', label: 'Connect — Heading (HTML)', value: 'We\'d Love to<br /><em>Hear from You</em>', group: 'Connect Page' },
+  { key: 'connect_body', label: 'Connect — Body Text', value: 'Whether you want to partner with us, volunteer, share a testimony, or simply find out more, the doors of Cherubs Cove are always open.', group: 'Connect Page' },
+  { key: 'connect_newsletter_heading', label: 'Connect — Newsletter Heading', value: 'Stay in the Loop', group: 'Connect Page' },
+  { key: 'connect_newsletter_text', label: 'Connect — Newsletter Text', value: 'Subscribe for conference updates, ministry resources, and devotional content delivered straight to your inbox.', group: 'Connect Page' },
+
+  // Resources Page
+  { key: 'resources_eyebrow', label: 'Resources — Eyebrow', value: 'Ministry Resources', group: 'Resources Page' },
+  { key: 'resources_heading_html', label: 'Resources — Heading (HTML)', value: 'Sermons & <em>Downloads</em>', group: 'Resources Page' },
+
+  // Register Page
+  { key: 'register_eyebrow', label: 'Register — Eyebrow', value: 'Programs &amp; Events', group: 'Register Page' },
+  { key: 'register_heading_html', label: 'Register — Heading (HTML)', value: 'Upcoming <em class="italic text-primary not-italic">Gatherings</em>', group: 'Register Page' },
+  { key: 'register_intro', label: 'Register — Intro Text', value: 'Browse our upcoming events and register to join us. Each event has its own registration page — pick one below to get started.', group: 'Register Page' },
+  { key: 'register_form_heading', label: 'Register — Form Heading', value: 'Register Now', group: 'Register Page' },
+  { key: 'register_form_submit_text', label: 'Register — Submit Button Text', value: 'Complete Registration →', group: 'Register Page' },
+  { key: 'register_form_success_text', label: 'Register — Success Button Text', value: 'Registered!', group: 'Register Page' },
+  { key: 'register_no_events_heading', label: 'Register — No Events Heading', value: 'No Events Right Now', group: 'Register Page' },
+  { key: 'register_no_events_text', label: 'Register — No Events Text', value: 'There are no events with open registration at the moment. Check back soon for upcoming gatherings.', group: 'Register Page' },
+  { key: 'register_closed_heading', label: 'Register — Closed Heading', value: 'Registration Closed', group: 'Register Page' },
+  { key: 'register_closed_text', label: 'Register — Closed Text', value: 'Registration for this event is currently disabled.', group: 'Register Page' },
+  { key: 'register_back_link', label: 'Register — Back Link Text', value: 'View all events', group: 'Register Page' },
+
+  // Events Preview (homepage)
+  { key: 'events_preview_register_btn', label: 'Events Preview — Register Button', value: 'Register Now', group: 'Events Section' },
+  { key: 'events_preview_location_label', label: 'Events Preview — Location Label', value: 'Location', group: 'Events Section' },
+  { key: 'events_preview_venue_fallback', label: 'Events Preview — Venue Fallback', value: 'To Be Announced', group: 'Events Section' },
+  { key: 'events_preview_attendance_label', label: 'Events Preview — Attendance Label', value: 'Attendance', group: 'Events Section' },
+  { key: 'events_preview_details_fallback', label: 'Events Preview — Details Fallback', value: 'Details coming soon', group: 'Events Section' },
+  { key: 'events_preview_date_label', label: 'Events Preview — Date Label', value: 'Date', group: 'Events Section' },
+  { key: 'events_preview_dates_label', label: 'Events Preview — Dates Label (multi-day)', value: 'Dates', group: 'Events Section' },
+
+  // Gallery Detail
+  { key: 'gallery_back_link', label: 'Gallery — Back Link Text', value: 'Back to Archive', group: 'Gallery' },
+  { key: 'gallery_no_images', label: 'Gallery — No Images Text', value: 'No images found in this gallery.', group: 'Gallery' },
+
+  // Footer
+  { key: 'footer_brand_title', label: 'Footer — Brand Title', value: 'Cherubs Cove', group: 'Footer' },
+  { key: 'footer_brand_subtitle', label: 'Footer — Brand Subtitle', value: 'The Making Place', group: 'Footer' },
 ];
 
 /* ── Component ──────────────────────────────────────────────────────────── */
@@ -279,6 +356,7 @@ export default function AdminPage() {
       location: editEvent.location,
       registration_enabled: editEvent.registration_enabled ?? false,
       form_fields: editEvent.form_fields ?? '[]',
+      completion_message: editEvent.completion_message || null,
     };
 
     try {
@@ -1016,6 +1094,26 @@ export default function AdminPage() {
                           fields={getFormFields(editEvent)}
                           onChange={(fields) => setEditEvent({ ...editEvent, form_fields: JSON.stringify(fields) })}
                         />
+                        {/* ── Completion Message ──────────────────────────── */}
+                        <div className="border border-[#2A2520] rounded-lg p-4">
+                          <label className="text-sm font-medium text-[#B5A898] block mb-1">Completion Message</label>
+                          <p className="text-xs text-[#6B5E50] mb-2">
+                            What visitors see after registering successfully. Leave blank to use the global default. Supports HTML — e.g. add a link to join your WhatsApp group.
+                          </p>
+                          <Textarea
+                            placeholder={contentValues['registration_completion_default'] || 'Registration submitted successfully. Thank you!'}
+                            value={editEvent.completion_message || ''}
+                            onChange={e => setEditEvent({ ...editEvent, completion_message: e.target.value })}
+                            className={inputCls}
+                            rows={3}
+                          />
+                          {editEvent.completion_message && (
+                            <div className="mt-2 rounded-md bg-[#2A2520]/50 p-3 text-xs text-[#B5A898]">
+                              <div className="text-[9px] font-bold uppercase tracking-[1.5px] text-[#6B5E50] mb-1">Preview:</div>
+                              <div dangerouslySetInnerHTML={{ __html: editEvent.completion_message }} />
+                            </div>
+                          )}
+                        </div>
                       </>
                     )}
                   </div>

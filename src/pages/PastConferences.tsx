@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
 import { useSiteSettings, getSetting } from '@/hooks/useSiteSettings';
 import Navbar from '@/components/Navbar';
@@ -185,12 +185,10 @@ export default function PastConferencesPage() {
         >
           <div className="absolute inset-0 opacity-10" style={{ background: 'radial-gradient(circle at 30% 50%, #E8620A, transparent 60%), radial-gradient(circle at 70% 50%, #E8620A, transparent 60%)' }} />
           <div className="max-w-[700px] mx-auto relative z-[1]">
-            <div className="eyebrow justify-center text-primary/80 reveal">Cherubs Cove Ministry</div>
-            <h1 className="font-heading text-[clamp(32px,5vw,56px)] font-normal leading-tight mt-4 text-white reveal">
-              Past Conferences <em className="italic text-primary">Archive</em>
-            </h1>
+            <div className="eyebrow justify-center text-primary/80 reveal">{getSetting(settings, 'pastconferences_eyebrow', 'Cherubs Cove Ministry')}</div>
+            <h1 className="font-heading text-[clamp(32px,5vw,56px)] font-normal leading-tight mt-4 text-white reveal" dangerouslySetInnerHTML={{ __html: getSetting(settings, 'pastconferences_heading_html', 'Past Conferences <em class="italic text-primary">Archive</em>') }} />
             <p className="text-[14px] font-light leading-[1.8] mt-4 text-white/55 reveal">
-              Moments from past editions of the International Quivers Conference — a visual journey through years of encounter, worship, and transformation.
+              {getSetting(settings, 'pastconferences_description', 'Moments from past editions of the International Quivers Conference — a visual journey through years of encounter, worship, and transformation.')}
             </p>
           </div>
         </div>
@@ -201,9 +199,7 @@ export default function PastConferencesPage() {
             <div className="mb-20">
               <div className="flex items-center gap-3 mb-8">
                 <div className="h-px flex-1 bg-border" />
-                <h2 className="font-heading text-[28px] font-normal italic text-foreground whitespace-nowrap">
-                  Past <em className="text-primary">Events</em>
-                </h2>
+                <h2 className="font-heading text-[28px] font-normal italic text-foreground whitespace-nowrap" dangerouslySetInnerHTML={{ __html: getSetting(settings, 'pastconferences_section_heading_html', 'Past <em class="text-primary">Events</em>') }} />
                 <div className="h-px flex-1 bg-border" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

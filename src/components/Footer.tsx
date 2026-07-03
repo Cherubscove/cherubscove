@@ -51,10 +51,10 @@ export default function Footer() {
               <img src={logoWhite} alt="Cherubs Cove logo" className="h-10 w-10 rounded-full object-contain" />
               <div>
                 <div className="font-display text-sm font-semibold tracking-[1.5px] uppercase text-white">
-                  Cherubs Cove
+                  {getSetting(s, 'footer_brand_title', 'Cherubs Cove')}
                 </div>
                 <div className="text-[9.5px] tracking-[3.5px] uppercase text-primary">
-                  The Making Place
+                  {getSetting(s, 'footer_brand_subtitle', 'The Making Place')}
                 </div>
               </div>
             </div>

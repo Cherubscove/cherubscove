@@ -2,6 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { Mail, Phone, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
+import { useSiteSettings, getSetting } from '@/hooks/useSiteSettings';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ScrollToTop from '@/components/ScrollToTop';
@@ -35,27 +36,31 @@ const socialKeys = ['facebook_url', 'instagram_url', 'youtube_url', 'twitter_url
 
 export default function ConnectPage() {
   const ref = useScrollReveal();
+  const s = useSiteSettings();
   const [nlStatus, setNlStatus] = useState<'idle' | 'success'>('idle');
   const [settings, setSettings] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    const load = async () => {
+    // Load settings — useSiteSettings cache may already have them
+    const map = { ...s };
+    setSettings(map);
+
+    const reload = async () => {
       const { data } = await supabase.from('site_settings').select('key,value');
       if (data) {
-        const map: Record<string, string> = {};
-        data.forEach((r: any) => { if (r.value) map[r.key] = r.value; });
-        setSettings(map);
+        const m: Record<string, string> = {};
+        data.forEach((r: any) => { if (r.value) m[r.key] = r.value; });
+        setSettings(m);
       }
     };
-    load();
-
+    
     const channel = supabase
       .channel('connect-settings')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'site_settings' }, () => { load(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'site_settings' }, () => { reload(); })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, []);
+  }, [s]);
 
   const contactItems = [
     { icon: <Mail size={18} />, label: 'Email', value: settings.contact_email || 'cherubscove@gmail.com' },
@@ -105,10 +110,8 @@ export default function ConnectPage() {
       <div className="pt-[70px] min-h-screen bg-background" ref={ref}>
         <div className="page-header">
           <div className="container">
-            <div className="eyebrow reveal">Get in Touch</div>
-            <h1 className="section-title reveal">
-              We'd Love to<br /><em>Hear from You</em>
-            </h1>
+            <div className="eyebrow reveal">{getSetting(s, 'connect_eyebrow', 'Get in Touch')}</div>
+            <h1 className="section-title reveal" dangerouslySetInnerHTML={{ __html: getSetting(s, 'connect_heading_html', 'We\'d Love to<br /><em>Hear from You</em>') }} />
           </div>
         </div>
 
@@ -117,8 +120,7 @@ export default function ConnectPage() {
             {/* Contact Info */}
             <div className="reveal">
               <p className="body-text mb-8">
-                Whether you want to partner with us, volunteer, share a testimony, or simply find out more, the
-                doors of Cherubs Cove are always open.
+                {getSetting(s, 'connect_body', 'Whether you want to partner with us, volunteer, share a testimony, or simply find out more, the doors of Cherubs Cove are always open.')}
               </p>
               <div className="flex flex-col gap-4">
                 {contactItems.map((item, i) => (
@@ -138,9 +140,9 @@ export default function ConnectPage() {
             {/* Newsletter */}
             <div className="reveal">
               <div className="bg-card border border-border rounded-lg p-8 card-lift">
-                <h3 className="font-heading text-2xl font-medium mb-1.5 text-foreground">Stay in the Loop</h3>
+                <h3 className="font-heading text-2xl font-medium mb-1.5 text-foreground">{getSetting(s, 'connect_newsletter_heading', 'Stay in the Loop')}</h3>
                 <p className="text-[13px] text-muted-foreground leading-relaxed mb-6">
-                  Subscribe for conference updates, ministry resources, and devotional content delivered straight to your inbox.
+                  {getSetting(s, 'connect_newsletter_text', 'Subscribe for conference updates, ministry resources, and devotional content delivered straight to your inbox.')}
                 </p>
                 <form onSubmit={handleNewsletter} className="flex border-[1.5px] border-border rounded-md overflow-hidden transition-colors focus-within:border-primary">
                   <input type="email" placeholder="Enter your email address" required className="flex-1 px-3.5 py-3 bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground" />

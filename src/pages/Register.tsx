@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
+import { useSiteSettings, getSetting } from '@/hooks/useSiteSettings';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ScrollToTop from '@/components/ScrollToTop';
@@ -24,6 +25,7 @@ interface EventWithReg {
   image_url: string;
   registration_enabled: boolean;
   form_fields: string;
+  completion_message?: string;
 }
 
 /* ── Helpers ─────────────────────────────────────────────────────────── */
@@ -120,9 +122,15 @@ function EventCard({ event }: { event: EventWithReg }) {
 function RegistrationForm({
   event,
   onSuccess,
+  completionMessage,
+  submitText = 'Complete Registration →',
+  successText = 'Registered!',
 }: {
   event: EventWithReg;
   onSuccess?: () => void;
+  completionMessage?: string;
+  submitText?: string;
+  successText?: string;
 }) {
   const [formValues, setFormValues] = useState<Record<string, string | string[]>>({});
   const [regStatus, setRegStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -186,7 +194,7 @@ function RegistrationForm({
     }
 
     setRegStatus('success');
-    setMessage('Registration submitted successfully. Thank you!');
+    setMessage(completionMessage || 'Registration submitted successfully. Thank you!');
     setFormValues({});
     formRef.current?.reset();
     onSuccess?.();
@@ -290,17 +298,21 @@ function RegistrationForm({
           }`}
         >
           {regStatus === 'success' ? (
-            <span className="inline-flex items-center gap-2"><CheckCircle size={14} /> Registered!</span>
+            <span className="inline-flex items-center gap-2"><CheckCircle size={14} /> {successText}</span>
           ) : (
-            'Complete Registration →'
+            submitText
           )}
         </button>
       )}
 
       {message && (
-        <p className={`text-[11px] text-center mt-3 ${regStatus === 'error' ? 'text-rose-400' : 'text-emerald-400'}`}>
-          {message}
-        </p>
+        regStatus === 'success' ? (
+          <div className={`text-[13px] text-center mt-3 leading-relaxed ${regStatus === 'error' ? 'text-rose-400' : 'text-emerald-400'}`} dangerouslySetInnerHTML={{ __html: message }} />
+        ) : (
+          <p className={`text-[11px] text-center mt-3 ${regStatus === 'error' ? 'text-rose-400' : 'text-emerald-400'}`}>
+            {message}
+          </p>
+        )
       )}
     </form>
   );
@@ -310,6 +322,7 @@ function RegistrationForm({
 
 export default function RegisterPage() {
   const ref = useScrollReveal();
+  const s = useSiteSettings();
   const { eventId } = useParams();
   const [events, setEvents] = useState<EventWithReg[]>([]);
   const [loading, setLoading] = useState(true);
@@ -454,7 +467,7 @@ export default function RegisterPage() {
                   to="/register"
                   className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
                 >
-                  ← View all events
+                  ← {getSetting(s, 'register_back_link', 'View all events')}
                 </Link>
               </div>
 
@@ -463,20 +476,25 @@ export default function RegisterPage() {
                 {!ev.registration_enabled ? (
                   <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 p-4 text-center">
                     <AlertTriangle size={24} className="mx-auto mb-2 text-amber-400" />
-                    <p className="text-xs font-semibold text-amber-300 uppercase tracking-wider">Registration Closed</p>
+                    <p className="text-xs font-semibold text-amber-300 uppercase tracking-wider">{getSetting(s, 'register_closed_heading', 'Registration Closed')}</p>
                     <p className="text-xs text-amber-200/70 mt-1">
-                      Registration for this event is currently disabled.
+                      {getSetting(s, 'register_closed_text', 'Registration for this event is currently disabled.')}
                     </p>
                   </div>
                 ) : (
                   <>
                     <div className="text-center mb-6">
-                      <div className="font-heading text-xl font-semibold text-foreground">Register Now</div>
+                      <div className="font-heading text-xl font-semibold text-foreground">{getSetting(s, 'register_form_heading', 'Register Now')}</div>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Secure your spot for <span className="text-primary font-medium">{ev.title}</span>
+                        {getSetting(s, 'register_form_heading', 'Register Now') === 'Register Now' ? 'Secure your spot for' : ''} <span className="text-primary font-medium">{ev.title}</span>
                       </p>
                     </div>
-                    <RegistrationForm event={ev} />
+                    <RegistrationForm
+                      event={ev}
+                      completionMessage={ev.completion_message || getSetting(s, 'registration_completion_default', 'Registration submitted successfully. Thank you!')}
+                      submitText={getSetting(s, 'register_form_submit_text', 'Complete Registration →')}
+                      successText={getSetting(s, 'register_form_success_text', 'Registered!')}
+                    />
                   </>
                 )}
               </div>
@@ -503,13 +521,11 @@ export default function RegisterPage() {
           <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-primary/5 rounded-full blur-3xl" />
           <div className="relative z-10 max-w-2xl mx-auto">
             <div className="inline-block bg-primary/10 border border-primary/20 px-4 py-1.5 rounded-full text-[9px] font-bold tracking-[2px] uppercase text-primary mb-5">
-              Programs &amp; Events
+              {getSetting(s, 'register_eyebrow', 'Programs &amp; Events')}
             </div>
-            <h1 className="font-heading text-[clamp(32px,5vw,56px)] font-bold text-white leading-[1.1]">
-              Upcoming <em className="italic text-primary not-italic">Gatherings</em>
-            </h1>
+            <h1 className="font-heading text-[clamp(32px,5vw,56px)] font-bold text-white leading-[1.1]" dangerouslySetInnerHTML={{ __html: getSetting(s, 'register_heading_html', 'Upcoming <em class="italic text-primary not-italic">Gatherings</em>') }} />
             <p className="mt-4 text-sm sm:text-base text-white/60 max-w-lg mx-auto leading-relaxed">
-              Browse our upcoming events and register to join us. Each event has its own registration page — pick one below to get started.
+              {getSetting(s, 'register_intro', 'Browse our upcoming events and register to join us. Each event has its own registration page — pick one below to get started.')}
             </p>
           </div>
         </section>
@@ -521,9 +537,9 @@ export default function RegisterPage() {
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
                 <CalendarDays size={24} className="text-muted-foreground" />
               </div>
-              <h2 className="font-heading text-xl text-foreground mb-2">No Events Right Now</h2>
+              <h2 className="font-heading text-xl text-foreground mb-2">{getSetting(s, 'register_no_events_heading', 'No Events Right Now')}</h2>
               <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-                There are no events with open registration at the moment. Check back soon for upcoming gatherings.
+                {getSetting(s, 'register_no_events_text', 'There are no events with open registration at the moment. Check back soon for upcoming gatherings.')}
               </p>
             </div>
           ) : (
