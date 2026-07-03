@@ -19,7 +19,7 @@ import type {
   EventRecord, DownloadRecord, GalleryRecord, RegistrationRecord, FormFieldConfig, GalleryCollection,
   emptyEvent as _ee, emptyDownload as _ed, emptyGallery as _eg,
 } from '@/lib/adminTypes';
-import { emptyEvent, emptyDownload, emptyGallery, formatEventDateRange, validateEventDateTime, buildEventRegistrationLink } from '@/lib/adminTypes';
+import { emptyEvent, emptyDownload, emptyGallery, formatEventDateRange, validateEventDateTime, buildEventRegistrationLink, generateDefaultImageTitle, generateGalleryAbbreviation } from '@/lib/adminTypes';
 
 /* ── Content Keys (seed defaults for every editable frontend text) ────── */
 
@@ -358,11 +358,11 @@ export default function AdminPage() {
 
   /* ── CRUD: Gallery ───────────────────────────────────────────────────── */
 
-  /** Extract a readable title from a URL's filename. */
+  /** Extract a readable title from a URL's filename — returns empty for Google Drive so gallery-based naming is used. */
   function titleFromUrl(url: string): string {
     try {
       if (url.includes('drive.google.com')) {
-        return 'Google Drive Image';
+        return ''; // Gallery-based naming will be applied instead
       }
       const filename = url.split('/').pop()?.split('?')[0]?.split('#')[0] || '';
       const name = filename.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ');
@@ -381,7 +381,33 @@ export default function AdminPage() {
   const saveGallery = async () => {
     if (!editGallery) return;
     if (!editGallery.image_url) { toast.error('Image URL is required.'); return; }
-    const title = editGallery.title || titleFromUrl(editGallery.image_url) || 'Gallery Photo';
+
+    // ── Determine effective gallery name for auto-title ─────────────
+    const effectiveGalId = editGallery.category || selectedGalleryId || '';
+    const effectiveGal = galleries.find(g => g.id === effectiveGalId || g.name === effectiveGalId);
+
+    // ── Auto-generate title if none provided ────────────────────────
+    let title = editGallery.title || '';
+    if (!title) {
+      const fromUrl = titleFromUrl(editGallery.image_url);
+      if (fromUrl) {
+        title = fromUrl;
+      } else if (effectiveGal) {
+        const countInGal = gallery.filter(g => {
+          const cat = (g.category || '').trim();
+          return (cat === effectiveGal.id || cat === effectiveGal.name) && g.id !== editGallery.id;
+        }).length;
+        title = generateDefaultImageTitle(effectiveGal.name, countInGal);
+      } else {
+        // Uncategorized — count all uncategorized images
+        const uncatCount = gallery.filter(g => {
+          const cat = (g.category || '').trim();
+          return !cat || !galleries.some(gc => gc.id === cat || gc.name === cat);
+        }).length;
+        title = generateDefaultImageTitle(null, uncatCount);
+      }
+    }
+
     const alt_text = editGallery.alt_text || `Photo: ${title}`;
     const normalizedImageUrl = normalizeImageUrl(editGallery.image_url);
     const payload: Record<string, string> = {
@@ -522,6 +548,18 @@ export default function AdminPage() {
       return;
     }
     const catName = galleries.find(g => g.id === targetVal || g.name === targetVal)?.name || targetVal;
+    // Update titles of moved images to reflect new gallery
+    const { data: movedImgs } = await supabase
+      .from('gallery')
+      .select('id')
+      .in('id', ids)
+      .order('created_at', { ascending: true });
+    if (movedImgs) {
+      for (let idx = 0; idx < movedImgs.length; idx++) {
+        const newTitle = generateDefaultImageTitle(catName, idx);
+        await supabase.from('gallery').update({ title: newTitle }).eq('id', movedImgs[idx].id);
+      }
+    }
     toast.success(`${ids.length} image(s) moved to "${catName}".`);
     setSelectedImageIds(new Set());
     setBulkCategoryTarget('');
@@ -1020,9 +1058,21 @@ export default function AdminPage() {
                           if (editCollection.id) {
                             const oldName = galleries.find(g => g.id === editCollection.id)?.name;
                             next = galleries.map(g => g.id === editCollection.id ? { ...editCollection, name } : g);
-                            // Rename category on images if name changed
+                            // Rename category + image titles if name changed
                             if (oldName && oldName !== name) {
                               await supabase.from('gallery').update({ category: name }).eq('category', oldName);
+                              // Update image titles to reflect new gallery abbreviation
+                              const { data: imgs } = await supabase
+                                .from('gallery')
+                                .select('id')
+                                .eq('category', name)
+                                .order('created_at', { ascending: true });
+                              if (imgs) {
+                                for (let idx = 0; idx < imgs.length; idx++) {
+                                  const newTitle = generateDefaultImageTitle(name, idx);
+                                  await supabase.from('gallery').update({ title: newTitle }).eq('id', imgs[idx].id);
+                                }
+                              }
                             }
                           } else {
                             const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Math.random().toString(36).slice(2, 6);
@@ -1228,8 +1278,20 @@ export default function AdminPage() {
                             let success = 0;
                             let uncategorizedCount = 0;
                             let hasAltColumn = true;
+                            let bulkIndex = 0;
                             for (const url of urls) {
-                              const title = titleFromUrl(url) || 'Gallery Photo';
+                              // Gallery-based title for bulk imports
+                              let title = titleFromUrl(url);
+                              if (!title) {
+                                const catForTitle = bulkCategoryTarget && bulkCategoryTarget !== '__none__'
+                                  ? bulkCategoryTarget
+                                  : (selectedGallery?.id || '');
+                                const galForTitle = galleries.find(g => g.id === catForTitle || g.name === catForTitle);
+                                title = galForTitle
+                                  ? generateDefaultImageTitle(galForTitle.name, bulkIndex)
+                                  : generateDefaultImageTitle(null, bulkIndex);
+                              }
+                              bulkIndex++;
                               const row: Record<string, string> = {
                                 title,
                                 image_url: normalizeImageUrl(url),
@@ -1304,7 +1366,30 @@ export default function AdminPage() {
                       <Field label="Category" hint="Which gallery this image belongs to.">
                         <select
                           value={editGallery.category || ''}
-                          onChange={e => setEditGallery({ ...editGallery, category: e.target.value })}
+                          onChange={e => {
+                            const newCat = e.target.value;
+                            const newGal = galleries.find(g => g.id === newCat || g.name === newCat);
+                            // Auto-update title if it's currently empty or looks auto-generated (e.g. "QA-001", "QA-2023-001", "Uncategorized-001")
+                            const autoPattern = /^[A-Z][\w-]*-\d{3}$|^Uncategorized-\d{3}$/;
+                            const currentTitle = editGallery.title || '';
+                            if (!currentTitle || autoPattern.test(currentTitle)) {
+                              if (newGal) {
+                                const countInGal = gallery.filter(g => {
+                                  const cat = (g.category || '').trim();
+                                  return (cat === newGal.id || cat === newGal.name) && g.id !== editGallery.id;
+                                }).length;
+                                setEditGallery({ ...editGallery, category: newCat, title: generateDefaultImageTitle(newGal.name, countInGal) });
+                              } else {
+                                const uncatCount = gallery.filter(g => {
+                                  const cat = (g.category || '').trim();
+                                  return !cat || !galleries.some(gc => gc.id === cat || gc.name === cat);
+                                }).length;
+                                setEditGallery({ ...editGallery, category: newCat, title: generateDefaultImageTitle(null, uncatCount) });
+                              }
+                            } else {
+                              setEditGallery({ ...editGallery, category: newCat });
+                            }
+                          }}
                           className={`${inputCls} rounded-md px-3 py-2 border text-sm w-full`}
                         >
                           <option value="">— Uncategorized —</option>

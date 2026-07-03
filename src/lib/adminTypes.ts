@@ -110,6 +110,51 @@ export function buildEventRegistrationLink(event: Pick<EventRecord, 'id'>): stri
 export const emptyDownload: DownloadRecord = { title: '', url: '', description: '', category: '', type: '' };
 export const emptyGallery: GalleryRecord = { title: '', image_url: '', caption: '', category: '', alt_text: '' };
 
+/**
+ * Generate a short abbreviation from a gallery name, e.g.
+ * "Quiver's Arrows 2023" → "QA-2023", "Quiver's Forge 2024" → "QF-2024".
+ * The year (4 digits) is extracted and appended after a dash.
+ */
+export function generateGalleryAbbreviation(name: string): string {
+  const yearMatch = name.match(/\b(\d{4})\b/);
+  const year = yearMatch ? yearMatch[1] : '';
+
+  // Split on spaces and apostrophes, filter out empty strings
+  const words = name
+    .replace(/\b\d{4}\b/g, '')
+    .split(/['\s]+/)
+    .filter(Boolean);
+
+  const prefix = words
+    .map((w, i) => {
+      // First word: use first letter only.
+      // Subsequent words: if more than 6 characters use first two letters,
+      // otherwise use first letter. This reduces abbreviation collisions.
+      const c = w.charAt(0).toUpperCase();
+      if (i === 0) return c;
+      return w.length > 6 ? c + w.charAt(1).toLowerCase() : c;
+    })
+    .join('');
+
+  return year ? `${prefix}-${year}` : prefix;
+}
+
+/**
+ * Generate a default image title based on gallery context.
+ * If the image belongs to a gallery, uses the gallery abbreviation + sequential index.
+ * If uncategorized, uses "Uncategorized-XXX".
+ */
+export function generateDefaultImageTitle(
+  galleryName: string | null | undefined,
+  index: number,
+): string {
+  if (galleryName) {
+    const abbr = generateGalleryAbbreviation(galleryName);
+    return `${abbr}-${String(index + 1).padStart(3, '0')}`;
+  }
+  return `Uncategorized-${String(index + 1).padStart(3, '0')}`;
+}
+
 /** Format event date range for display. */
 export function formatEventDateRange(ev: { date?: string; end_date?: string; time?: string; end_time?: string }): string {
   const start = ev.date ? new Date(ev.date) : null;
