@@ -27,7 +27,7 @@ const fallbackResources: Resource[] = [
   { type: 'audio', title: 'Walking in Your Kingdom Identity', speaker: "Jesse Falodun — Quiver's Immersion 2025", category: 'Sermon', action: 'Download', href: '#' },
   { type: 'video', title: 'Arise: Walking Into Your Appointed Season', speaker: "Jesse Falodun — Quiver's Forge 2024", category: 'Teaching', action: 'Watch / Download', href: '#' },
   { type: 'audio', title: 'The Sound That Changes Atmospheres', speaker: "Guest Minister — Quiver's Arrows 2023", category: 'Sermon', action: 'Download', href: '#' },
-  { type: 'audio', title: 'Positioned for Overflow', speaker: 'Guest Minister — Awakening 2023', category: 'Sermon', action: 'Download', href: '#' },
+  { type: 'audio', title: 'Positioned for Overflow', speaker: 'Guest Minister — Awakening 2024', category: 'Sermon', action: 'Download', href: '#' },
   { type: 'pdf', title: 'Forge Conference Notes 2024', speaker: "Quiver's Conference Programme Manual", category: 'Manual', action: 'Download PDF', href: '#' },
   { type: 'video', title: 'He Who Calls Is Faithful', speaker: 'Jesse Falodun — Weekly Teaching', category: 'Teaching', action: 'Watch / Download', href: '#' },
 ];
