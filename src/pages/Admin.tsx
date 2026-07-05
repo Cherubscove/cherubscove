@@ -293,15 +293,9 @@ export default function AdminPage() {
     if (!email.trim() || !password.trim()) { toast.error('Please enter both email and password.'); return; }
     setIsLoading(true);
     try {
-      if (authMode === 'signIn') {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        toast.success('Signed in successfully.');
-      } else {
-        const { error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-        toast.success('Account created. Check your email for verification if required.');
-      }
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      toast.success('Signed in successfully.');
     } catch (err: any) {
       toast.error(err.message ?? 'Authentication failed.');
     } finally { setIsLoading(false); }
