@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import {
-  Calendar, Download, Image, Settings, Users, LogOut, Plus, Trash2, Edit2, Save, X, Eye, EyeOff, FileDown, ArrowUpDown, ClipboardList, FileText, ToggleLeft, ToggleRight, CheckSquare, Square, FolderInput, Star,
+  Calendar, Download, Image, Settings, Users, LogOut, Plus, Trash2, Edit2, Save, X, Eye, EyeOff, FileDown, ArrowUpDown, ClipboardList, FileText, ToggleLeft, ToggleRight, CheckSquare, Square, FolderInput, Star, RefreshCw,
 } from 'lucide-react';
 import FormFieldBuilder from '@/components/admin/FormFieldBuilder';
 import HeroSlidesManager from '@/components/admin/HeroSlidesManager';
@@ -1189,6 +1189,7 @@ export default function AdminPage() {
             <div className="flex justify-between items-center flex-wrap gap-2">
               <h2 className="text-xl font-semibold">Events</h2>
               <div className="flex gap-2">
+                <Button onClick={loadAllData} variant="outline" className="border-[#2A2520] text-[#B5A898] hover:bg-[#1A1814]" title="Refresh data"><RefreshCw size={14} /></Button>
                 <Button onClick={seedArbitraryTestEvent} variant="outline" className="border-[#E8620A]/60 text-[#E8620A] hover:bg-[#E8620A]/10"><Plus size={14} className="mr-1" /> Seed Arbitrary Test Event</Button>
                 <Button onClick={() => setEditEvent({ ...emptyEvent })} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><Plus size={16} className="mr-1" /> Add Event</Button>
               </div>
@@ -1360,7 +1361,10 @@ export default function AdminPage() {
           <TabsContent value="downloads" className="space-y-4">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold">Downloads</h2>
-              <Button onClick={() => setEditDownload({ ...emptyDownload })} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><Plus size={16} className="mr-1" /> Add Download</Button>
+              <div className="flex gap-2">
+                <Button onClick={loadAllData} variant="outline" className="border-[#2A2520] text-[#B5A898] hover:bg-[#1A1814]" title="Refresh data"><RefreshCw size={14} /></Button>
+                <Button onClick={() => setEditDownload({ ...emptyDownload })} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><Plus size={16} className="mr-1" /> Add Download</Button>
+              </div>
             </div>
             {editDownload && (
               <Card className="bg-[#1A1814] border-[#E8620A]/30">
@@ -1423,9 +1427,12 @@ export default function AdminPage() {
                     <h2 className="text-xl font-semibold">Galleries</h2>
                     <p className="text-sm text-[#6B5E50]">Create a gallery, then click into it to upload images.</p>
                   </div>
-                  <Button onClick={() => setEditCollection({ id: '', name: '', description: '' })} className="bg-[#E8620A] hover:bg-[#cf5709] text-white">
-                    <Plus size={16} className="mr-1" /> New Gallery
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button onClick={loadAllData} variant="outline" className="border-[#2A2520] text-[#B5A898] hover:bg-[#1A1814]" title="Refresh data"><RefreshCw size={14} /></Button>
+                    <Button onClick={() => setEditCollection({ id: '', name: '', description: '' })} className="bg-[#E8620A] hover:bg-[#cf5709] text-white">
+                      <Plus size={16} className="mr-1" /> New Gallery
+                    </Button>
+                  </div>
                 </div>
 
                 {editCollection && (
@@ -1615,6 +1622,7 @@ export default function AdminPage() {
                     </div>
                   </div>
                   <div className="flex gap-2">
+                    <Button onClick={loadAllData} variant="outline" className="border-[#2A2520] text-[#B5A898] hover:bg-[#1A1814]" title="Refresh data"><RefreshCw size={14} /></Button>
                     <Button
                       onClick={() => { setBulkAddMode(false); setBulkCategoryTarget(''); setEditGallery({ ...emptyGallery, category: selectedGallery.id }); }}
                       className="bg-[#E8620A] hover:bg-[#cf5709] text-white"
@@ -1919,9 +1927,12 @@ export default function AdminPage() {
                     <h2 className="text-xl font-semibold">Registrations by Event</h2>
                     <p className="text-sm text-[#6B5E50]">Click an event to see its registrations.</p>
                   </div>
-                  <Button onClick={seedTestRegistrations} variant="outline" className="border-[#E8620A]/60 text-[#E8620A] hover:bg-[#E8620A]/10">
-                    <Plus size={14} className="mr-1" /> Seed 5 Test Registrations
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button onClick={loadAllData} variant="outline" className="border-[#2A2520] text-[#B5A898] hover:bg-[#1A1814]" title="Refresh data"><RefreshCw size={14} /></Button>
+                    <Button onClick={seedTestRegistrations} variant="outline" className="border-[#E8620A]/60 text-[#E8620A] hover:bg-[#E8620A]/10">
+                      <Plus size={14} className="mr-1" /> Seed 5 Test Registrations
+                    </Button>
+                  </div>
                 </div>
                 {regGroups.length === 0 && <p className="text-[#6B5E50] text-center py-8">No registrations yet.</p>}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1951,6 +1962,7 @@ export default function AdminPage() {
                     </h2>
                   </div>
                   <div className="flex gap-2 flex-wrap">
+                    <Button onClick={loadAllData} variant="outline" className="border-[#2A2520] text-[#B5A898] hover:bg-[#1A1814]" title="Refresh data"><RefreshCw size={14} /></Button>
                     <Input placeholder="Search…" value={regSearch} onChange={e => setRegSearch(e.target.value)} className={`${inputCls} w-48`} />
                     <Button onClick={exportCSV} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><FileDown size={14} className="mr-1" /> CSV</Button>
                     <Button onClick={exportXLSX} className="bg-emerald-700 hover:bg-emerald-800 text-white"><FileDown size={14} className="mr-1" /> Excel</Button>
@@ -2025,6 +2037,7 @@ export default function AdminPage() {
                 <h2 className="text-xl font-semibold">Website Content</h2>
                 <p className="text-sm text-[#6B5E50]">Edit all text on the website. Changes update in real-time.</p>
               </div>
+              <Button onClick={loadAllData} variant="outline" className="border-[#2A2520] text-[#B5A898] hover:bg-[#1A1814]" title="Refresh data"><RefreshCw size={14} /></Button>
             </div>
             <div className="flex gap-2 flex-wrap">
               {['all', ...Array.from(new Set(CONTENT_DEFAULTS.map(c => c.group)))].map(g => (
@@ -2109,8 +2122,13 @@ export default function AdminPage() {
 
           {/* ── Settings Tab ─────────────────────────────────────────────── */}
           <TabsContent value="settings" className="space-y-4">
-            <h2 className="text-xl font-semibold">Site Settings</h2>
-            <p className="text-sm text-[#6B5E50]">Changes here update the website in real-time.</p>
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-semibold">Site Settings</h2>
+                <p className="text-sm text-[#6B5E50]">Changes here update the website in real-time.</p>
+              </div>
+              <Button onClick={loadAllData} variant="outline" className="border-[#2A2520] text-[#B5A898] hover:bg-[#1A1814]" title="Refresh data"><RefreshCw size={14} /></Button>
+            </div>
             <div className="space-y-4">
               {settingsMeta.filter(m => !CONTENT_DEFAULTS.some(cd => cd.key === m.key)).map(meta => (
                 <Card key={meta.id} className="bg-[#1A1814] border-[#2A2520]">
@@ -2144,7 +2162,10 @@ export default function AdminPage() {
                     : `Only the super admin (${SUPER_ADMIN_EMAIL}) can add or remove admins.`}
                 </p>
               </div>
-              <div className="text-xs text-[#6B5E50]">{adminList.length} admin{adminList.length !== 1 ? 's' : ''}</div>
+              <div className="flex items-center gap-2">
+                <Button onClick={loadAllData} variant="outline" className="border-[#2A2520] text-[#B5A898] hover:bg-[#1A1814]" title="Refresh data"><RefreshCw size={14} /></Button>
+                <span className="text-xs text-[#6B5E50]">{adminList.length} admin{adminList.length !== 1 ? 's' : ''}</span>
+              </div>
             </div>
 
             <div className="space-y-2">

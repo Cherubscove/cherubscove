@@ -137,6 +137,23 @@ function RegistrationForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
   const formRef = useRef<HTMLFormElement>(null);
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Auto-reset form after successful submission so user can register again
+  useEffect(() => {
+    if (regStatus === 'success') {
+      resetTimerRef.current = setTimeout(() => {
+        setRegStatus('idle');
+        setMessage('');
+      }, 4000);
+    }
+    return () => {
+      if (resetTimerRef.current) {
+        clearTimeout(resetTimerRef.current);
+        resetTimerRef.current = null;
+      }
+    };
+  }, [regStatus]);
 
   const formFields: FormFieldConfig[] = (() => {
     try { return JSON.parse(event.form_fields || '[]'); } catch { return []; }
@@ -343,18 +360,29 @@ function RegistrationForm({
 
       {formFields.length > 0 && (
         <button
-          type="submit"
+          type={regStatus === 'success' ? 'button' : 'submit'}
           disabled={isSubmitting}
+          onClick={regStatus === 'success' ? (e) => {
+            e.preventDefault();
+            setRegStatus('idle');
+            setMessage('');
+            setFormValues({});
+            formRef.current?.reset();
+            if (resetTimerRef.current) {
+              clearTimeout(resetTimerRef.current);
+              resetTimerRef.current = null;
+            }
+          } : undefined}
           className={`w-full py-3.5 rounded-md font-body text-[11px] font-bold tracking-[3px] uppercase transition-all duration-250 ${
             regStatus === 'success'
-              ? 'bg-emerald-600 text-white cursor-default'
+              ? 'bg-emerald-600 text-white hover:bg-emerald-500 cursor-pointer'
               : isSubmitting
               ? 'bg-primary/80 text-white cursor-wait'
               : 'bg-primary text-white hover:bg-primary/90 hover:-translate-y-0.5 hover:shadow-[0_6px_22px_hsl(var(--orange)/0.3)] active:translate-y-0'
           }`}
         >
           {regStatus === 'success' ? (
-            <span className="inline-flex items-center gap-2"><CheckCircle size={14} /> {successText}</span>
+            <span className="inline-flex items-center gap-2"><CheckCircle size={14} /> {successText} — Click to register again</span>
           ) : isSubmitting ? (
             <span className="inline-flex items-center gap-2">
               <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
