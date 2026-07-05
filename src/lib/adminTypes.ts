@@ -207,23 +207,27 @@ export function generateNextImageTitle(
   return `${abbr}-${String(maxIndex + 1).padStart(3, '0')}`;
 }
 
-/** Format event date range for display. */
+/** Format event date range for display. Multi-day events show full start + end date/time. */
 export function formatEventDateRange(ev: { date?: string; end_date?: string; time?: string; end_time?: string }): string {
-  const start = ev.date ? new Date(ev.date) : null;
-  const end = ev.end_date ? new Date(ev.end_date) : null;
-  const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-  let dateStr = '';
-  if (start && end && ev.end_date && ev.end_date !== ev.date) {
-    // Multi-day
-    const sameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear();
-    dateStr = sameMonth
-      ? `${start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${end.toLocaleDateString(undefined, { day: 'numeric', year: 'numeric' })}`
-      : `${fmt(start)} – ${fmt(end)}`;
-  } else if (start) {
-    dateStr = fmt(start);
+  const parseDate = (s?: string) => (s ? new Date(`${s}T00:00:00`) : null);
+  const start = parseDate(ev.date);
+  const end = parseDate(ev.end_date);
+  const fmtFull = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+
+  const multiDay = !!(start && end && ev.end_date && ev.end_date !== ev.date);
+
+  if (multiDay) {
+    const startPart = [fmtFull(start!), ev.time].filter(Boolean).join(' · ');
+    const endPart = [fmtFull(end!), ev.end_time].filter(Boolean).join(' · ');
+    return `${startPart}  –  ${endPart}`;
   }
-  let timeStr = '';
-  if (ev.time && ev.end_time) timeStr = `${ev.time} – ${ev.end_time}`;
-  else if (ev.time) timeStr = ev.time;
-  return [dateStr, timeStr].filter(Boolean).join(' · ');
+
+  if (start) {
+    const datePart = fmtFull(start);
+    let timePart = '';
+    if (ev.time && ev.end_time) timePart = `${ev.time} – ${ev.end_time}`;
+    else if (ev.time) timePart = ev.time;
+    return [datePart, timePart].filter(Boolean).join(' · ');
+  }
+  return '';
 }
