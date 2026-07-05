@@ -2092,7 +2092,7 @@ export default function AdminPage() {
                 <h3 className="text-lg font-semibold pt-4">Add New Admin</h3>
                 <Card className="bg-[#1A1814] border-[#2A2520]">
                   <CardContent className="p-5 space-y-3">
-                    <p className="text-sm text-[#B5A898]">Creates a login and adds them to the admin list. They'll sign in at /admin with the password you set.</p>
+                    <p className="text-sm text-[#B5A898]">Creates a login and adds them to the admin list. They'll sign in at <code className="text-[#E8620A]">/quiveradminconsole007</code> with the password you set.</p>
                     <div className="grid md:grid-cols-3 gap-3">
                       <Field label="Email">
                         <Input placeholder="name@example.com" type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} className={inputCls} />
