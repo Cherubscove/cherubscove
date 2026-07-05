@@ -169,7 +169,7 @@ export default function AdminPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
-  const [authMode, setAuthMode] = useState<'signIn' | 'signUp'>('signIn');
+  // Sign-up is disabled — admins are provisioned via the DB / super admin only.
   const [isLoading, setIsLoading] = useState(false);
 
   const [events, setEvents] = useState<EventRecord[]>([]);
@@ -293,15 +293,9 @@ export default function AdminPage() {
     if (!email.trim() || !password.trim()) { toast.error('Please enter both email and password.'); return; }
     setIsLoading(true);
     try {
-      if (authMode === 'signIn') {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        toast.success('Signed in successfully.');
-      } else {
-        const { error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-        toast.success('Account created. Check your email for verification if required.');
-      }
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      toast.success('Signed in successfully.');
     } catch (err: any) {
       toast.error(err.message ?? 'Authentication failed.');
     } finally { setIsLoading(false); }
@@ -813,18 +807,40 @@ export default function AdminPage() {
     if (row?.value) {
       try { parsed = JSON.parse(row.value); } catch { parsed = []; }
     }
-    // Ensure super admin is always present
-    if (!parsed.some(a => a.email.toLowerCase() === SUPER_ADMIN_EMAIL)) {
-      parsed.unshift({ email: SUPER_ADMIN_EMAIL, role: 'super_admin' });
-      const payload = JSON.stringify(parsed);
+
+    // Merge with actual auth.users via SECURITY DEFINER RPC so every real
+    // auth account is visible in the admin list (not just entries stored
+    // in site_settings JSON).
+    let authUsers: { email: string }[] = [];
+    const { data: rpcData, error: rpcErr } = await supabase.rpc('list_auth_users');
+    if (!rpcErr && Array.isArray(rpcData)) {
+      authUsers = rpcData
+        .filter((u: any) => u?.email)
+        .map((u: any) => ({ email: String(u.email).toLowerCase() }));
+    }
+
+    const byEmail = new Map<string, { email: string; role: 'super_admin' | 'admin' }>();
+    for (const a of parsed) byEmail.set(a.email.toLowerCase(), { email: a.email.toLowerCase(), role: a.role });
+    for (const u of authUsers) if (!byEmail.has(u.email)) byEmail.set(u.email, { email: u.email, role: 'admin' });
+
+    // Super admin always present + always super
+    byEmail.set(SUPER_ADMIN_EMAIL, { email: SUPER_ADMIN_EMAIL, role: 'super_admin' });
+
+    const merged = Array.from(byEmail.values()).sort((a, b) => {
+      if (a.email === SUPER_ADMIN_EMAIL) return -1;
+      if (b.email === SUPER_ADMIN_EMAIL) return 1;
+      return a.email.localeCompare(b.email);
+    });
+
+    // Persist merged list back so it stays in sync
+    const payload = JSON.stringify(merged);
+    if (row?.value !== payload) {
       const res = row
         ? await supabase.from('site_settings').update({ value: payload }).eq('id', row.id)
         : await supabase.from('site_settings').insert({ key: ADMIN_LIST_KEY, label: 'Admin Users (JSON)', value: payload, type: 'text' });
-      if (res.error) {
-        toast.error(`Could not persist admin list: ${res.error.message}. Check site_settings RLS policies.`);
-      }
+      if (res.error) toast.error(`Could not persist admin list: ${res.error.message}`);
     }
-    setAdminList(parsed);
+    setAdminList(merged);
   };
 
   const persistAdminList = async (next: { email: string; role: 'super_admin' | 'admin' }[]) => {
@@ -1042,13 +1058,10 @@ export default function AdminPage() {
               </button>
             </div>
             <Button onClick={handleAuth} disabled={isLoading} className="w-full bg-[#E8620A] hover:bg-[#cf5709] text-white font-semibold">
-              {isLoading ? 'Please wait…' : authMode === 'signIn' ? 'Sign In' : 'Sign Up'}
+              {isLoading ? 'Please wait…' : 'Sign In'}
             </Button>
-            <p className="text-center text-sm text-[#6B5E50]">
-              {authMode === 'signIn' ? "Don't have an account? " : 'Already have an account? '}
-              <button onClick={() => setAuthMode(authMode === 'signIn' ? 'signUp' : 'signIn')} className="text-[#E8620A] hover:underline">
-                {authMode === 'signIn' ? 'Sign Up' : 'Sign In'}
-              </button>
+            <p className="text-center text-xs text-[#6B5E50]">
+              Admin access is invitation-only. Contact the super admin to be added.
             </p>
           </CardContent>
         </Card>
@@ -2079,7 +2092,7 @@ export default function AdminPage() {
                 <h3 className="text-lg font-semibold pt-4">Add New Admin</h3>
                 <Card className="bg-[#1A1814] border-[#2A2520]">
                   <CardContent className="p-5 space-y-3">
-                    <p className="text-sm text-[#B5A898]">Creates a login and adds them to the admin list. They'll sign in at /admin with the password you set.</p>
+                    <p className="text-sm text-[#B5A898]">Creates a login and adds them to the admin list. They'll sign in at <code className="text-[#E8620A]">/quiveradminconsole007</code> with the password you set.</p>
                     <div className="grid md:grid-cols-3 gap-3">
                       <Field label="Email">
                         <Input placeholder="name@example.com" type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} className={inputCls} />

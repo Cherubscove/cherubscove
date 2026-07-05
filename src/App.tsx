@@ -54,7 +54,7 @@ const App = () => {
             <Route path="/events-conferences" element={<EventsConferences />} />
             <Route path="/past-conferences" element={<PastConferences />} />
             <Route path="/past-conferences/:galleryId" element={<GalleryDetail />} />
-            <Route path="/admin" element={<Admin />} />
+            <Route path="/quiveradminconsole007" element={<Admin />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
