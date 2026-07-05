@@ -215,6 +215,36 @@ function RegistrationForm({
       return;
     }
 
+    // Fire-and-forget: send email notification (non-blocking, never fails the UX)
+    supabase.functions.invoke('send-form-email', {
+      body: {
+        formType: 'registration',
+        submitterEmail: payload.email,
+        submitterName: payload.full_name,
+        eventTitle: event.title,
+        fields: [
+          ...(payload.full_name ? [{ label: 'Full Name', value: payload.full_name }] : []),
+          ...(payload.email ? [{ label: 'Email', value: payload.email }] : []),
+          ...(payload.phone ? [{ label: 'Phone', value: payload.phone }] : []),
+          ...(payload.state_city ? [{ label: 'State/City', value: payload.state_city }] : []),
+          ...(payload.prayer_note ? [{ label: 'Prayer Note', value: payload.prayer_note }] : []),
+          ...formFields
+            .filter(f => {
+              const val = formValues[f.id];
+              return val !== undefined && val !== null && val !== ''
+                && !(Array.isArray(val) && val.length === 0);
+            })
+            .filter(f => !['full_name', 'email', 'phone', 'state_city', 'prayer_note'].includes(f.id))
+            .map(f => ({
+              label: f.label,
+              value: Array.isArray(formValues[f.id])
+                ? (formValues[f.id] as string[]).join(', ')
+                : String(formValues[f.id] ?? ''),
+            })),
+        ],
+      },
+    }).catch(err => console.error('Failed to send form email:', err));
+
     setRegStatus('success');
     setMessage(completionMessage || 'Registration submitted successfully. Thank you!');
     setFormValues({});

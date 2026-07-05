@@ -94,6 +94,16 @@ export default function ConnectPage() {
         }
         return;
       }
+
+      // Fire-and-forget: send email notification (non-blocking)
+      supabase.functions.invoke('send-form-email', {
+        body: {
+          formType: 'newsletter',
+          submitterEmail: email,
+          fields: [{ label: 'Email', value: email }],
+        },
+      }).catch(err => console.error('Failed to send form email:', err));
+
       setNlStatus('success');
       setTimeout(() => {
         setNlStatus('idle');
