@@ -807,18 +807,40 @@ export default function AdminPage() {
     if (row?.value) {
       try { parsed = JSON.parse(row.value); } catch { parsed = []; }
     }
-    // Ensure super admin is always present
-    if (!parsed.some(a => a.email.toLowerCase() === SUPER_ADMIN_EMAIL)) {
-      parsed.unshift({ email: SUPER_ADMIN_EMAIL, role: 'super_admin' });
-      const payload = JSON.stringify(parsed);
+
+    // Merge with actual auth.users via SECURITY DEFINER RPC so every real
+    // auth account is visible in the admin list (not just entries stored
+    // in site_settings JSON).
+    let authUsers: { email: string }[] = [];
+    const { data: rpcData, error: rpcErr } = await supabase.rpc('list_auth_users');
+    if (!rpcErr && Array.isArray(rpcData)) {
+      authUsers = rpcData
+        .filter((u: any) => u?.email)
+        .map((u: any) => ({ email: String(u.email).toLowerCase() }));
+    }
+
+    const byEmail = new Map<string, { email: string; role: 'super_admin' | 'admin' }>();
+    for (const a of parsed) byEmail.set(a.email.toLowerCase(), { email: a.email.toLowerCase(), role: a.role });
+    for (const u of authUsers) if (!byEmail.has(u.email)) byEmail.set(u.email, { email: u.email, role: 'admin' });
+
+    // Super admin always present + always super
+    byEmail.set(SUPER_ADMIN_EMAIL, { email: SUPER_ADMIN_EMAIL, role: 'super_admin' });
+
+    const merged = Array.from(byEmail.values()).sort((a, b) => {
+      if (a.email === SUPER_ADMIN_EMAIL) return -1;
+      if (b.email === SUPER_ADMIN_EMAIL) return 1;
+      return a.email.localeCompare(b.email);
+    });
+
+    // Persist merged list back so it stays in sync
+    const payload = JSON.stringify(merged);
+    if (row?.value !== payload) {
       const res = row
         ? await supabase.from('site_settings').update({ value: payload }).eq('id', row.id)
         : await supabase.from('site_settings').insert({ key: ADMIN_LIST_KEY, label: 'Admin Users (JSON)', value: payload, type: 'text' });
-      if (res.error) {
-        toast.error(`Could not persist admin list: ${res.error.message}. Check site_settings RLS policies.`);
-      }
+      if (res.error) toast.error(`Could not persist admin list: ${res.error.message}`);
     }
-    setAdminList(parsed);
+    setAdminList(merged);
   };
 
   const persistAdminList = async (next: { email: string; role: 'super_admin' | 'admin' }[]) => {
