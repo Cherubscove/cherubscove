@@ -995,6 +995,48 @@ export default function AdminPage() {
     toast.success('PDF exported.');
   };
 
+  const seedArbitraryTestEvent = async () => {
+    if (!supabase) { toast.error('Supabase not configured.'); return; }
+    const arbitraryFields = [
+      { id: 'f_stage_name', label: 'Stage / Performer Name', type: 'text', required: true, placeholder: 'e.g. DJ Grace' },
+      { id: 'f_age', label: 'Age', type: 'text', required: true, placeholder: 'Your age' },
+      { id: 'f_email', label: 'Email', type: 'email', required: true, placeholder: 'you@example.com' },
+      { id: 'f_whatsapp', label: 'WhatsApp Number', type: 'tel', required: true, placeholder: '+234...' },
+      { id: 'f_talent', label: 'Talent Category', type: 'select', required: true, placeholder: '', options: ['Singing', 'Spoken Word', 'Dance', 'Instrumentals', 'Drama', 'Comedy'] },
+      { id: 'f_group', label: 'Are you performing as?', type: 'radio', required: true, placeholder: '', options: ['Solo', 'Duo', 'Group (3-6)', 'Large group (7+)'] },
+      { id: 'f_equipment', label: 'Equipment you need on stage', type: 'checkbox', required: false, placeholder: '', options: ['Microphone', 'Keyboard', 'Drum kit', 'Projector', 'Backing track (bring USB)', 'None'] },
+      { id: 'f_duration', label: 'How long is your performance? (minutes)', type: 'text', required: true, placeholder: 'e.g. 5' },
+      { id: 'f_bio', label: 'Short bio for the MC to read', type: 'textarea', required: false, placeholder: '2-3 sentences about you' },
+      { id: 'f_song_title', label: 'Title of your piece / song', type: 'text', required: true, placeholder: '' },
+      { id: 'f_first_time', label: 'Is this your first time performing publicly?', type: 'radio', required: true, placeholder: '', options: ['Yes', 'No'] },
+      { id: 'f_prayer', label: 'Prayer request (optional)', type: 'textarea', required: false, placeholder: 'Anything you would like us to pray about' },
+    ];
+    const payload: any = {
+      title: 'Youth Talent Showcase 2026 (Test)',
+      theme: 'Unleash Your Gift',
+      status: 'upcoming',
+      date: '2026-08-15',
+      end_date: '2026-08-15',
+      time: '3:00 PM',
+      end_time: '7:00 PM',
+      location: 'Cherubs Cove Auditorium',
+      description: 'Test event with a completely custom registration form to verify arbitrary field types (text, email, tel, dropdown, radio, checkboxes, paragraph).',
+      image_url: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=1200',
+      registration_enabled: true,
+      completion_message: '<p>Thanks for signing up for the Showcase! We will email your performance slot within 48 hours.</p>',
+      form_fields: JSON.stringify(arbitraryFields),
+    };
+    try {
+      const { error } = await supabase.from('events').insert(payload);
+      if (error) throw error;
+      toast.success('Arbitrary test event created. Open the Events list to see it.');
+      await loadAllData();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to seed test event.');
+    }
+  };
+
+
   const seedTestRegistrations = async () => {
     const grp = regGroups.find(g => g.key === regSelectedGroupKey);
     let eventId: string | undefined;
