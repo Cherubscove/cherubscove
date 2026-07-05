@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /quiveradminconsole007
 
-Sitemap: https://cherubscove.com/sitemap.xml
+Sitemap: https://cherubscove.net/sitemap.xml
