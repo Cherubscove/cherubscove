@@ -14,6 +14,7 @@ import {
   Calendar, Download, Image, Settings, Users, LogOut, Plus, Trash2, Edit2, Save, X, Eye, EyeOff, FileDown, ArrowUpDown, ClipboardList, FileText, ToggleLeft, ToggleRight, CheckSquare, Square, FolderInput, Star,
 } from 'lucide-react';
 import FormFieldBuilder from '@/components/admin/FormFieldBuilder';
+import HeroSlidesManager from '@/components/admin/HeroSlidesManager';
 import { SEED_EVENTS, SEED_DOWNLOADS, SEED_GALLERIES } from '@/lib/seedData';
 import type {
   EventRecord, DownloadRecord, GalleryRecord, RegistrationRecord, FormFieldConfig, GalleryCollection,
@@ -79,6 +80,7 @@ const CONTENT_DEFAULTS: { key: string; label: string; value: string; group: stri
   { key: 'hero_btn_1_link', label: 'Hero — Button 1 Link', value: '/register', group: 'Hero Section' },
   { key: 'hero_btn_2_text', label: 'Hero — Button 2 Text', value: 'Meet Jesse Falodun', group: 'Hero Section' },
   { key: 'hero_btn_2_link', label: 'Hero — Button 2 Link', value: '/about-jesse', group: 'Hero Section' },
+  { key: 'hero_slides_json', label: 'Hero Slides (JSON — managed below)', value: '[]', group: 'Hero Section' },
 
   // Welcome Section
   { key: 'welcome_logo_title', label: 'Welcome — Logo Title', value: 'Cherubs Cove', group: 'Welcome Section' },
@@ -153,6 +155,9 @@ const CONTENT_DEFAULTS: { key: string; label: string; value: string; group: stri
   { key: 'pwa_popup_description', label: 'PWA — Popup Description', value: 'Install our app for a faster, offline-ready experience.', group: 'PWA' },
   { key: 'pwa_popup_mobile_message', label: 'PWA — Mobile Message', value: 'Get the best experience on your phone — install our app and access content even offline.', group: 'PWA' },
   { key: 'pwa_popup_desktop_message', label: 'PWA — Desktop Message', value: 'Install our app on your computer for quick access and offline browsing.', group: 'PWA' },
+  { key: 'pwa_icon_192_url', label: 'PWA — Icon 192×192 URL', value: '/pwa-192x192.png', group: 'PWA' },
+  { key: 'pwa_icon_512_url', label: 'PWA — Icon 512×512 URL', value: '/pwa-512x512.png', group: 'PWA' },
+  { key: 'pwa_icon_apple_url', label: 'PWA — Apple Touch Icon URL', value: '/apple-touch-icon.png', group: 'PWA' },
 ];
 
 /* ── Component ──────────────────────────────────────────────────────────── */
@@ -2029,25 +2034,77 @@ export default function AdminPage() {
               ))}
             </div>
             <div className="space-y-3">
-              {CONTENT_DEFAULTS.filter(cd => contentGroup === 'all' || cd.group === contentGroup).map(cd => (
-                <Card key={cd.key} className="bg-[#1A1814] border-[#2A2520]">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-2 mb-1.5">
-                      <label className="text-sm font-medium text-[#B5A898]">{cd.label}</label>
-                      <span className="text-[9px] tracking-[1px] uppercase text-[#6B5E50] bg-[#0F0D0A] px-2 py-0.5 rounded">{cd.group}</span>
-                    </div>
-                    <div className="flex gap-2">
-                      {(contentValues[cd.key] ?? '').length > 80 ? (
-                        <Textarea value={contentValues[cd.key] ?? ''} onChange={e => setContentValues(prev => ({ ...prev, [cd.key]: e.target.value }))} className={`flex-1 ${inputCls}`} rows={3} />
-                      ) : (
-                        <Input value={contentValues[cd.key] ?? ''} onChange={e => setContentValues(prev => ({ ...prev, [cd.key]: e.target.value }))} className={`flex-1 ${inputCls}`} />
+              {CONTENT_DEFAULTS.filter(cd => contentGroup === 'all' || cd.group === contentGroup).map(cd => {
+                // ── Hero slides JSON is managed via the dedicated UI below ──
+                if (cd.key === 'hero_slides_json') return null;
+
+                const isPwaIcon = cd.key === 'pwa_icon_192_url' || cd.key === 'pwa_icon_512_url' || cd.key === 'pwa_icon_apple_url';
+                return (
+                  <Card key={cd.key} className="bg-[#1A1814] border-[#2A2520]">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-2 mb-1.5">
+                        <label className="text-sm font-medium text-[#B5A898]">{cd.label}</label>
+                        <span className="text-[9px] tracking-[1px] uppercase text-[#6B5E50] bg-[#0F0D0A] px-2 py-0.5 rounded">{cd.group}</span>
+                      </div>
+                      <div className="flex gap-2">
+                        {(contentValues[cd.key] ?? '').length > 80 ? (
+                          <Textarea value={contentValues[cd.key] ?? ''} onChange={e => setContentValues(prev => ({ ...prev, [cd.key]: e.target.value }))} className={`flex-1 ${inputCls}`} rows={3} />
+                        ) : (
+                          <Input value={contentValues[cd.key] ?? ''} onChange={e => setContentValues(prev => ({ ...prev, [cd.key]: e.target.value }))} className={`flex-1 ${inputCls}`} />
+                        )}
+                        <Button onClick={() => saveContentSetting(cd.key)} className="bg-[#E8620A] hover:bg-[#cf5709] text-white self-start"><Save size={14} /></Button>
+                        {isPwaIcon && (
+                          <div className="relative self-start">
+                            <input
+                              type="file"
+                              accept="image/png,image/jpeg,image/webp"
+                              className="absolute inset-0 opacity-0 cursor-pointer w-full"
+                              title={`Upload ${cd.label}`}
+                              onChange={async e => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                const ext = file.name.split('.').pop() || 'png';
+                                const path = `pwa-icons/${cd.key}-${Date.now()}.${ext}`;
+                                let bucket = 'gallery-images';
+                                let { error: upErr } = await supabase.storage.from(bucket).upload(path, file, { upsert: false });
+                                if (upErr) {
+                                  bucket = 'event-images';
+                                  ({ error: upErr } = await supabase.storage.from(bucket).upload(path, file, { upsert: false }));
+                                }
+                                if (upErr) { toast.error(`Upload failed: ${upErr.message}`); return; }
+                                const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
+                                if (urlData) {
+                                  setContentValues(prev => ({ ...prev, [cd.key]: urlData.publicUrl }));
+                                  toast.success('Icon uploaded. Click Save to persist.');
+                                }
+                              }}
+                            />
+                            <div className="flex items-center gap-1.5 rounded-md bg-[#2A2520] px-3 py-2 text-xs text-[#B5A898] hover:bg-[#3A3530] transition-colors pointer-events-none">
+                              <Download size={14} /> Upload
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      {isPwaIcon && contentValues[cd.key] && (
+                        <img src={contentValues[cd.key]} alt="" className="mt-2 h-12 w-12 rounded-lg object-cover border border-[#2A2520]" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                       )}
-                      <Button onClick={() => saveContentSetting(cd.key)} className="bg-[#E8620A] hover:bg-[#cf5709] text-white self-start"><Save size={14} /></Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
+
+            {/* ── Hero Slides Manager ─────────────────────────────────────── */}
+            {(contentGroup === 'all' || contentGroup === 'Hero Section') && (
+              <HeroSlidesManager
+                settingsMap={siteSettings}
+                settingsMeta={settingsMeta}
+                onSave={() => { loadAllData(); }}
+                supabase={supabase}
+                inputCls={inputCls}
+                toast={toast}
+              />
+            )}
           </TabsContent>
 
           {/* ── Settings Tab ─────────────────────────────────────────────── */}

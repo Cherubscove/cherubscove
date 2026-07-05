@@ -16,6 +16,7 @@ import Admin from "./pages/Admin.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import { supabaseConfigError } from "@/lib/supabaseClient";
 import { useSiteSettings, getSetting } from "@/hooks/useSiteSettings";
+import { useDynamicManifest } from "@/hooks/useDynamicManifest";
 import PwaInstallPopup from "@/components/PwaInstallPopup";
 
 const queryClient = new QueryClient();
@@ -41,6 +42,7 @@ function useDynamicThemeColor() {
 
 const AppContent = () => {
   useDynamicThemeColor();
+  useDynamicManifest();
 
   return (
     <>

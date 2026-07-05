@@ -60,6 +60,18 @@ export default function PwaInstallPopup() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [show, setShow] = useState(false);
   const [animOut, setAnimOut] = useState(false);
+  const [iconError, setIconError] = useState(false);
+
+  // ── Dynamic values from admin settings (used in render) ───────────────
+
+  const appName = getSetting(settings, 'pwa_short_name', 'Cherubs Cove');
+  const popupTitle = getSetting(settings, 'pwa_popup_title', `Install ${appName}`);
+  const popupDesc = getSetting(
+    settings,
+    'pwa_popup_description',
+    'Install our app for a faster, offline-ready experience.',
+  );
+  const iconUrl = getSetting(settings, 'pwa_icon_192_url', '/pwa-192x192.png');
 
   // ── Check if popup should be shown ────────────────────────────────────
 
@@ -169,16 +181,6 @@ export default function PwaInstallPopup() {
 
   if (!show) return null;
 
-  // ── Dynamic values from admin settings ─────────────────────────────────
-
-  const appName = getSetting(settings, 'pwa_short_name', 'Cherubs Cove');
-  const popupTitle = getSetting(settings, 'pwa_popup_title', `Install ${appName}`);
-  const popupDesc = getSetting(
-    settings,
-    'pwa_popup_description',
-    'Install our app for a faster, offline-ready experience.',
-  );
-
   const isMobile = platform === 'android' || platform === 'ios';
 
   return (
@@ -197,8 +199,12 @@ export default function PwaInstallPopup() {
         {/* ── Header ──────────────────────────────────────────────────── */}
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#E8620A] to-orange-600 text-white shadow-lg">
-              {isMobile ? <Smartphone size={22} /> : <Laptop size={22} />}
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#E8620A] to-orange-600 text-white shadow-lg overflow-hidden">
+              {iconUrl && !iconError ? (
+                <img src={iconUrl} alt={appName} className="h-full w-full object-cover" onError={() => setIconError(true)} />
+              ) : (
+                isMobile ? <Smartphone size={22} /> : <Laptop size={22} />
+              )}
             </div>
             <div>
               <h3 className="text-base font-semibold text-slate-100 leading-tight">
