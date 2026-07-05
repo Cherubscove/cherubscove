@@ -1130,9 +1130,12 @@ export default function AdminPage() {
 
           {/* ── Events Tab ───────────────────────────────────────────────── */}
           <TabsContent value="events" className="space-y-4">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center flex-wrap gap-2">
               <h2 className="text-xl font-semibold">Events</h2>
-              <Button onClick={() => setEditEvent({ ...emptyEvent })} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><Plus size={16} className="mr-1" /> Add Event</Button>
+              <div className="flex gap-2">
+                <Button onClick={seedArbitraryTestEvent} variant="outline" className="border-[#E8620A]/60 text-[#E8620A] hover:bg-[#E8620A]/10"><Plus size={14} className="mr-1" /> Seed Arbitrary Test Event</Button>
+                <Button onClick={() => setEditEvent({ ...emptyEvent })} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><Plus size={16} className="mr-1" /> Add Event</Button>
+              </div>
             </div>
 
             {editEvent && (
