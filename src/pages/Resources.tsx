@@ -3,6 +3,7 @@ import {
   Headphones, Video, FileText, ArrowRight, Download,
   Search, X, ArrowUpDown, ChevronLeft, ChevronRight,
 } from 'lucide-react';
+import ShareButton from '@/components/ShareButton';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
 import { useSiteSettings, getSetting } from '@/hooks/useSiteSettings';
 import Navbar from '@/components/Navbar';
@@ -277,6 +278,14 @@ export default function ResourcesPage() {
                     >
                       {res.action} <ArrowRight size={12} />
                     </a>
+                    <div className="mt-2 flex items-center justify-between">
+                      <span />
+                      <ShareButton
+                        title={`${res.title} — Cherubs Cove Ministry`}
+                        text={`Check out "${res.title}" (${tagLabelMap[res.type]}) from Cherubs Cove Ministry`}
+                        variant="icon"
+                      />
+                    </div>
                   </div>
                 );
               })}

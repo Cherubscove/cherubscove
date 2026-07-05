@@ -8,6 +8,7 @@ import ScrollToTop from '@/components/ScrollToTop';
 import { supabase } from '@/lib/supabaseClient';
 import { normalizeImageUrl } from '@/pages/Admin';
 import { ArrowLeft, X, ArrowRight, Eye } from 'lucide-react';
+import ShareButton from '@/components/ShareButton';
 
 type GalleryRow = {
   id: string;
@@ -130,6 +131,14 @@ export default function GalleryDetailPage() {
             <p className="text-[11px] tracking-[2px] uppercase text-white/40 mt-3">
               {images.length} photo{images.length !== 1 ? 's' : ''}
             </p>
+            <div className="mt-3">
+              <ShareButton
+                title={`${currentGallery?.name || decodedId} Gallery — Cherubs Cove Ministry`}
+                text={`Check out the "${currentGallery?.name || decodedId}" gallery from Cherubs Cove Ministry`}
+                variant="button"
+                className="[&_button]:!text-white/50 [&_button:hover]:!text-primary"
+              />
+            </div>
           </div>
         </div>
 
@@ -229,6 +238,17 @@ export default function GalleryDetailPage() {
                 {lightbox.images[lightbox.index].caption}
               </p>
             )}
+          </div>
+
+          {/* Share button in lightbox */}
+          <div className="absolute bottom-4 right-4">
+            <ShareButton
+              title={lightbox.images[lightbox.index]?.title || 'Gallery Photo'}
+              text={`Check out "${lightbox.images[lightbox.index]?.title || 'Gallery Photo'}" from Cherubs Cove Ministry`}
+              url={lightbox.images[lightbox.index]?.image_url || undefined}
+              variant="icon"
+              className="[&_button]:!text-white/60 [&_button:hover]:!text-white"
+            />
           </div>
 
           {lightbox.images.length > 1 && (

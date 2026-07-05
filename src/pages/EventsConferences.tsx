@@ -5,6 +5,7 @@ import { useSiteSettings, getSetting } from '@/hooks/useSiteSettings';
 import { Calendar, MapPin, Users, Sparkles, ArrowRight } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import ShareButton from '@/components/ShareButton';
 import ScrollToTop from '@/components/ScrollToTop';
 import { supabase } from '@/lib/supabaseClient';
 import { formatEventDateRange } from '@/lib/adminTypes';
@@ -131,6 +132,13 @@ export default function EventsConferencesPage() {
                       <span className="text-[10px] font-bold tracking-[2.5px] uppercase text-muted-foreground">
                         {ev.description || 'Conference'}
                       </span>
+                      <div className="mt-3 flex items-center justify-between">
+                        <ShareButton
+                          title={`${ev.theme || ev.title} — Cherubs Cove Ministry`}
+                          text={`Check out ${ev.theme || ev.title} (${ev.date ? ev.date.slice(0, 4) : 'TBA'}) from Cherubs Cove Ministry`}
+                          variant="icon"
+                        />
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -161,6 +169,14 @@ export default function EventsConferencesPage() {
                       <span className="text-[10px] font-bold tracking-[2.5px] uppercase text-primary-foreground/75">
                         {ev.registration_enabled ? 'Upcoming — Register Now' : 'Upcoming'}
                       </span>
+                      <div className="mt-3 flex items-center justify-between">
+                        <ShareButton
+                          title={`${ev.theme || ev.title} — Cherubs Cove Ministry`}
+                          text={`Join ${ev.theme || ev.title} from Cherubs Cove Ministry`}
+                          variant="icon"
+                          className="[&_button]:!text-primary-foreground/60 [&_button:hover]:!text-primary-foreground"
+                        />
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -259,10 +275,15 @@ export default function EventsConferencesPage() {
                           {featuredUpcoming.description}
                         </p>
                       )}
-                      <div className="mt-6">
+                      <div className="mt-6 flex items-center gap-3">
                         <Link to={featuredUpcoming.id ? `/register/${featuredUpcoming.id}` : '/register'} className="btn-primary-custom inline-flex items-center gap-2">
                           Register Now <ArrowRight size={14} />
                         </Link>
+                        <ShareButton
+                          title={`${featuredUpcoming.theme || featuredUpcoming.title} — Cherubs Cove Ministry`}
+                          text={`Join ${featuredUpcoming.theme || featuredUpcoming.title} from Cherubs Cove Ministry — ${featuredUpcoming.location || 'Free Event'}`}
+                          variant="button"
+                        />
                       </div>
                     </div>
                   </div>
@@ -298,6 +319,13 @@ export default function EventsConferencesPage() {
                               Register <ArrowRight size={12} />
                             </Link>
                           )}
+                          <div className="mt-2">
+                            <ShareButton
+                              title={`${ev.title} — Cherubs Cove Ministry`}
+                              text={`${ev.title} from Cherubs Cove Ministry — ${[formatEventDateRange(ev), ev.location].filter(Boolean).join(' · ') || 'Details coming soon'}`}
+                              variant="icon"
+                            />
+                          </div>
                         </div>
                       </div>
                     ))}

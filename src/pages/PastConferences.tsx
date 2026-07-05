@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
 import { useSiteSettings, getSetting } from '@/hooks/useSiteSettings';
 import Navbar from '@/components/Navbar';
@@ -7,7 +7,8 @@ import Footer from '@/components/Footer';
 import ScrollToTop from '@/components/ScrollToTop';
 import { supabase } from '@/lib/supabaseClient';
 import { normalizeImageUrl } from '@/pages/Admin';
-import { Eye, ChevronDown, ChevronUp, X, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Eye, X, ArrowLeft, ArrowRight } from 'lucide-react';
+import ShareButton from '@/components/ShareButton';
 
 type GalleryRow = {
   id: string;
@@ -32,15 +33,11 @@ type ConfEvent = {
   desc: string;
 };
 
-const INITIAL_VISIBLE = 5;
-
 export default function PastConferencesPage() {
   const ref = useScrollReveal();
-  const navigate = useNavigate();
   const settings = useSiteSettings();
   const [items, setItems] = useState<GalleryRow[]>([]);
   const [pastEvents, setPastEvents] = useState<ConfEvent[]>([]);
-  const [expandedCols, setExpandedCols] = useState<Set<string>>(new Set());
   const [lightbox, setLightbox] = useState<{ images: GalleryRow[]; index: number } | null>(null);
 
   const galleries: GalleryCollection[] = useMemo(() => {
@@ -76,15 +73,6 @@ export default function PastConferencesPage() {
         { year: '2025', theme: 'Immersion', desc: 'Diving deep into the presence and purpose of God.' },
       ]);
     }
-  };
-
-  const toggleExpand = (id: string) => {
-    setExpandedCols(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
   };
 
   const openLightbox = useCallback((images: GalleryRow[], index: number) => {
@@ -222,100 +210,52 @@ export default function PastConferencesPage() {
               <p className="text-muted-foreground">Galleries will appear here once images are added in the admin dashboard.</p>
             </div>
           ) : (
-            <div className="space-y-20">
-              {collections.map(col => {
-                const isExpanded = expandedCols.has(col.id);
-                const visibleImages = isExpanded ? col.images : col.images.slice(0, INITIAL_VISIBLE);
-                const hiddenCount = col.images.length - INITIAL_VISIBLE;
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {collections.map(col => (
+                <Link
+                  key={col.id}
+                  to={`/past-conferences/${encodeURIComponent(col.id)}`}
+                  className="group relative rounded-xl overflow-hidden min-h-[320px] sm:min-h-[360px] block no-underline card-lift"
+                >
+                  {/* Cover image */}
+                  {col.images[0]?.image_url ? (
+                    <img
+                      src={normalizeImageUrl(col.images[0].image_url)}
+                      alt={col.name}
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--bg-subtle))] to-[hsl(var(--border))]" />
+                  )}
 
-                return (
-                  <div key={col.id}>
-                    {/* Collection header */}
-                    <div className="flex items-end justify-between mb-5 border-b border-border pb-3">
-                      <div>
-                        <h2 className="font-heading text-[24px] md:text-[28px] font-normal italic text-foreground">
-                          <em className="text-primary">{col.name}</em>
-                        </h2>
-                        {col.description && (
-                          <p className="text-xs text-muted-foreground mt-0.5">{col.description}</p>
-                        )}
-                      </div>
-                      <span className="text-[11px] tracking-[2px] uppercase text-muted-foreground whitespace-nowrap">{col.images.length} photo{col.images.length !== 1 ? 's' : ''}</span>
-                    </div>
+                  {/* Dark overlay — always visible for readability */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10 transition-colors duration-300 group-hover:from-black/95" />
 
-                    {/* Image grid */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {visibleImages.map((g, i) => {
-                        const isCover = g.featured || (i === 0 && !isExpanded && col.images.length > 1);
-                        return (
-                          <div
-                            key={g.id}
-                            onClick={() => g.image_url && openLightbox(col.images, col.images.indexOf(g))}
-                            className={`group rounded-xl overflow-hidden relative cursor-pointer ${isCover ? 'sm:col-span-2 lg:col-span-2 min-h-[300px]' : 'min-h-[220px]'}`}
-                          >
-                            {g.image_url ? (
-                              <>
-                                <img
-                                  src={normalizeImageUrl(g.image_url)}
-                                  alt={g.alt_text || g.title || 'Gallery photo'}
-                                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                                />
-                                {/* Hover overlay */}
-                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
-                                {/* Click hint */}
-                                <div className="absolute top-3 right-3 bg-black/50 backdrop-blur-sm text-white/80 text-[9px] px-2 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-[3] flex items-center gap-1">
-                                  <Eye size={10} /> View
-                                </div>
-                                {g.featured && (
-                                  <div className="absolute top-3 left-3 bg-primary/90 text-primary-foreground text-[9px] font-bold px-2 py-0.5 rounded-full tracking-wider uppercase z-[2]">
-                                    Featured
-                                  </div>
-                                )}
-                              </>
-                            ) : (
-                              <div className="w-full h-full bg-gradient-to-br from-[hsl(var(--bg-subtle))] to-[hsl(var(--border))] flex items-center justify-center transition-transform duration-500 group-hover:scale-105 absolute inset-0">
-                                <span className="text-[11px] tracking-[3px] uppercase text-muted-foreground">Gallery Photo</span>
-                              </div>
-                            )}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent z-[1]" />
-                            <div className="absolute bottom-0 left-0 right-0 p-4 z-[2]">
-                              <p className="text-[10.5px] tracking-[2px] uppercase text-white/70">{col.name}</p>
-                              <h4 className="font-heading text-[15px] italic text-white">{g.title}</h4>
-                              {g.caption && <p className="text-[11px] text-white/60 mt-0.5">{g.caption}</p>}
-                            </div>
-                          </div>
-                        );
-                      })}
-
-                      {/* "View all" card — links to dedicated gallery page */}
-                      {!isExpanded && hiddenCount > 0 && (
-                        <Link
-                          to={`/past-conferences/${encodeURIComponent(col.id)}`}
-                          className="min-h-[220px] rounded-xl border-2 border-dashed border-border bg-card/50 hover:bg-card hover:border-primary/50 transition-all duration-300 flex flex-col items-center justify-center gap-2 group cursor-pointer no-underline"
-                        >
-                          <Eye size={24} className="text-muted-foreground group-hover:text-primary transition-colors" />
-                          <span className="text-sm font-medium text-muted-foreground group-hover:text-primary transition-colors">
-                            View all {col.images.length} photos
-                          </span>
-                          <ChevronDown size={18} className="text-muted-foreground group-hover:text-primary transition-colors" />
-                        </Link>
-                      )}
-                    </div>
-
-                    {/* Collapse button (when expanded) */}
-                    {isExpanded && col.images.length > INITIAL_VISIBLE && (
-                      <div className="mt-4 text-center">
-                        <button
-                          onClick={() => toggleExpand(col.id)}
-                          className="inline-flex items-center gap-2 text-[11px] font-bold tracking-[2px] uppercase text-muted-foreground hover:text-primary transition-colors"
-                        >
-                          <ChevronUp size={14} /> Show less
-                        </button>
-                      </div>
-                    )}
+                  {/* Image count badge */}
+                  <div className="absolute top-4 right-4 bg-black/50 backdrop-blur-sm text-white text-[11px] font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 z-[3]">
+                    <Eye size={12} />
+                    {col.images.length}
                   </div>
-                );
-              })}
+
+                  {/* Bottom content */}
+                  <div className="absolute bottom-0 left-0 right-0 p-6 z-[2]">
+                    <h3 className="font-heading text-[22px] md:text-[26px] italic text-white mb-1 transition-colors group-hover:text-primary">
+                      {col.name}
+                    </h3>
+                    {col.description && (
+                      <p className="text-[12px] text-white/55 leading-relaxed line-clamp-2 mb-3">
+                        {col.description}
+                      </p>
+                    )}
+                    <div className="inline-flex items-center gap-1.5 text-[10px] font-bold tracking-[2px] uppercase text-primary/80 group-hover:text-primary transition-colors">
+                      View Gallery <ArrowRight size={12} />
+                    </div>
+                  </div>
+
+                  {/* Hover accent line */}
+                  <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-primary scale-x-0 origin-left group-hover:scale-x-100 transition-transform duration-500 z-[3]" />
+                </Link>
+              ))}
             </div>
           )}
         </div>
@@ -373,6 +313,17 @@ export default function PastConferencesPage() {
                 {lightbox.images[lightbox.index].caption}
               </p>
             )}
+          </div>
+
+          {/* Share button in lightbox */}
+          <div className="absolute bottom-4 right-4">
+            <ShareButton
+              title={lightbox.images[lightbox.index]?.title || 'Gallery Photo'}
+              text={`Check out "${lightbox.images[lightbox.index]?.title || 'Gallery Photo'}" from Cherubs Cove Ministry`}
+              url={lightbox.images[lightbox.index]?.image_url || undefined}
+              variant="icon"
+              className="[&_button]:!text-white/60 [&_button:hover]:!text-white"
+            />
           </div>
 
           {/* Next */}
