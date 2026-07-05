@@ -123,7 +123,7 @@ function RegistrationForm({
   event,
   onSuccess,
   completionMessage,
-  submitText = 'Complete Registration →',
+  submitText = 'Submit',
   successText = 'Registered!',
 }: {
   event: EventWithReg;
@@ -134,6 +134,7 @@ function RegistrationForm({
 }) {
   const [formValues, setFormValues] = useState<Record<string, string | string[]>>({});
   const [regStatus, setRegStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -145,6 +146,7 @@ function RegistrationForm({
     e.preventDefault();
     setRegStatus('idle');
     setMessage('');
+    setIsSubmitting(true);
 
     const normalizeLabel = (value: string) => value.trim().toLowerCase();
     const formatValue = (value: string | string[] | undefined): string | null => {
@@ -209,6 +211,7 @@ function RegistrationForm({
         setMessage(err.message ?? 'Registration failed. Please try again.');
       }
       setRegStatus('error');
+      setIsSubmitting(false);
       return;
     }
 
@@ -217,6 +220,7 @@ function RegistrationForm({
     setFormValues({});
     formRef.current?.reset();
     onSuccess?.();
+    setIsSubmitting(false);
   };
 
   const inputClass =
@@ -310,14 +314,25 @@ function RegistrationForm({
       {formFields.length > 0 && (
         <button
           type="submit"
+          disabled={isSubmitting}
           className={`w-full py-3.5 rounded-md font-body text-[11px] font-bold tracking-[3px] uppercase transition-all duration-250 ${
             regStatus === 'success'
               ? 'bg-emerald-600 text-white cursor-default'
+              : isSubmitting
+              ? 'bg-primary/80 text-white cursor-wait'
               : 'bg-primary text-white hover:bg-primary/90 hover:-translate-y-0.5 hover:shadow-[0_6px_22px_hsl(var(--orange)/0.3)] active:translate-y-0'
           }`}
         >
           {regStatus === 'success' ? (
             <span className="inline-flex items-center gap-2"><CheckCircle size={14} /> {successText}</span>
+          ) : isSubmitting ? (
+            <span className="inline-flex items-center gap-2">
+              <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              Submitting…
+            </span>
           ) : (
             submitText
           )}
@@ -511,7 +526,7 @@ export default function RegisterPage() {
                     <RegistrationForm
                       event={ev}
                       completionMessage={ev.completion_message || getSetting(s, 'registration_completion_default', 'Registration submitted successfully. Thank you!')}
-                      submitText={getSetting(s, 'register_form_submit_text', 'Complete Registration →')}
+                      submitText={getSetting(s, 'register_form_submit_text', 'Submit')}
                       successText={getSetting(s, 'register_form_success_text', 'Registered!')}
                     />
                   </>
