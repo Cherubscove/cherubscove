@@ -1036,13 +1036,10 @@ export default function AdminPage() {
               </button>
             </div>
             <Button onClick={handleAuth} disabled={isLoading} className="w-full bg-[#E8620A] hover:bg-[#cf5709] text-white font-semibold">
-              {isLoading ? 'Please wait…' : authMode === 'signIn' ? 'Sign In' : 'Sign Up'}
+              {isLoading ? 'Please wait…' : 'Sign In'}
             </Button>
-            <p className="text-center text-sm text-[#6B5E50]">
-              {authMode === 'signIn' ? "Don't have an account? " : 'Already have an account? '}
-              <button onClick={() => setAuthMode(authMode === 'signIn' ? 'signUp' : 'signIn')} className="text-[#E8620A] hover:underline">
-                {authMode === 'signIn' ? 'Sign Up' : 'Sign In'}
-              </button>
+            <p className="text-center text-xs text-[#6B5E50]">
+              Admin access is invitation-only. Contact the super admin to be added.
             </p>
           </CardContent>
         </Card>
