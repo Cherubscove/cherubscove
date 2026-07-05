@@ -144,6 +144,15 @@ const CONTENT_DEFAULTS: { key: string; label: string; value: string; group: stri
   // Footer
   { key: 'footer_brand_title', label: 'Footer — Brand Title', value: 'Cherubs Cove', group: 'Footer' },
   { key: 'footer_brand_subtitle', label: 'Footer — Brand Subtitle', value: 'The Making Place', group: 'Footer' },
+
+  // PWA / Install Prompt
+  { key: 'pwa_popup_enabled', label: 'PWA — Show Install Popup', value: 'true', group: 'PWA' },
+  { key: 'pwa_theme_color', label: 'PWA — Theme Color', value: '#0f172a', group: 'PWA' },
+  { key: 'pwa_short_name', label: 'PWA — Short App Name', value: 'Cherubs Cove', group: 'PWA' },
+  { key: 'pwa_popup_title', label: 'PWA — Popup Title', value: 'Install Cherubs Cove', group: 'PWA' },
+  { key: 'pwa_popup_description', label: 'PWA — Popup Description', value: 'Install our app for a faster, offline-ready experience.', group: 'PWA' },
+  { key: 'pwa_popup_mobile_message', label: 'PWA — Mobile Message', value: 'Get the best experience on your phone — install our app and access content even offline.', group: 'PWA' },
+  { key: 'pwa_popup_desktop_message', label: 'PWA — Desktop Message', value: 'Install our app on your computer for quick access and offline browsing.', group: 'PWA' },
 ];
 
 /* ── Component ──────────────────────────────────────────────────────────── */

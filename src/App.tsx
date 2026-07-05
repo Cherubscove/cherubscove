@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -14,8 +15,53 @@ import GalleryDetail from "./pages/GalleryDetail.tsx";
 import Admin from "./pages/Admin.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import { supabaseConfigError } from "@/lib/supabaseClient";
+import { useSiteSettings, getSetting } from "@/hooks/useSiteSettings";
+import PwaInstallPopup from "@/components/PwaInstallPopup";
 
 const queryClient = new QueryClient();
+
+/** Dynamically update the theme-color meta tag from admin settings */
+function useDynamicThemeColor() {
+  const settings = useSiteSettings();
+  useEffect(() => {
+    const color = getSetting(settings, "pwa_theme_color", "#0f172a");
+    let meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.setAttribute("name", "theme-color");
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute("content", color);
+
+    // Also update msapplication-TileColor
+    let msMeta = document.querySelector('meta[name="msapplication-TileColor"]');
+    if (msMeta) msMeta.setAttribute("content", color);
+  }, [settings]);
+}
+
+const AppContent = () => {
+  useDynamicThemeColor();
+
+  return (
+    <>
+      <Routes>
+        <Route path="/" element={<Index />} />
+        <Route path="/register/:eventId?" element={<Register />} />
+        <Route path="/about-jesse" element={<AboutJesse />} />
+        <Route path="/resources" element={<Resources />} />
+        <Route path="/downloads" element={<Resources />} />
+        <Route path="/connect" element={<Connect />} />
+        <Route path="/events-conferences" element={<EventsConferences />} />
+        <Route path="/past-conferences" element={<PastConferences />} />
+        <Route path="/past-conferences/:galleryId" element={<GalleryDetail />} />
+        <Route path="/quiveradminconsole007" element={<Admin />} />
+        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+      <PwaInstallPopup />
+    </>
+  );
+};
 
 const App = () => {
   if (supabaseConfigError) {
@@ -44,20 +90,7 @@ const App = () => {
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/register/:eventId?" element={<Register />} />
-            <Route path="/about-jesse" element={<AboutJesse />} />
-            <Route path="/resources" element={<Resources />} />
-            <Route path="/downloads" element={<Resources />} />
-            <Route path="/connect" element={<Connect />} />
-            <Route path="/events-conferences" element={<EventsConferences />} />
-            <Route path="/past-conferences" element={<PastConferences />} />
-            <Route path="/past-conferences/:galleryId" element={<GalleryDetail />} />
-            <Route path="/quiveradminconsole007" element={<Admin />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <AppContent />
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
