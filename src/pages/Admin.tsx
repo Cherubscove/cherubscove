@@ -1107,7 +1107,86 @@ export default function AdminPage() {
     loadAllData();
   };
 
-  /* ── Helper: parse form fields from event ──────────────────────────── */
+  /* ── Newsletter subscribers ──────────────────────────────────────────── */
+
+  const filteredSubscribers = useMemo(() => {
+    if (!subSearch.trim()) return subscribers;
+    const q = subSearch.toLowerCase();
+    return subscribers.filter(s =>
+      `${s.email || ''} ${s.phone || ''} ${s.source || ''}`.toLowerCase().includes(q)
+    );
+  }, [subscribers, subSearch]);
+
+  const deleteSubscriber = async (id: string) => {
+    if (!confirm('Remove this subscriber from the newsletter list?')) return;
+    const { error } = await supabase.from('newsletter').delete().eq('id', id);
+    if (error) { toast.error(error.message); return; }
+    toast.success('Subscriber removed.');
+    loadAllData();
+  };
+
+  const exportSubscribersCSV = () => {
+    if (!filteredSubscribers.length) { toast.error('No subscribers to export.'); return; }
+    const headers = ['Email', 'Phone', 'Source', 'Subscribed At'];
+    const rows = filteredSubscribers.map(s => [
+      s.email || '', s.phone || '', s.source || '',
+      new Date(s.created_at).toLocaleString(),
+    ]);
+    const esc = (v: string) => `"${String(v).replace(/"/g, '""')}"`;
+    const csv = [headers.map(esc).join(','), ...rows.map(r => r.map(esc).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `newsletter-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+    URL.revokeObjectURL(url);
+    toast.success('CSV exported.');
+  };
+
+  const openBulkCompose = () => {
+    const targets = filteredSubscribers.map(s => s.email).filter(Boolean);
+    if (!targets.length) { toast.error('No subscribers to email.'); return; }
+    setComposeMode('bulk');
+    setComposeTargets(targets);
+    setComposeSubject('');
+    setComposeBody('');
+    setComposeOpen(true);
+  };
+
+  const openIndividualCompose = (email: string) => {
+    setComposeMode('individual');
+    setComposeTargets([email]);
+    setComposeSubject('');
+    setComposeBody('');
+    setComposeOpen(true);
+  };
+
+  const sendComposedEmail = async () => {
+    if (!composeSubject.trim()) { toast.error('Subject is required.'); return; }
+    if (!composeBody.trim()) { toast.error('Message body is required.'); return; }
+    if (!composeTargets.length) { toast.error('No recipients.'); return; }
+    setComposeSending(true);
+    try {
+      const html = composeBody.includes('<') && composeBody.includes('>')
+        ? composeBody
+        : `<p>${composeBody.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>')}</p>`;
+      const { data, error } = await supabase.functions.invoke('send-newsletter-email', {
+        body: { subject: composeSubject.trim(), html, recipients: composeTargets },
+      });
+      if (error) throw error;
+      if (data?.success === false) {
+        toast.error(`Sent ${data.sent}/${data.total}. Errors: ${(data.errors || []).join('; ').slice(0, 200)}`);
+      } else {
+        toast.success(`Email sent to ${data?.sent ?? composeTargets.length} recipient(s).`);
+        setComposeOpen(false);
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send email.');
+    } finally {
+      setComposeSending(false);
+    }
+  };
+
+
 
   const getFormFields = (ev: EventRecord): FormFieldConfig[] => {
     try { return JSON.parse(ev.form_fields || '[]'); } catch { return []; }
