@@ -393,6 +393,23 @@ function RegistrationForm({
         </p>
       )}
 
+      {formFields.length > 0 && showNewsletterOptIn && (
+        <label className="flex items-start gap-3 p-3.5 rounded-lg border border-primary/25 bg-primary/5 cursor-pointer hover:border-primary/40 transition-colors">
+          <input
+            type="checkbox"
+            checked={optIntoNewsletter}
+            onChange={e => setOptIntoNewsletter(e.target.checked)}
+            className="mt-0.5 w-4 h-4 accent-primary cursor-pointer"
+          />
+          <span className="text-xs text-foreground leading-relaxed">
+            <span className="font-semibold">Keep me updated.</span>{' '}
+            <span className="text-muted-foreground">Send me news, upcoming events, and resources from Cherubs Cove Ministry.</span>
+          </span>
+        </label>
+      )}
+
+
+
       {formFields.length > 0 && (
         <button
           type={regStatus === 'success' ? 'button' : 'submit'}
