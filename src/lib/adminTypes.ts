@@ -10,24 +10,30 @@ export interface FormFieldConfig {
 export interface EventRecord {
   id?: string;
   title: string;
-  /** Optional theme / topic (e.g. "Envoys of Light", "The Passion of Christ"). Requires `theme` text column. */
   theme?: string;
   status: string;
-  /** Start date (YYYY-MM-DD). Stored in existing `date` column. */
   date: string;
-  /** End date (YYYY-MM-DD). Optional — same day if empty. Requires `end_date` column. */
   end_date?: string;
-  /** Start time. Stored in existing `time` column. */
   time: string;
-  /** End time. Optional. Requires `end_time` column. */
   end_time?: string;
   image_url: string;
   description: string;
   location: string;
   registration_enabled?: boolean;
   form_fields?: string;
-  /** Completion message shown after successful registration (supports HTML). */
   completion_message?: string;
+  /** Show newsletter opt-in checkbox on this event's registration form. Default true. */
+  newsletter_opt_in_enabled?: boolean;
+}
+
+export interface NewsletterSubscriber {
+  id: string;
+  email: string;
+  phone?: string | null;
+  source?: string | null;
+  event_id?: string | null;
+  created_at: string;
+  updated_at?: string | null;
 }
 
 export interface EventDateTimeValidationResult {
