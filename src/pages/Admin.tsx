@@ -1247,12 +1247,13 @@ export default function AdminPage() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-7 gap-4 mb-8">
           {[
             { icon: Calendar, label: 'Events', count: events.length, color: '#E8620A' },
             { icon: Download, label: 'Downloads', count: downloads.length, color: '#B07D35' },
             { icon: Image, label: 'Gallery', count: gallery.length, color: '#6B8F71' },
             { icon: ClipboardList, label: 'Registrations', count: registrations.length, color: '#5B8DEF' },
+            { icon: Mail, label: 'Subscribers', count: subscribers.length, color: '#22C55E' },
             { icon: FileText, label: 'Content', count: CONTENT_DEFAULTS.length, color: '#D97706' },
             { icon: Settings, label: 'Settings', count: settingsMeta.filter(m => !CONTENT_DEFAULTS.some(cd => cd.key === m.key)).length, color: '#7B68AE' },
           ].map(s => (
@@ -1276,10 +1277,12 @@ export default function AdminPage() {
             <TabsTrigger value="downloads" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><Download size={14} className="mr-1.5" />Downloads</TabsTrigger>
             <TabsTrigger value="gallery" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><Image size={14} className="mr-1.5" />Gallery</TabsTrigger>
             <TabsTrigger value="registrations" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><ClipboardList size={14} className="mr-1.5" />Registrations</TabsTrigger>
+            <TabsTrigger value="newsletter" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><Mail size={14} className="mr-1.5" />Newsletter</TabsTrigger>
             <TabsTrigger value="content" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><FileText size={14} className="mr-1.5" />Content</TabsTrigger>
             <TabsTrigger value="settings" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><Settings size={14} className="mr-1.5" />Settings</TabsTrigger>
             <TabsTrigger value="admins" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><Users size={14} className="mr-1.5" />Admins</TabsTrigger>
           </TabsList>
+
 
           {/* ── Events Tab ───────────────────────────────────────────────── */}
           <TabsContent value="events" className="space-y-4">
