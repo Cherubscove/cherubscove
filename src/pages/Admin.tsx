@@ -2145,7 +2145,87 @@ export default function AdminPage() {
             )}
           </TabsContent>
 
+          {/* ── Newsletter Tab ───────────────────────────────────────────── */}
+          <TabsContent value="newsletter" className="space-y-4">
+            <div className="flex justify-between items-center flex-wrap gap-3">
+              <div>
+                <h2 className="text-xl font-semibold">Newsletter Subscribers</h2>
+                <p className="text-sm text-[#6B5E50]">Email captured from the Connect page and every event form with opt-in enabled.</p>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <Button onClick={loadAllData} variant="outline" className="border-[#2A2520] text-[#B5A898] hover:bg-[#1A1814]" title="Refresh data"><RefreshCw size={14} /></Button>
+                <Input placeholder="Search email, phone, source…" value={subSearch} onChange={e => setSubSearch(e.target.value)} className={`${inputCls} w-64`} />
+                <Button onClick={exportSubscribersCSV} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><FileDown size={14} className="mr-1" /> CSV</Button>
+                <Button onClick={openBulkCompose} className="bg-emerald-700 hover:bg-emerald-800 text-white"><Send size={14} className="mr-1" /> Send Bulk Email ({filteredSubscribers.length})</Button>
+              </div>
+            </div>
+
+            {filteredSubscribers.length === 0 && (
+              <p className="text-[#6B5E50] text-center py-8">No subscribers{subSearch ? ' match your search.' : ' yet.'}</p>
+            )}
+
+            <div className="space-y-2">
+              {filteredSubscribers.map(s => (
+                <Card key={s.id} className="bg-[#1A1814] border-[#2A2520]">
+                  <CardContent className="p-4 flex items-center justify-between gap-3 flex-wrap">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-white font-medium truncate">{s.email}</span>
+                        {s.source && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#E8620A]/20 text-[#E8620A] font-bold tracking-wider uppercase">{s.source}</span>
+                        )}
+                      </div>
+                      <div className="text-xs text-[#6B5E50] mt-1 flex flex-wrap gap-3">
+                        {s.phone && <span>📞 {s.phone}</span>}
+                        <span>{new Date(s.created_at).toLocaleString()}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button size="sm" variant="ghost" onClick={() => openIndividualCompose(s.email)} className="text-emerald-400 hover:text-emerald-300" title="Send email"><Send size={14} /></Button>
+                      <Button size="sm" variant="ghost" onClick={() => deleteSubscriber(s.id)} className="text-red-400 hover:text-red-300" title="Remove"><Trash2 size={14} /></Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* Compose dialog */}
+            {composeOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => !composeSending && setComposeOpen(false)}>
+                <Card className="w-full max-w-2xl bg-[#1A1814] border-[#E8620A]/40" onClick={e => e.stopPropagation()}>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                    <div>
+                      <CardTitle className="text-white text-lg">
+                        {composeMode === 'bulk' ? `Bulk Email — ${composeTargets.length} recipient(s)` : `Email — ${composeTargets[0]}`}
+                      </CardTitle>
+                      <p className="text-xs text-[#6B5E50] mt-1">Sent from <code className="text-[#E8620A]">noreply@cherubscove.net</code>{composeMode === 'bulk' ? ' via BCC — recipients won\'t see each other.' : ''}</p>
+                    </div>
+                    <Button size="sm" variant="ghost" onClick={() => !composeSending && setComposeOpen(false)} className="text-[#B5A898]"><X size={16} /></Button>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <Field label="Subject">
+                      <Input placeholder="e.g. Quiver's 2026 — Registration is now open" value={composeSubject} onChange={e => setComposeSubject(e.target.value)} className={inputCls} disabled={composeSending} />
+                    </Field>
+                    <Field label="Message" hint="Plain text is fine — line breaks are preserved. You may also paste HTML.">
+                      <Textarea placeholder="Write your message here…" value={composeBody} onChange={e => setComposeBody(e.target.value)} className={inputCls} rows={10} disabled={composeSending} />
+                    </Field>
+                    {composeMode === 'bulk' && composeTargets.length > 20 && (
+                      <p className="text-xs text-[#6B5E50]">Recipients will be split into batches of 45 (Resend BCC limit).</p>
+                    )}
+                    <div className="flex justify-end gap-2 pt-2">
+                      <Button variant="outline" onClick={() => setComposeOpen(false)} disabled={composeSending} className="border-[#2A2520] text-[#B5A898]">Cancel</Button>
+                      <Button onClick={sendComposedEmail} disabled={composeSending} className="bg-[#E8620A] hover:bg-[#cf5709] text-white">
+                        {composeSending ? 'Sending…' : <><Send size={14} className="mr-1" /> Send</>}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+          </TabsContent>
+
           {/* ── Content Tab ──────────────────────────────────────────────── */}
+
           <TabsContent value="content" className="space-y-4">
             <div className="flex flex-wrap justify-between items-center gap-3">
               <div>
