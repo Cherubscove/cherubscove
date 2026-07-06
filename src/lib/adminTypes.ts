@@ -78,6 +78,7 @@ export const emptyEvent: EventRecord = {
   title: '', theme: '', status: 'upcoming', date: '', end_date: '', time: '', end_time: '',
   image_url: '', description: '', location: '',
   registration_enabled: false, form_fields: '[]', completion_message: '',
+  newsletter_opt_in_enabled: true,
 };
 
 function parseEventTime(value?: string): number | null {
