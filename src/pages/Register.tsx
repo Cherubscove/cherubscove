@@ -134,6 +134,8 @@ function RegistrationForm({
   successText?: string;
 }) {
   const [formValues, setFormValues] = useState<Record<string, string | string[]>>({});
+  const showNewsletterOptIn = event.newsletter_opt_in_enabled !== false;
+  const [optIntoNewsletter, setOptIntoNewsletter] = useState<boolean>(showNewsletterOptIn);
   const [regStatus, setRegStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
