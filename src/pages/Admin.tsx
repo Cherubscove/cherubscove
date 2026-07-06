@@ -11,14 +11,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import {
-  Calendar, Download, Image, Settings, Users, LogOut, Plus, Trash2, Edit2, Save, X, Eye, EyeOff, FileDown, ArrowUpDown, ClipboardList, FileText, ToggleLeft, ToggleRight, CheckSquare, Square, FolderInput, Star, RefreshCw, Mail, Send,
+  Calendar, Download, Image, Settings, Users, LogOut, Plus, Trash2, Edit2, Save, X, Eye, EyeOff, FileDown, ArrowUpDown, ClipboardList, FileText, ToggleLeft, ToggleRight, CheckSquare, Square, FolderInput, Star, RefreshCw, Mail, Send, History,
 } from 'lucide-react';
 import FormFieldBuilder from '@/components/admin/FormFieldBuilder';
 import HeroSlidesManager from '@/components/admin/HeroSlidesManager';
 import { SEED_EVENTS, SEED_DOWNLOADS, SEED_GALLERIES } from '@/lib/seedData';
 import type {
   EventRecord, DownloadRecord, GalleryRecord, RegistrationRecord, FormFieldConfig, GalleryCollection,
-  NewsletterSubscriber,
+  NewsletterSubscriber, NewsletterSendLog,
   emptyEvent as _ee, emptyDownload as _ed, emptyGallery as _eg,
 } from '@/lib/adminTypes';
 import { emptyEvent, emptyDownload, emptyGallery, formatEventDateRange, validateEventDateTime, buildEventRegistrationLink, generateNextImageTitle, generateGalleryAbbreviation } from '@/lib/adminTypes';
@@ -266,6 +266,10 @@ export default function AdminPage() {
   const [composeSubject, setComposeSubject] = useState('');
   const [composeBody, setComposeBody] = useState('');
   const [composeSending, setComposeSending] = useState(false);
+  const [sendLogs, setSendLogs] = useState<NewsletterSendLog[]>([]);
+  const [sendLogOpen, setSendLogOpen] = useState(false);
+  const [subscriberEdit, setSubscriberEdit] = useState<NewsletterSubscriber | null>(null);
+  const [testEmailSending, setTestEmailSending] = useState(false);
 
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingGalleryImage, setUploadingGalleryImage] = useState(false);
@@ -334,13 +338,14 @@ export default function AdminPage() {
   const loadAllData = async () => {
     setIsLoading(true);
     try {
-      const [ev, dl, gal, st, reg, nl] = await Promise.all([
+      const [ev, dl, gal, st, reg, nl, sl] = await Promise.all([
         supabase.from('events').select('*').order('date', { ascending: false }),
         supabase.from('downloads').select('*').order('title'),
         supabase.from('gallery').select('*').order('created_at', { ascending: false }),
         supabase.from('site_settings').select('*'),
         supabase.from('registrations').select('*').order('created_at', { ascending: false }),
         supabase.from('newsletter').select('*').order('created_at', { ascending: false }),
+        supabase.from('newsletter_send_log').select('*').order('sent_at', { ascending: false }),
       ]);
 
 
@@ -365,6 +370,7 @@ export default function AdminPage() {
       setGallery(gal.data ?? []);
       setRegistrations(reg.data ?? []);
       setSubscribers((nl.data as NewsletterSubscriber[]) ?? []);
+      setSendLogs((sl.data as NewsletterSendLog[]) ?? []);
 
 
       const settings = st.data ?? [];
@@ -1029,42 +1035,102 @@ export default function AdminPage() {
 
   const seedArbitraryTestEvent = async () => {
     if (!supabase) { toast.error('Supabase not configured.'); return; }
-    const arbitraryFields = [
-      { id: 'f_stage_name', label: 'Stage / Performer Name', type: 'text', required: true, placeholder: 'e.g. DJ Grace' },
-      { id: 'f_age', label: 'Age', type: 'text', required: true, placeholder: 'Your age' },
-      { id: 'f_email', label: 'Email', type: 'email', required: true, placeholder: 'you@example.com' },
-      { id: 'f_whatsapp', label: 'WhatsApp Number', type: 'tel', required: true, placeholder: '+234...' },
-      { id: 'f_talent', label: 'Talent Category', type: 'select', required: true, placeholder: '', options: ['Singing', 'Spoken Word', 'Dance', 'Instrumentals', 'Drama', 'Comedy'] },
-      { id: 'f_group', label: 'Are you performing as?', type: 'radio', required: true, placeholder: '', options: ['Solo', 'Duo', 'Group (3-6)', 'Large group (7+)'] },
-      { id: 'f_equipment', label: 'Equipment you need on stage', type: 'checkbox', required: false, placeholder: '', options: ['Microphone', 'Keyboard', 'Drum kit', 'Projector', 'Backing track (bring USB)', 'None'] },
-      { id: 'f_duration', label: 'How long is your performance? (minutes)', type: 'text', required: true, placeholder: 'e.g. 5' },
-      { id: 'f_bio', label: 'Short bio for the MC to read', type: 'textarea', required: false, placeholder: '2-3 sentences about you' },
-      { id: 'f_song_title', label: 'Title of your piece / song', type: 'text', required: true, placeholder: '' },
-      { id: 'f_first_time', label: 'Is this your first time performing publicly?', type: 'radio', required: true, placeholder: '', options: ['Yes', 'No'] },
-      { id: 'f_prayer', label: 'Prayer request (optional)', type: 'textarea', required: false, placeholder: 'Anything you would like us to pray about' },
-    ];
-    const payload: any = {
-      title: 'Youth Talent Showcase 2026 (Test)',
-      theme: 'Unleash Your Gift',
-      status: 'upcoming',
-      date: '2026-08-15',
-      end_date: '2026-08-15',
-      time: '3:00 PM',
-      end_time: '7:00 PM',
-      location: 'Cherubs Cove Auditorium',
-      description: 'Test event with a completely custom registration form to verify arbitrary field types (text, email, tel, dropdown, radio, checkboxes, paragraph).',
-      image_url: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=1200',
-      registration_enabled: true,
-      completion_message: '<p>Thanks for signing up for the Showcase! We will email your performance slot within 48 hours.</p>',
-      form_fields: JSON.stringify(arbitraryFields),
-    };
     try {
-      const { error } = await supabase.from('events').insert(payload);
-      if (error) throw error;
-      toast.success('Arbitrary test event created. Open the Events list to see it.');
+      // First, delete any old test events (title contains "(Test)")
+      const { data: oldTests } = await supabase
+        .from('events')
+        .select('id')
+        .ilike('title', '%(Test)%');
+      if (oldTests && oldTests.length > 0) {
+        await supabase.from('events').delete().in('id', oldTests.map(e => e.id));
+        toast(`${oldTests.length} old test event(s) deleted.`);
+      }
+
+      // Create new proper test events with diverse arbitrary form fields
+      const testEvents = [
+        {
+          title: 'Music & Arts Workshop 2026',
+          theme: 'Creative Worship',
+          status: 'upcoming',
+          date: '2026-09-12',
+          end_date: '2026-09-13',
+          time: '10:00 AM',
+          end_time: '5:00 PM',
+          location: 'Cherubs Cove Auditorium, Lagos',
+          description: 'A two-day intensive workshop exploring creative arts in worship — music, dance, drama, and spoken word. Open to all youths passionate about using their gifts for God\'s glory.',
+          image_url: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=1200',
+          registration_enabled: true,
+          completion_message: '<p>Thanks for registering for the Music & Arts Workshop! We\'ll send you the full schedule and materials list via email within 48 hours.</p>',
+          form_fields: JSON.stringify([
+            { id: 'f_full_name', label: 'Full Name', type: 'text', required: true, placeholder: 'Your full name' },
+            { id: 'f_email', label: 'Email Address', type: 'email', required: true, placeholder: 'you@example.com' },
+            { id: 'f_phone', label: 'Phone Number', type: 'tel', required: true, placeholder: '+234 800 000 0000' },
+            { id: 'f_age_group', label: 'Age Group', type: 'select', required: true, placeholder: '', options: ['13-17', '18-25', '26-35', '36+'] },
+            { id: 'f_workshop', label: 'Which workshop interests you most?', type: 'radio', required: true, placeholder: '', options: ['Music (Voice/Instrument)', 'Dance', 'Drama', 'Spoken Word', 'Technical (Sound/Lights)'] },
+            { id: 'f_experience', label: 'Years of experience in this area', type: 'text', required: false, placeholder: 'e.g. 2 years, beginner' },
+            { id: 'f_tshirt', label: 'T-Shirt Size', type: 'select', required: true, placeholder: '', options: ['S', 'M', 'L', 'XL', '2XL'] },
+            { id: 'f_allergies', label: 'Medical / Allergy Info', type: 'textarea', required: false, placeholder: 'Any allergies or medical conditions we should know about' },
+            { id: 'f_emergency_contact', label: 'Emergency Contact Name & Phone', type: 'text', required: true, placeholder: 'Name — Phone number' },
+          ]),
+        },
+        {
+          title: 'Young Leaders Summit 2026',
+          theme: 'Raising Influencers',
+          status: 'upcoming',
+          date: '2026-10-03',
+          end_date: '',
+          time: '9:00 AM',
+          end_time: '4:00 PM',
+          location: 'Civic Centre, Victoria Island, Lagos',
+          description: 'A one-day leadership summit for young professionals and students. Topics include purpose discovery, public speaking, financial intelligence, and kingdom impact in the marketplace.',
+          image_url: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1200',
+          registration_enabled: true,
+          completion_message: '<p>You\'re registered for the Young Leaders Summit 2026! Check your email for event details. Follow us on Instagram for live updates.</p>',
+          form_fields: JSON.stringify([
+            { id: 'f_first_name', label: 'First Name', type: 'text', required: true, placeholder: 'First name' },
+            { id: 'f_last_name', label: 'Last Name', type: 'text', required: true, placeholder: 'Last name' },
+            { id: 'f_email', label: 'Email', type: 'email', required: true, placeholder: 'you@example.com' },
+            { id: 'f_phone', label: 'WhatsApp Number', type: 'tel', required: true, placeholder: '+234 800 000 0000' },
+            { id: 'f_occupation', label: 'Occupation / Field of Study', type: 'text', required: true, placeholder: 'e.g. Student, Engineer, Entrepreneur' },
+            { id: 'f_hear_about', label: 'How did you hear about this event?', type: 'select', required: true, placeholder: '', options: ['Church Announcement', 'Social Media', 'Friend/Family', 'School', 'Other'] },
+            { id: 'f_topics', label: 'Which topics interest you? (select all that apply)', type: 'checkbox', required: false, placeholder: '', options: ['Purpose & Vision', 'Public Speaking', 'Financial Intelligence', 'Marketplace Ministry', 'Mental Health & Faith'] },
+            { id: 'f_prayer_req', label: 'Prayer Request', type: 'textarea', required: false, placeholder: 'How can we pray for you?' },
+          ]),
+        },
+        {
+          title: 'Community Outreach — Medical Mission',
+          theme: 'Love in Action',
+          status: 'upcoming',
+          date: '2026-11-21',
+          end_date: '2026-11-22',
+          time: '8:00 AM',
+          end_time: '3:00 PM',
+          location: 'Ikorodu Community Centre, Lagos',
+          description: 'A two-day medical outreach providing free health screenings, basic medications, and health education to under-served communities. Volunteers needed — medical and non-medical.',
+          image_url: 'https://images.unsplash.com/photo-1584515933487-779824d29309?w=1200',
+          registration_enabled: true,
+          completion_message: '<p>Thank you for signing up for the Medical Mission! We\'ll contact you with your assignment and meeting point. God bless you!</p>',
+          form_fields: JSON.stringify([
+            { id: 'f_name', label: 'Full Name', type: 'text', required: true, placeholder: 'Your full name' },
+            { id: 'f_email', label: 'Email Address', type: 'email', required: true, placeholder: 'you@example.com' },
+            { id: 'f_phone', label: 'Phone Number', type: 'tel', required: true, placeholder: '+234 800 000 0000' },
+            { id: 'f_role', label: 'Role', type: 'radio', required: true, placeholder: '', options: ['Medical Professional (Doctor/Nurse/Lab Tech)', 'Non-Medical Volunteer', 'Prayer Team', 'Logistics / Support'] },
+            { id: 'f_availability', label: 'Which days can you serve?', type: 'checkbox', required: true, placeholder: '', options: ['Saturday 21st (Full Day)', 'Sunday 22nd (Full Day)', 'Both Days'] },
+            { id: 'f_transport', label: 'Do you need transport to the venue?', type: 'radio', required: true, placeholder: '', options: ['Yes', 'No'] },
+            { id: 'f_tshirt_size', label: 'T-Shirt Size', type: 'select', required: false, placeholder: '', options: ['S', 'M', 'L', 'XL', '2XL'] },
+          ]),
+        },
+      ];
+
+      for (const payload of testEvents) {
+        const { error } = await supabase.from('events').insert(payload);
+        if (error) throw error;
+      }
+
+      toast.success(`Created ${testEvents.length} new test events with diverse arbitrary form fields.`);
       await loadAllData();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to seed test event.');
+      toast.error(err.message || 'Failed to seed test events.');
     }
   };
 
@@ -1143,8 +1209,11 @@ export default function AdminPage() {
   };
 
   const openBulkCompose = () => {
-    const targets = filteredSubscribers.map(s => s.email).filter(Boolean);
-    if (!targets.length) { toast.error('No subscribers to email.'); return; }
+    const targets = filteredSubscribers
+      .filter(s => !s.unsubscribed)
+      .map(s => s.email)
+      .filter(Boolean);
+    if (!targets.length) { toast.error('No active (non-unsubscribed) subscribers to email.'); return; }
     setComposeMode('bulk');
     setComposeTargets(targets);
     setComposeSubject('');
@@ -1170,7 +1239,7 @@ export default function AdminPage() {
         ? composeBody
         : `<p>${composeBody.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>')}</p>`;
       const { data, error } = await supabase.functions.invoke('send-newsletter-email', {
-        body: { subject: composeSubject.trim(), html, recipients: composeTargets },
+        body: { subject: composeSubject.trim(), html, recipients: composeTargets, campaign_id: `bulk-${Date.now()}` },
       });
       if (error) throw error;
       if (data?.success === false) {
@@ -1179,6 +1248,7 @@ export default function AdminPage() {
         toast.success(`Email sent to ${data?.sent ?? composeTargets.length} recipient(s).`);
         setComposeOpen(false);
       }
+      loadAllData(); // refresh send logs
     } catch (err: any) {
       toast.error(err.message || 'Failed to send email.');
     } finally {
@@ -1186,7 +1256,69 @@ export default function AdminPage() {
     }
   };
 
+  /* ── Send test email (to admin only) ─────────────────────────────┘ */
 
+  const sendTestEmail = async () => {
+    if (!composeSubject.trim()) { toast.error('Subject is required.'); return; }
+    if (!composeBody.trim()) { toast.error('Message body is required.'); return; }
+    const adminEmail = session?.user?.email;
+    if (!adminEmail) { toast.error('Cannot determine your email.'); return; }
+    setTestEmailSending(true);
+    try {
+      const html = composeBody.includes('<') && composeBody.includes('>')
+        ? composeBody
+        : `<p>${composeBody.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>')}</p>`;
+      const { data, error } = await supabase.functions.invoke('send-newsletter-email', {
+        body: { subject: composeSubject.trim(), html, recipients: [adminEmail], campaign_id: `test-${Date.now()}` },
+      });
+      if (error) throw error;
+      if (data?.success === false) {
+        toast.error(`Test send failed: ${(data.errors || []).join('; ').slice(0, 200)}`);
+      } else {
+        toast.success(`Test email sent to ${adminEmail}.`);
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send test email.');
+    } finally {
+      setTestEmailSending(false);
+      loadAllData(); // refresh send logs
+    }
+  };
+
+  /* ── Toggle subscriber unsubscribed status ─────────────────────── */
+
+  const toggleUnsubscribe = async (sub: NewsletterSubscriber) => {
+    const newVal = !sub.unsubscribed;
+    const { error } = await supabase
+      .from('newsletter')
+      .update({
+        unsubscribed: newVal,
+        unsubscribed_at: newVal ? new Date().toISOString() : null,
+      })
+      .eq('id', sub.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success(newVal ? 'Subscriber unsubscribed.' : 'Subscriber re-activated.');
+    loadAllData();
+  };
+
+  /* ── Update subscriber email/phone ─────────────────────────────── */
+
+  const updateSubscriber = async () => {
+    if (!subscriberEdit) return;
+    if (!subscriberEdit.email.trim()) { toast.error('Email is required.'); return; }
+    const { error } = await supabase
+      .from('newsletter')
+      .update({
+        email: subscriberEdit.email.trim().toLowerCase(),
+        phone: subscriberEdit.phone || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', subscriberEdit.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success('Subscriber updated.');
+    setSubscriberEdit(null);
+    loadAllData();
+  };
 
   const getFormFields = (ev: EventRecord): FormFieldConfig[] => {
     try { return JSON.parse(ev.form_fields || '[]'); } catch { return []; }
@@ -2154,11 +2286,71 @@ export default function AdminPage() {
               </div>
               <div className="flex gap-2 flex-wrap">
                 <Button onClick={loadAllData} variant="outline" className="border-[#2A2520] text-[#B5A898] hover:bg-[#1A1814]" title="Refresh data"><RefreshCw size={14} /></Button>
+                <Button
+                  onClick={() => setSendLogOpen(!sendLogOpen)}
+                  variant={sendLogOpen ? 'default' : 'outline'}
+                  className={sendLogOpen ? 'bg-purple-700 hover:bg-purple-800 text-white' : 'border-[#2A2520] text-[#B5A898]'}
+                >
+                  <History size={14} className="mr-1" /> Audit Log ({sendLogs.length})
+                </Button>
                 <Input placeholder="Search email, phone, source…" value={subSearch} onChange={e => setSubSearch(e.target.value)} className={`${inputCls} w-64`} />
                 <Button onClick={exportSubscribersCSV} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><FileDown size={14} className="mr-1" /> CSV</Button>
-                <Button onClick={openBulkCompose} className="bg-emerald-700 hover:bg-emerald-800 text-white"><Send size={14} className="mr-1" /> Send Bulk Email ({filteredSubscribers.length})</Button>
+                <Button onClick={openBulkCompose} className="bg-emerald-700 hover:bg-emerald-800 text-white"><Send size={14} className="mr-1" /> Send Bulk Email ({filteredSubscribers.filter(s => !s.unsubscribed).length} active / {filteredSubscribers.length} total)</Button>
               </div>
             </div>
+
+            {/* ── Audit Log Panel ────────────────────────────────────────── */}
+            {sendLogOpen && (
+              <Card className="bg-[#1A1814] border-purple-800/40">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-white text-base flex items-center gap-2">
+                    <History size={16} /> Newsletter Send Audit Log
+                  </CardTitle>
+                  <p className="text-xs text-[#6B5E50]">Per-email delivery status for all newsletter sends (bulk and individual). The edge function records each attempt in the database.</p>
+                </CardHeader>
+                <CardContent>
+                  {sendLogs.length === 0 ? (
+                    <p className="text-[#6B5E50] text-sm py-4 text-center">No sends recorded yet. Send a newsletter to see logs here.</p>
+                  ) : (
+                    <div className="overflow-x-auto max-h-80 overflow-y-auto">
+                      <table className="w-full text-xs">
+                        <thead className="text-[9px] font-bold tracking-[1.5px] uppercase text-[#6B5E50] border-b border-[#2A2520]">
+                          <tr>
+                            <th className="text-left py-2 pr-2">Sent At</th>
+                            <th className="text-left py-2 pr-2">Recipient</th>
+                            <th className="text-left py-2 pr-2">Subject</th>
+                            <th className="text-left py-2 pr-2">Status</th>
+                            <th className="text-left py-2 pr-2">Campaign</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sendLogs.map(log => (
+                            <tr key={log.id} className="border-b border-[#2A2520]/50 hover:bg-[#0F0D0A]">
+                              <td className="py-1.5 pr-2 text-[#B5A898] whitespace-nowrap">{new Date(log.sent_at).toLocaleString()}</td>
+                              <td className="py-1.5 pr-2 text-white">{log.recipient_email}</td>
+                              <td className="py-1.5 pr-2 text-[#B5A898] max-w-[200px] truncate" title={log.subject}>{log.subject}</td>
+                              <td className="py-1.5 pr-2">
+                                <span className={`inline-block px-1.5 py-0.5 rounded-full text-[9px] font-bold tracking-wider ${
+                                  log.status === 'sent' ? 'bg-emerald-900/40 text-emerald-400' :
+                                  log.status === 'failed' ? 'bg-red-900/40 text-red-400' :
+                                  'bg-yellow-900/40 text-yellow-400'
+                                }`}>
+                                  {log.status}
+                                </span>
+                                {log.error_message && (
+                                  <span className="block text-red-400 mt-0.5 max-w-[200px] truncate" title={log.error_message}>{log.error_message}</span>
+                                )}
+                              </td>
+                              <td className="py-1.5 pr-2 text-[#6B5E50] font-mono text-[8px]">{log.campaign_id ? log.campaign_id.slice(0, 16) : '—'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {filteredSubscribers.length === 0 && (
               <p className="text-[#6B5E50] text-center py-8">No subscribers{subSearch ? ' match your search.' : ' yet.'}</p>
@@ -2166,7 +2358,7 @@ export default function AdminPage() {
 
             <div className="space-y-2">
               {filteredSubscribers.map(s => (
-                <Card key={s.id} className="bg-[#1A1814] border-[#2A2520]">
+                <Card key={s.id} className={`bg-[#1A1814] border-[#2A2520] ${s.unsubscribed ? 'opacity-60' : ''}`}>
                   <CardContent className="p-4 flex items-center justify-between gap-3 flex-wrap">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -2174,13 +2366,21 @@ export default function AdminPage() {
                         {s.source && (
                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#E8620A]/20 text-[#E8620A] font-bold tracking-wider uppercase">{s.source}</span>
                         )}
+                        {s.unsubscribed && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-900/40 text-rose-300 font-bold tracking-wider uppercase">Unsubscribed</span>
+                        )}
                       </div>
                       <div className="text-xs text-[#6B5E50] mt-1 flex flex-wrap gap-3">
                         {s.phone && <span>📞 {s.phone}</span>}
                         <span>{new Date(s.created_at).toLocaleString()}</span>
+                        {s.unsubscribed_at && <span>Unsubscribed: {new Date(s.unsubscribed_at).toLocaleString()}</span>}
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
+                      <Button size="sm" variant="ghost" onClick={() => toggleUnsubscribe(s)} className={s.unsubscribed ? 'text-emerald-400 hover:text-emerald-300' : 'text-rose-400 hover:text-rose-300'} title={s.unsubscribed ? 'Re-activate subscriber' : 'Unsubscribe'}>
+                        {s.unsubscribed ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setSubscriberEdit({ ...s })} className="text-[#B5A898] hover:text-white" title="Edit email/phone"><Edit2 size={14} /></Button>
                       <Button size="sm" variant="ghost" onClick={() => openIndividualCompose(s.email)} className="text-emerald-400 hover:text-emerald-300" title="Send email"><Send size={14} /></Button>
                       <Button size="sm" variant="ghost" onClick={() => deleteSubscriber(s.id)} className="text-red-400 hover:text-red-300" title="Remove"><Trash2 size={14} /></Button>
                     </div>
@@ -2188,6 +2388,30 @@ export default function AdminPage() {
                 </Card>
               ))}
             </div>
+
+            {/* ── Subscriber Edit Dialog ─────────────────────────────────── */}
+            {subscriberEdit && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setSubscriberEdit(null)}>
+                <Card className="w-full max-w-md bg-[#1A1814] border-[#E8620A]/40" onClick={e => e.stopPropagation()}>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                    <CardTitle className="text-white text-lg">Edit Subscriber</CardTitle>
+                    <Button size="sm" variant="ghost" onClick={() => setSubscriberEdit(null)} className="text-[#B5A898]"><X size={16} /></Button>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <Field label="Email Address">
+                      <Input value={subscriberEdit.email} onChange={e => setSubscriberEdit({ ...subscriberEdit, email: e.target.value })} className={inputCls} />
+                    </Field>
+                    <Field label="Phone Number" hint="Leave empty if not available.">
+                      <Input value={subscriberEdit.phone || ''} onChange={e => setSubscriberEdit({ ...subscriberEdit, phone: e.target.value })} className={inputCls} placeholder="+234 800 000 0000" />
+                    </Field>
+                    <div className="flex justify-end gap-2 pt-2">
+                      <Button variant="outline" onClick={() => setSubscriberEdit(null)} className="border-[#2A2520] text-[#B5A898]">Cancel</Button>
+                      <Button onClick={updateSubscriber} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><Save size={14} className="mr-1" /> Save</Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
 
             {/* Compose dialog */}
             {composeOpen && (
@@ -2212,11 +2436,21 @@ export default function AdminPage() {
                     {composeMode === 'bulk' && composeTargets.length > 20 && (
                       <p className="text-xs text-[#6B5E50]">Recipients will be split into batches of 45 (Resend BCC limit).</p>
                     )}
-                    <div className="flex justify-end gap-2 pt-2">
-                      <Button variant="outline" onClick={() => setComposeOpen(false)} disabled={composeSending} className="border-[#2A2520] text-[#B5A898]">Cancel</Button>
-                      <Button onClick={sendComposedEmail} disabled={composeSending} className="bg-[#E8620A] hover:bg-[#cf5709] text-white">
-                        {composeSending ? 'Sending…' : <><Send size={14} className="mr-1" /> Send</>}
+                    <div className="flex justify-between items-center pt-2">
+                      <Button
+                        onClick={sendTestEmail}
+                        disabled={composeSending || testEmailSending}
+                        variant="outline"
+                        className="border-[#E8620A]/60 text-[#E8620A] hover:bg-[#E8620A]/10"
+                      >
+                        {testEmailSending ? 'Sending Test…' : <><Send size={14} className="mr-1" /> Send Test Email</>}
                       </Button>
+                      <div className="flex gap-2">
+                        <Button variant="outline" onClick={() => setComposeOpen(false)} disabled={composeSending} className="border-[#2A2520] text-[#B5A898]">Cancel</Button>
+                        <Button onClick={sendComposedEmail} disabled={composeSending} className="bg-[#E8620A] hover:bg-[#cf5709] text-white">
+                          {composeSending ? 'Sending…' : <><Send size={14} className="mr-1" /> Send</>}
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

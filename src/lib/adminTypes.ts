@@ -32,8 +32,21 @@ export interface NewsletterSubscriber {
   phone?: string | null;
   source?: string | null;
   event_id?: string | null;
+  unsubscribed?: boolean;
+  unsubscribed_at?: string | null;
+  preferences?: Record<string, any> | null;
   created_at: string;
   updated_at?: string | null;
+}
+
+export interface NewsletterSendLog {
+  id: string;
+  campaign_id: string;
+  recipient_email: string;
+  subject: string;
+  status: 'sent' | 'failed' | 'bounced';
+  error_message?: string | null;
+  sent_at: string;
 }
 
 export interface EventDateTimeValidationResult {

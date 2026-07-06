@@ -98,6 +98,8 @@ export default function ConnectPage() {
         email: normalized,
         source: 'connect',
         updated_at: new Date().toISOString(),
+        unsubscribed: false,
+        unsubscribed_at: null,
       };
 
       const { error } = existing

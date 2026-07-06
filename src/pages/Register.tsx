@@ -282,6 +282,8 @@ function RegistrationForm({
           source: event.title,
           event_id: event.id,
           updated_at: new Date().toISOString(),
+          unsubscribed: false,
+          unsubscribed_at: null,
         };
 
         if (existing) {
