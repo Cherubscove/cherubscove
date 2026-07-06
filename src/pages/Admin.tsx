@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { Component, useState, useEffect, useMemo, type ErrorInfo, type ReactNode } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { Session } from '@supabase/supabase-js';
 import Navbar from '@/components/Navbar';
@@ -179,6 +179,38 @@ export function normalizeImageUrl(url: string): string {
   const m = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:[^&]*&)*id=)([a-zA-Z0-9_-]+)/);
   if (m) return `https://lh3.googleusercontent.com/d/${m[1]}=w1600`;
   return url;
+}
+
+class AdminErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error?: Error }> {
+  state = { hasError: false, error: undefined as Error | undefined };
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('Admin page crashed:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-[#0F0D0A] flex items-center justify-center px-4">
+          <Card className="w-full max-w-lg bg-[#1A1814] border-[#E8620A]/20">
+            <CardHeader>
+              <CardTitle className="text-2xl font-['Playfair_Display'] text-white">Admin panel hit an unexpected error</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm text-[#B5A898]">
+              <p>The admin dashboard could not finish loading. Refresh the page to try again.</p>
+              <p className="text-xs text-[#6B5E50]">{this.state.error?.message || 'Unknown error'}</p>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
 }
 
 export default function AdminPage() {
@@ -381,6 +413,15 @@ export default function AdminPage() {
 
   /* ── Data Loading + Seeding ─────────────────────────────────────────── */
 
+  const safeSelect = async <T,>(query: PromiseLike<{ data: T | null; error: any }>) => {
+    try {
+      const result = await query;
+      return { data: result.data ?? null, error: result.error ?? null };
+    } catch (error) {
+      return { data: null, error };
+    }
+  };
+
   const loadAnalytics = async () => {
     setAnalyticsLoading(true);
     try {
@@ -397,9 +438,16 @@ export default function AdminPage() {
         .lte('created_at', end.toISOString())
         .order('created_at', { ascending: true });
 
-      if (!error) {
-        setAnalyticsEvents((data as AnalyticsEvent[]) ?? []);
+      if (error) {
+        console.error('Analytics load failed:', error);
+        setAnalyticsEvents([]);
+        return;
       }
+
+      setAnalyticsEvents((data as AnalyticsEvent[]) ?? []);
+    } catch (error) {
+      console.error('Analytics load crashed:', error);
+      setAnalyticsEvents([]);
     } finally {
       setAnalyticsLoading(false);
     }
@@ -413,30 +461,37 @@ export default function AdminPage() {
     setIsLoading(true);
     try {
       const [ev, dl, gal, st, reg, nl, sl] = await Promise.all([
-        supabase.from('events').select('*').order('date', { ascending: false }),
-        supabase.from('downloads').select('*').order('title'),
-        supabase.from('gallery').select('*').order('created_at', { ascending: false }),
-        supabase.from('site_settings').select('*'),
-        supabase.from('registrations').select('*').order('created_at', { ascending: false }),
-        supabase.from('newsletter').select('*').order('created_at', { ascending: false }),
-        supabase.from('newsletter_send_log').select('*').order('sent_at', { ascending: false }),
+        safeSelect(supabase.from('events').select('*').order('date', { ascending: false })),
+        safeSelect(supabase.from('downloads').select('*').order('title')),
+        safeSelect(supabase.from('gallery').select('*').order('created_at', { ascending: false })),
+        safeSelect(supabase.from('site_settings').select('*')),
+        safeSelect(supabase.from('registrations').select('*').order('created_at', { ascending: false })),
+        safeSelect(supabase.from('newsletter').select('*').order('created_at', { ascending: false })),
+        safeSelect(supabase.from('newsletter_send_log').select('*').order('sent_at', { ascending: false })),
       ]);
 
-
-      // Auto-seed events if empty
-      if (!ev.data?.length) {
-        await supabase.from('events').insert(SEED_EVENTS);
-        const { data: seeded } = await supabase.from('events').select('*').order('date', { ascending: false });
-        setEvents(seeded ?? []);
+      if (!ev.error && !ev.data?.length) {
+        try {
+          await supabase.from('events').insert(SEED_EVENTS);
+          const { data: seeded } = await supabase.from('events').select('*').order('date', { ascending: false });
+          setEvents(seeded ?? []);
+        } catch (seedError) {
+          console.error('Failed to seed events:', seedError);
+          setEvents([]);
+        }
       } else {
         setEvents(ev.data ?? []);
       }
 
-      // Auto-seed downloads if empty
-      if (!dl.data?.length) {
-        await supabase.from('downloads').insert(SEED_DOWNLOADS);
-        const { data: seeded } = await supabase.from('downloads').select('*').order('title');
-        setDownloads(seeded ?? []);
+      if (!dl.error && !dl.data?.length) {
+        try {
+          await supabase.from('downloads').insert(SEED_DOWNLOADS);
+          const { data: seeded } = await supabase.from('downloads').select('*').order('title');
+          setDownloads(seeded ?? []);
+        } catch (seedError) {
+          console.error('Failed to seed downloads:', seedError);
+          setDownloads([]);
+        }
       } else {
         setDownloads(dl.data ?? []);
       }
@@ -445,7 +500,6 @@ export default function AdminPage() {
       setRegistrations(reg.data ?? []);
       setSubscribers((nl.data as NewsletterSubscriber[]) ?? []);
       setSendLogs((sl.data as NewsletterSendLog[]) ?? []);
-
 
       const settings = st.data ?? [];
       setSettingsMeta(settings.map((r: any) => ({ id: r.id, key: r.key, label: r.label, type: r.type })));
@@ -473,18 +527,28 @@ export default function AdminPage() {
       const missing = CONTENT_DEFAULTS.filter(cd => !existingKeys.has(cd.key));
       let finalSettings = settings;
       if (missing.length > 0) {
-        await supabase.from('site_settings').insert(missing.map(cd => ({ key: cd.key, label: cd.label, value: cd.value, type: 'text' })));
-        const { data: refreshed } = await supabase.from('site_settings').select('*');
-        if (refreshed) {
-          finalSettings = refreshed;
-          setSettingsMeta(refreshed.map((r: any) => ({ id: r.id, key: r.key, label: r.label, type: r.type })));
-          const refreshedMap = refreshed.reduce((acc: Record<string, string>, r: any) => { acc[r.key] = r.value ?? ''; return acc; }, {});
-          setSiteSettings(refreshedMap);
+        try {
+          await supabase.from('site_settings').insert(missing.map(cd => ({ key: cd.key, label: cd.label, value: cd.value, type: 'text' })));
+          const { data: refreshed } = await supabase.from('site_settings').select('*');
+          if (refreshed) {
+            finalSettings = refreshed;
+            setSettingsMeta(refreshed.map((r: any) => ({ id: r.id, key: r.key, label: r.label, type: r.type })));
+            const refreshedMap = refreshed.reduce((acc: Record<string, string>, r: any) => { acc[r.key] = r.value ?? ''; return acc; }, {});
+            setSiteSettings(refreshedMap);
+          }
+        } catch (seedError) {
+          console.error('Failed to seed missing settings:', seedError);
         }
       }
+
       await loadAdminList(finalSettings);
       await loadGalleries(finalSettings);
-    } finally { setIsLoading(false); }
+    } catch (error) {
+      console.error('Admin data load failed:', error);
+      toast.error('The admin dashboard could not load all data. Please refresh the page.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   /* ── Save Content Setting ──────────────────────────────────────────── */
@@ -903,7 +967,9 @@ export default function AdminPage() {
   const [migrationDone, setMigrationDone] = useState(false);
   useEffect(() => {
     if (gallery.length > 0 && !migrationDone) {
-      migrateExistingImageTitles();
+      migrateExistingImageTitles().catch((err) =>
+        console.error('Image migration failed:', err)
+      );
       setMigrationDone(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -933,15 +999,16 @@ export default function AdminPage() {
       try { parsed = JSON.parse(row.value); } catch { parsed = []; }
     }
 
-    // Merge with actual auth.users via SECURITY DEFINER RPC so every real
-    // auth account is visible in the admin list (not just entries stored
-    // in site_settings JSON).
     let authUsers: { email: string }[] = [];
-    const { data: rpcData, error: rpcErr } = await supabase.rpc('list_auth_users');
-    if (!rpcErr && Array.isArray(rpcData)) {
-      authUsers = rpcData
-        .filter((u: any) => u?.email)
-        .map((u: any) => ({ email: String(u.email).toLowerCase() }));
+    try {
+      const { data: rpcData, error: rpcErr } = await supabase.rpc('list_auth_users');
+      if (!rpcErr && Array.isArray(rpcData)) {
+        authUsers = rpcData
+          .filter((u: any) => u?.email)
+          .map((u: any) => ({ email: String(u.email).toLowerCase() }));
+      }
+    } catch (error) {
+      console.error('Unable to load auth users for admin list:', error);
     }
 
     const byEmail = new Map<string, { email: string; role: 'super_admin' | 'admin' }>();
@@ -1021,16 +1088,21 @@ export default function AdminPage() {
   };
 
   const loadGalleries = async (settingsRows: any[]) => {
-    const row = settingsRows.find(r => r.key === GALLERIES_KEY);
-    let parsed: GalleryCollection[] = [];
-    if (row?.value) { try { parsed = JSON.parse(row.value); } catch { parsed = []; } }
-    if (!parsed.length) {
-      parsed = SEED_GALLERIES;
-      const payload = JSON.stringify(parsed);
-      if (row) await supabase.from('site_settings').update({ value: payload }).eq('id', row.id);
-      else await supabase.from('site_settings').insert({ key: GALLERIES_KEY, label: 'Galleries (JSON)', value: payload, type: 'text' });
+    try {
+      const row = settingsRows.find(r => r.key === GALLERIES_KEY);
+      let parsed: GalleryCollection[] = [];
+      if (row?.value) { try { parsed = JSON.parse(row.value); } catch { parsed = []; } }
+      if (!parsed.length) {
+        parsed = SEED_GALLERIES;
+        const payload = JSON.stringify(parsed);
+        if (row) await supabase.from('site_settings').update({ value: payload }).eq('id', row.id);
+        else await supabase.from('site_settings').insert({ key: GALLERIES_KEY, label: 'Galleries (JSON)', value: payload, type: 'text' });
+      }
+      setGalleries(parsed);
+    } catch (error) {
+      console.error('Unable to load galleries:', error);
+      setGalleries([]);
     }
-    setGalleries(parsed);
   };
 
   /* ── Registrations: Sort & Filter ────────────────────────────────────── */
@@ -1468,7 +1540,8 @@ export default function AdminPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#0F0D0A] text-white">
+    <AdminErrorBoundary>
+      <div className="min-h-screen bg-[#0F0D0A] text-white">
       <Navbar />
       <div className="pt-24 pb-16 px-4 max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-8">
@@ -2930,5 +3003,6 @@ export default function AdminPage() {
       <Footer />
       <ScrollToTop />
     </div>
+    </AdminErrorBoundary>
   );
 }
