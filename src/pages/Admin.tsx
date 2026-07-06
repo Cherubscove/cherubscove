@@ -1407,9 +1407,24 @@ export default function AdminPage() {
                             </div>
                           )}
                         </div>
+
+                        {/* ── Newsletter opt-in toggle ─────────────────── */}
+                        <div className="border border-[#2A2520] rounded-lg p-4 flex items-center justify-between gap-3">
+                          <div>
+                            <label className="text-sm font-medium text-[#B5A898]">Ask registrants to join newsletter</label>
+                            <p className="text-xs text-[#6B5E50]">Shows an opt-in checkbox on this event's form. Opted-in emails (and phone if provided) are saved to the Newsletter list.</p>
+                          </div>
+                          <button
+                            onClick={() => setEditEvent({ ...editEvent, newsletter_opt_in_enabled: !(editEvent.newsletter_opt_in_enabled ?? true) })}
+                            className={`transition-colors ${(editEvent.newsletter_opt_in_enabled ?? true) ? 'text-green-400' : 'text-[#6B5E50]'}`}
+                          >
+                            {(editEvent.newsletter_opt_in_enabled ?? true) ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
+                          </button>
+                        </div>
                       </>
                     )}
                   </div>
+
 
                   <div className="flex gap-2">
                     <Button onClick={saveEvent} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><Save size={14} className="mr-1" /> Save</Button>
