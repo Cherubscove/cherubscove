@@ -85,15 +85,34 @@ export default function ConnectPage() {
     }
 
     try {
-      const { error } = await supabase.from('newsletter').insert({ email });
+      const normalized = email.toLowerCase();
+
+      // Check if already subscribed so we can give friendly feedback.
+      const { data: existing } = await supabase
+        .from('newsletter')
+        .select('id')
+        .ilike('email', normalized)
+        .maybeSingle();
+
+      const payload: Record<string, any> = {
+        email: normalized,
+        source: 'connect',
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error } = existing
+        ? await supabase.from('newsletter').update(payload).eq('id', existing.id)
+        : await supabase.from('newsletter').insert(payload);
+
       if (error) {
-        if (error.code === '23505') {
-          toast('You\'re already subscribed!');
-        } else {
-          toast.error(error.message || 'Something went wrong. Please try again.');
-        }
+        toast.error(error.message || 'Something went wrong. Please try again.');
         return;
       }
+
+      if (existing) {
+        toast("You're already subscribed — thanks for staying with us!");
+      }
+
 
       // Fire-and-forget: send email notification (non-blocking)
       supabase.functions.invoke('send-form-email', {
