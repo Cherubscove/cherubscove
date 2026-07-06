@@ -256,6 +256,17 @@ export default function AdminPage() {
   const [regSort, setRegSort] = useState<{ col: keyof RegistrationRecord; asc: boolean }>({ col: 'created_at', asc: false });
   const [regSearch, setRegSearch] = useState('');
   const [regSelectedGroupKey, setRegSelectedGroupKey] = useState<string | null>(null);
+
+  // Newsletter
+  const [subscribers, setSubscribers] = useState<NewsletterSubscriber[]>([]);
+  const [subSearch, setSubSearch] = useState('');
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [composeMode, setComposeMode] = useState<'bulk' | 'individual'>('bulk');
+  const [composeTargets, setComposeTargets] = useState<string[]>([]);
+  const [composeSubject, setComposeSubject] = useState('');
+  const [composeBody, setComposeBody] = useState('');
+  const [composeSending, setComposeSending] = useState(false);
+
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingGalleryImage, setUploadingGalleryImage] = useState(false);
   const [bulkAddMode, setBulkAddMode] = useState(false);
