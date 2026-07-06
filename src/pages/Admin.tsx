@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import {
-  Calendar, Download, Image, Settings, Users, LogOut, Plus, Trash2, Edit2, Save, X, Eye, EyeOff, FileDown, ArrowUpDown, ClipboardList, FileText, ToggleLeft, ToggleRight, CheckSquare, Square, FolderInput, Star, RefreshCw, Mail, Send, History,
+  Calendar, Download, Image, Settings, Users, LogOut, Plus, Trash2, Edit2, Save, X, Eye, EyeOff, FileDown, ArrowUpDown, ClipboardList, FileText, ToggleLeft, ToggleRight, CheckSquare, Square, FolderInput, Star, RefreshCw, Mail, Send, History, BarChart3,
 } from 'lucide-react';
 import FormFieldBuilder from '@/components/admin/FormFieldBuilder';
 import HeroSlidesManager from '@/components/admin/HeroSlidesManager';
@@ -22,6 +22,8 @@ import type {
   emptyEvent as _ee, emptyDownload as _ed, emptyGallery as _eg,
 } from '@/lib/adminTypes';
 import { emptyEvent, emptyDownload, emptyGallery, formatEventDateRange, validateEventDateTime, buildEventRegistrationLink, generateNextImageTitle, generateGalleryAbbreviation } from '@/lib/adminTypes';
+import { getConsoleLoggingEnabled, getDeveloperModeEnabled, persistConsoleLoggingPreference, persistDeveloperModePreference, setConsoleLoggingEnabled as applyConsoleLoggingPreference } from '@/lib/console';
+import { aggregateAnalyticsSeries, getAnalyticsDateRange, getGrowthComparison, summarizeAnalytics, type AnalyticsEvent, type AnalyticsGranularity, type AnalyticsRange } from '@/lib/analytics';
 
 /* ── Content Keys (seed defaults for every editable frontend text) ────── */
 
@@ -195,6 +197,16 @@ export default function AdminPage() {
   const [registrations, setRegistrations] = useState<RegistrationRecord[]>([]);
   const [contentValues, setContentValues] = useState<Record<string, string>>({});
   const [contentGroup, setContentGroup] = useState('all');
+  const [developerModeEnabled, setDeveloperModeEnabledState] = useState<boolean>(getDeveloperModeEnabled());
+  const [consoleLoggingEnabled, setConsoleLoggingEnabledState] = useState<boolean>(getConsoleLoggingEnabled());
+  const [consoleToggleSaving, setConsoleToggleSaving] = useState(false);
+  const [developerModeSaving, setDeveloperModeSaving] = useState(false);
+  const [analyticsEvents, setAnalyticsEvents] = useState<AnalyticsEvent[]>([]);
+  const [analyticsRange, setAnalyticsRange] = useState<AnalyticsRange>('30d');
+  const [analyticsGranularity, setAnalyticsGranularity] = useState<AnalyticsGranularity>('day');
+  const [analyticsCustomStart, setAnalyticsCustomStart] = useState('');
+  const [analyticsCustomEnd, setAnalyticsCustomEnd] = useState('');
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
   const parseRegistrationFormData = (raw: RegistrationRecord['form_data']) => {
     if (!raw) return null;
@@ -319,6 +331,40 @@ export default function AdminPage() {
     return () => listener?.subscription?.unsubscribe();
   }, []);
 
+  const handleDeveloperModeToggle = async (enabled?: boolean) => {
+    const nextValue = enabled ?? !developerModeEnabled;
+    setDeveloperModeSaving(true);
+    try {
+      await persistDeveloperModePreference(nextValue);
+      setDeveloperModeEnabledState(nextValue);
+      if (!nextValue) {
+        setConsoleLoggingEnabledState(false);
+        applyConsoleLoggingPreference(false);
+      }
+      toast.success(nextValue ? 'Developer mode enabled.' : 'Developer mode disabled.');
+    } catch (err: any) {
+      toast.error(err.message ?? 'Unable to update developer mode.');
+    } finally {
+      setDeveloperModeSaving(false);
+    }
+  };
+
+  const handleConsoleLoggingToggle = async (enabled?: boolean) => {
+    if (!developerModeEnabled) return;
+    const nextValue = enabled ?? !consoleLoggingEnabled;
+    setConsoleToggleSaving(true);
+    try {
+      await persistConsoleLoggingPreference(nextValue);
+      setConsoleLoggingEnabledState(nextValue);
+      applyConsoleLoggingPreference(nextValue);
+      toast.success(nextValue ? 'Console logs enabled.' : 'Console logs silenced.');
+    } catch (err: any) {
+      toast.error(err.message ?? 'Unable to update console logging preference.');
+    } finally {
+      setConsoleToggleSaving(false);
+    }
+  };
+
   const handleAuth = async () => {
     if (!email.trim() || !password.trim()) { toast.error('Please enter both email and password.'); return; }
     setIsLoading(true);
@@ -334,6 +380,34 @@ export default function AdminPage() {
   const handleSignOut = async () => { await supabase.auth.signOut(); setSession(null); toast.info('Signed out.'); };
 
   /* ── Data Loading + Seeding ─────────────────────────────────────────── */
+
+  const loadAnalytics = async () => {
+    setAnalyticsLoading(true);
+    try {
+      const { start, end } = getAnalyticsDateRange(
+        analyticsRange === 'custom' ? '30d' : analyticsRange,
+        analyticsRange === 'custom' ? analyticsCustomStart : undefined,
+        analyticsRange === 'custom' ? analyticsCustomEnd : undefined,
+      );
+
+      const { data, error } = await supabase
+        .from('analytics_events')
+        .select('*')
+        .gte('created_at', start.toISOString())
+        .lte('created_at', end.toISOString())
+        .order('created_at', { ascending: true });
+
+      if (!error) {
+        setAnalyticsEvents((data as AnalyticsEvent[]) ?? []);
+      }
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadAnalytics();
+  }, [analyticsRange, analyticsCustomStart, analyticsCustomEnd]);
 
   const loadAllData = async () => {
     setIsLoading(true);
@@ -377,6 +451,19 @@ export default function AdminPage() {
       setSettingsMeta(settings.map((r: any) => ({ id: r.id, key: r.key, label: r.label, type: r.type })));
       const settingsMap = settings.reduce((acc: Record<string, string>, r: any) => { acc[r.key] = r.value ?? ''; return acc; }, {});
       setSiteSettings(settingsMap);
+
+      const developerPrefValue = settingsMap.developer_mode;
+      const consolePrefValue = settingsMap.console_logging_enabled;
+      const developerEnabled = developerPrefValue !== undefined ? String(developerPrefValue) === 'true' : false;
+      setDeveloperModeEnabledState(developerEnabled);
+      if (!developerEnabled) {
+        setConsoleLoggingEnabledState(false);
+        applyConsoleLoggingPreference(false);
+      } else if (consolePrefValue !== undefined) {
+        const enabled = String(consolePrefValue) === 'true';
+        setConsoleLoggingEnabledState(enabled);
+        applyConsoleLoggingPreference(enabled);
+      }
 
       const cv: Record<string, string> = {};
       CONTENT_DEFAULTS.forEach(cd => { cv[cd.key] = settingsMap[cd.key] ?? cd.value; });
@@ -1358,6 +1445,21 @@ export default function AdminPage() {
 
   const inputCls = "bg-[#0F0D0A] border-[#2A2520] text-white placeholder:text-[#6B5E50] focus:border-[#E8620A]";
   const eventValidation = editEvent ? validateEventDateTime(editEvent) : { isValid: true };
+  const summary = useMemo(() => summarizeAnalytics(analyticsEvents), [analyticsEvents]);
+  const series = useMemo(() => aggregateAnalyticsSeries(analyticsEvents, analyticsGranularity), [analyticsEvents, analyticsGranularity]);
+  const growth = useMemo(() => {
+    const previousWindow = analyticsEvents.filter((event) => {
+      if (!event.created_at) return false;
+      const createdAt = new Date(event.created_at);
+      const now = new Date();
+      const rangeDays = analyticsRange === '7d' ? 7 : analyticsRange === '30d' ? 30 : analyticsRange === '90d' ? 90 : 30;
+      const start = new Date(now);
+      start.setDate(now.getDate() - rangeDays * 2);
+      return createdAt >= start && createdAt < new Date(now.getTime() - rangeDays * 24 * 60 * 60 * 1000);
+    });
+
+    return getGrowthComparison(analyticsEvents, previousWindow);
+  }, [analyticsEvents, analyticsRange]);
 
   const SortBtn = ({ col, label }: { col: keyof RegistrationRecord; label: string }) => (
     <button onClick={() => toggleSort(col)} className={`text-[10px] font-bold tracking-[1.5px] uppercase inline-flex items-center gap-1 ${regSort.col === col ? 'text-[#E8620A]' : 'text-[#6B5E50]'}`}>
@@ -1378,6 +1480,38 @@ export default function AdminPage() {
             <LogOut size={16} className="mr-2" /> Sign Out
           </Button>
         </div>
+
+        <Card className="bg-[#1A1814] border-[#2A2520] mb-8">
+          <CardContent className="p-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-semibold text-white">Developer mode</h2>
+                <span className={`text-[11px] px-2 py-0.5 rounded-full ${developerModeEnabled ? 'bg-emerald-900/40 text-emerald-300' : 'bg-[#2A2520] text-[#6B5E50]'}`}>
+                  {developerModeEnabled ? 'Enabled' : 'Disabled'}
+                </span>
+              </div>
+              <p className="text-xs text-[#B5A898] mt-1">Enable developer tools and expose the console logging toggle for debugging.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={developerModeEnabled ? 'outline' : 'default'}
+                onClick={() => handleDeveloperModeToggle()}
+                disabled={developerModeSaving}
+                className={developerModeEnabled ? 'border-[#2A2520] text-[#B5A898] hover:bg-[#1A1814] hover:text-white' : 'bg-[#E8620A] hover:bg-[#cf5709] text-white'}
+              >
+                {developerModeSaving ? 'Saving…' : developerModeEnabled ? <><EyeOff size={16} className="mr-2" /> Disable Developer Mode</> : <><Eye size={16} className="mr-2" /> Enable Developer Mode</>}
+              </Button>
+              <Button
+                variant={consoleLoggingEnabled ? 'outline' : 'default'}
+                onClick={() => handleConsoleLoggingToggle()}
+                disabled={consoleToggleSaving || !developerModeEnabled}
+                className={consoleLoggingEnabled ? 'border-[#2A2520] text-[#B5A898] hover:bg-[#1A1814] hover:text-white' : 'bg-[#E8620A] hover:bg-[#cf5709] text-white'}
+              >
+                {consoleToggleSaving ? 'Saving…' : consoleLoggingEnabled ? <><EyeOff size={16} className="mr-2" /> Silence Console</> : <><Eye size={16} className="mr-2" /> Show Console</>}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="grid grid-cols-2 md:grid-cols-7 gap-4 mb-8">
           {[
@@ -1411,6 +1545,7 @@ export default function AdminPage() {
             <TabsTrigger value="registrations" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><ClipboardList size={14} className="mr-1.5" />Registrations</TabsTrigger>
             <TabsTrigger value="newsletter" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><Mail size={14} className="mr-1.5" />Newsletter</TabsTrigger>
             <TabsTrigger value="content" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><FileText size={14} className="mr-1.5" />Content</TabsTrigger>
+            <TabsTrigger value="analytics" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><BarChart3 size={14} className="mr-1.5" />Analytics</TabsTrigger>
             <TabsTrigger value="settings" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><Settings size={14} className="mr-1.5" />Settings</TabsTrigger>
             <TabsTrigger value="admins" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><Users size={14} className="mr-1.5" />Admins</TabsTrigger>
           </TabsList>
@@ -1601,6 +1736,122 @@ export default function AdminPage() {
                   </CardContent>
                 </Card>
               ))}
+            </div>
+          </TabsContent>
+
+          {/* ── Analytics Tab ────────────────────────────────────────────── */}
+          <TabsContent value="analytics" className="space-y-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <h2 className="text-xl font-semibold">Analytics</h2>
+                <p className="text-sm text-[#B5A898]">Track downloads, gallery views, and traffic patterns with flexible time ranges.</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <select value={analyticsRange} onChange={(e) => setAnalyticsRange(e.target.value as AnalyticsRange)} className={`${inputCls} rounded-md px-3 py-2 border text-sm`}>
+                  <option value="7d">Last 7 days</option>
+                  <option value="30d">Last 30 days</option>
+                  <option value="90d">Last 90 days</option>
+                  <option value="custom">Custom range</option>
+                </select>
+                <select value={analyticsGranularity} onChange={(e) => setAnalyticsGranularity(e.target.value as AnalyticsGranularity)} className={`${inputCls} rounded-md px-3 py-2 border text-sm`}>
+                  <option value="day">By day</option>
+                  <option value="week">By week</option>
+                  <option value="month">By month</option>
+                </select>
+                <Button onClick={() => void loadAnalytics()} variant="outline" className="border-[#2A2520] text-[#B5A898] hover:bg-[#1A1814]" title="Refresh analytics"><RefreshCw size={14} /></Button>
+              </div>
+            </div>
+
+            {analyticsRange === 'custom' && (
+              <div className="grid gap-3 md:grid-cols-2">
+                <div>
+                  <label className="text-[10px] uppercase tracking-wider text-[#6B5E50]">Start date</label>
+                  <Input type="date" value={analyticsCustomStart} onChange={(e) => setAnalyticsCustomStart(e.target.value)} className={inputCls} />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase tracking-wider text-[#6B5E50]">End date</label>
+                  <Input type="date" value={analyticsCustomEnd} onChange={(e) => setAnalyticsCustomEnd(e.target.value)} className={inputCls} />
+                </div>
+              </div>
+            )}
+
+            <div className="grid gap-4 md:grid-cols-4">
+              {[
+                { label: 'Page views', value: summary.totalPageViews, change: growth.pageViewsGrowth, accent: '#E8620A' },
+                { label: 'Gallery views', value: summary.totalGalleryViews, change: growth.galleryViewsGrowth, accent: '#6B8F71' },
+                { label: 'Downloads', value: summary.totalDownloads, change: growth.downloadsGrowth, accent: '#B07D35' },
+                { label: 'Visits', value: summary.totalVisits, change: growth.visitsGrowth, accent: '#5B8DEF' },
+              ].map((item) => (
+                <Card key={item.label} className="bg-[#1A1814] border-[#2A2520]">
+                  <CardContent className="p-4">
+                    <p className="text-[10px] uppercase tracking-[2px] text-[#6B5E50]">{item.label}</p>
+                    <p className="text-2xl font-semibold text-white mt-2">{item.value}</p>
+                    <p className={`text-xs mt-2 ${item.change >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {item.change >= 0 ? '+' : ''}{item.change}% vs previous period
+                    </p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            <Card className="bg-[#1A1814] border-[#2A2520]">
+              <CardContent className="p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-white">Trend</h3>
+                  <span className="text-xs text-[#6B5E50]">{analyticsGranularity === 'day' ? 'Daily' : analyticsGranularity === 'week' ? 'Weekly' : 'Monthly'} view</span>
+                </div>
+                <div className="space-y-2">
+                  {series.map((point) => (
+                    <div key={point.date} className="rounded-lg border border-[#2A2520] bg-[#0F0D0A] p-3">
+                      <div className="flex items-center justify-between text-sm text-[#B5A898] gap-3">
+                        <span>{point.date}</span>
+                        <span className="text-right">{point.page_views} views • {point.gallery_views} galleries • {point.downloads} downloads</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Card className="bg-[#1A1814] border-[#2A2520]">
+                <CardHeader>
+                  <CardTitle className="text-white">Top pages</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {summary.topPages.length ? summary.topPages.map((item) => (
+                    <div key={item.path} className="flex items-center justify-between rounded-lg border border-[#2A2520] bg-[#0F0D0A] px-3 py-2 text-sm text-[#B5A898]">
+                      <span>{item.path}</span>
+                      <span className="text-white">{item.count}</span>
+                    </div>
+                  )) : <p className="text-sm text-[#6B5E50]">No page data yet.</p>}
+                </CardContent>
+              </Card>
+              <Card className="bg-[#1A1814] border-[#2A2520]">
+                <CardHeader>
+                  <CardTitle className="text-white">Top downloads & galleries</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[2px] text-[#6B5E50] mb-2">Popular downloads</p>
+                    {summary.topDownloads.length ? summary.topDownloads.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between rounded-lg border border-[#2A2520] bg-[#0F0D0A] px-3 py-2 text-sm text-[#B5A898]">
+                        <span>{item.id}</span>
+                        <span className="text-white">{item.count}</span>
+                      </div>
+                    )) : <p className="text-sm text-[#6B5E50]">No downloads yet.</p>}
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[2px] text-[#6B5E50] mb-2">Popular galleries</p>
+                    {summary.topGalleries.length ? summary.topGalleries.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between rounded-lg border border-[#2A2520] bg-[#0F0D0A] px-3 py-2 text-sm text-[#B5A898]">
+                        <span>{item.id}</span>
+                        <span className="text-white">{item.count}</span>
+                      </div>
+                    )) : <p className="text-sm text-[#6B5E50]">No gallery data yet.</p>}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
 
