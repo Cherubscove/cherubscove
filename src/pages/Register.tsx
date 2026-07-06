@@ -26,6 +26,7 @@ interface EventWithReg {
   registration_enabled: boolean;
   form_fields: string;
   completion_message?: string;
+  newsletter_opt_in_enabled?: boolean;
 }
 
 /* ── Helpers ─────────────────────────────────────────────────────────── */
