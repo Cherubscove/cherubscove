@@ -10,8 +10,27 @@ import logo from '@/assets/logo/logo.png';
 import { useSiteSettings, getSetting } from '@/hooks/useSiteSettings';
 import { supabase } from '@/lib/supabaseClient';
 
-/* ── Fallback static slides ──────────────────────────────────────────── */
+/* ── Default slides (URL-based, full admin control) ──────────────────── */
+// These use the Vite-resolved URLs from the imported assets so they work
+// even before the admin has configured custom slides. The admin can override
+// every field via the Hero Slides Manager.
 const FALLBACK_IMAGES = [hero2, hero3, hero4, hero5, hero1, welcomeImg];
+
+function buildDefaultSlides(): HeroSlide[] {
+  const defaults = [
+    { eyebrow: 'Welcome to Cherubs Cove Ministry', headingHtml: 'The <em class="text-primary italic">Making</em><br />Place.', tagline: 'An interdenominational ministry raising burning youths for the Lord.', btn1Text: "Register for Quiver's 2026", btn1Link: '/register', btn2Text: 'Meet Jesse Falodun', btn2Link: '/about-jesse' },
+    { eyebrow: 'Welcome to Cherubs Cove Ministry', headingHtml: 'The <em class="text-primary italic">Making</em><br />Place.', tagline: 'An interdenominational ministry raising burning youths for the Lord.', btn1Text: "Register for Quiver's 2026", btn1Link: '/register', btn2Text: 'Meet Jesse Falodun', btn2Link: '/about-jesse' },
+    { eyebrow: 'Welcome to Cherubs Cove Ministry', headingHtml: 'The <em class="text-primary italic">Making</em><br />Place.', tagline: 'An interdenominational ministry raising burning youths for the Lord.', btn1Text: "Register for Quiver's 2026", btn1Link: '/register', btn2Text: 'Meet Jesse Falodun', btn2Link: '/about-jesse' },
+    { eyebrow: 'Welcome to Cherubs Cove Ministry', headingHtml: 'The <em class="text-primary italic">Making</em><br />Place.', tagline: 'An interdenominational ministry raising burning youths for the Lord.', btn1Text: "Register for Quiver's 2026", btn1Link: '/register', btn2Text: 'Meet Jesse Falodun', btn2Link: '/about-jesse' },
+    { eyebrow: 'Welcome to Cherubs Cove Ministry', headingHtml: 'The <em class="text-primary italic">Making</em><br />Place.', tagline: 'An interdenominational ministry raising burning youths for the Lord.', btn1Text: "Register for Quiver's 2026", btn1Link: '/register', btn2Text: 'Meet Jesse Falodun', btn2Link: '/about-jesse' },
+    { eyebrow: 'About Us', headingHtml: 'Our <em class="text-primary italic">Community</em>', tagline: 'A family of faith, purpose, and transformation.', btn1Text: 'Events & Conferences', btn1Link: '/events-conferences', btn2Text: 'Our President', btn2Link: '/about-jesse' },
+  ];
+  return FALLBACK_IMAGES.map((imgUrl, i) => ({
+    id: `default-slide-${i + 1}`,
+    imageUrl: imgUrl,
+    ...defaults[i],
+  }));
+}
 
 interface HeroSlide {
   id: string;
@@ -31,21 +50,18 @@ export default function HeroSection() {
   const [verse, setVerse] = useState('');
   const [verseRef, setVerseRef] = useState('');
 
-  // Parse dynamic slides from site_settings
-  const dynamicSlides: HeroSlide[] = useMemo(() => {
+  // Parse dynamic slides from site_settings (admin-controlled)
+  // Falls back to URL-based defaults if admin hasn't configured any yet.
+  const slides: HeroSlide[] = useMemo(() => {
     const raw = s['hero_slides_json'];
-    if (!raw) return [];
-    try {
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch { /* fall through to defaults */ }
     }
+    return buildDefaultSlides();
   }, [s]);
-
-  // Use dynamic slides if available, otherwise fall back to static images
-  const hasDynamic = dynamicSlides.length > 0;
-  const slides = hasDynamic ? dynamicSlides : FALLBACK_IMAGES;
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -80,26 +96,22 @@ export default function HeroSection() {
   return (
     <section id="hero" className="min-h-screen flex flex-col relative overflow-hidden pt-[70px]">
       <div className="flex-1 relative min-h-[calc(100vh-70px)] flex items-end">
-        {slides.map((item, i) => {
-          const src = hasDynamic ? (item as HeroSlide).imageUrl : (item as string);
-          const slide = hasDynamic ? (item as HeroSlide) : null;
-          return (
-            <img
-              key={hasDynamic ? slide!.id : i}
-              src={src}
-              alt={slide?.eyebrow || `Ministry gathering ${i + 1}`}
-              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${
-                i === current ? 'opacity-100' : 'opacity-0'
-              }`}
-              style={{
-                transition: 'opacity 1s ease-in-out, transform 6s ease-out',
-                transform: i === current ? 'scale(1.03)' : 'scale(1)',
-              }}
-              loading={i === 0 ? 'eager' : 'lazy'}
-              onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-            />
-          );
-        })}
+        {slides.map((slide, i) => (
+          <img
+            key={slide.id}
+            src={slide.imageUrl}
+            alt={slide.eyebrow || `Ministry gathering ${i + 1}`}
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${
+              i === current ? 'opacity-100' : 'opacity-0'
+            }`}
+            style={{
+              transition: 'opacity 1s ease-in-out, transform 6s ease-out',
+              transform: i === current ? 'scale(1.03)' : 'scale(1)',
+            }}
+            loading={i === 0 ? 'eager' : 'lazy'}
+            onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          />
+        ))}
 
         <div
           className="absolute inset-0 z-[1]"
@@ -113,35 +125,29 @@ export default function HeroSection() {
         <div className="relative z-[2] px-6 md:px-16 pb-16 md:pb-20 pt-16 max-w-[820px]">
           <div className="inline-flex items-center gap-2.5 text-[10px] font-bold tracking-[5px] uppercase text-white/55 mb-5">
             <span className="w-[18px] h-px bg-primary inline-block" />
-            {hasDynamic
-              ? dynamicSlides[current]?.eyebrow || getSetting(s, 'hero_eyebrow', 'Welcome to Cherubs Cove Ministry')
-              : getSetting(s, 'hero_eyebrow', 'Welcome to Cherubs Cove Ministry')}
+            {slides[current]?.eyebrow || getSetting(s, 'hero_eyebrow', 'Welcome to Cherubs Cove Ministry')}
           </div>
           <h1
             className="font-heading text-[clamp(48px,7.5vw,96px)] font-normal leading-[0.95] mb-2.5 text-white"
             dangerouslySetInnerHTML={{
-              __html: hasDynamic
-                ? dynamicSlides[current]?.headingHtml || getSetting(s, 'hero_heading_html', 'The <em class="text-primary italic">Making</em><br />Place.')
-                : getSetting(s, 'hero_heading_html', 'The <em class="text-primary italic">Making</em><br />Place.'),
+              __html: slides[current]?.headingHtml || getSetting(s, 'hero_heading_html', 'The <em class="text-primary italic">Making</em><br />Place.'),
             }}
           />
           <p className="font-heading text-[clamp(16px,2vw,21px)] font-normal italic mb-8 text-white/65">
-            {hasDynamic
-              ? dynamicSlides[current]?.tagline || getSetting(s, 'hero_tagline', 'An interdenominational ministry raising burning youths for the Lord.')
-              : getSetting(s, 'hero_tagline', 'An interdenominational ministry raising burning youths for the Lord.')}
+            {slides[current]?.tagline || getSetting(s, 'hero_tagline', 'An interdenominational ministry raising burning youths for the Lord.')}
           </p>
           <div className="flex gap-4 flex-wrap">
             <Link
-              to={hasDynamic ? dynamicSlides[current]?.btn1Link || getSetting(s, 'hero_btn_1_link', '/register') : getSetting(s, 'hero_btn_1_link', '/register')}
+              to={slides[current]?.btn1Link || getSetting(s, 'hero_btn_1_link', '/register')}
               className="btn-primary-custom"
             >
-              {hasDynamic ? dynamicSlides[current]?.btn1Text || getSetting(s, 'hero_btn_1_text', "Register for Quiver's 2026") : getSetting(s, 'hero_btn_1_text', "Register for Quiver's 2026")}
+              {slides[current]?.btn1Text || getSetting(s, 'hero_btn_1_text', "Register for Quiver's 2026")}
             </Link>
             <Link
-              to={hasDynamic ? dynamicSlides[current]?.btn2Link || getSetting(s, 'hero_btn_2_link', '/about-jesse') : getSetting(s, 'hero_btn_2_link', '/about-jesse')}
+              to={slides[current]?.btn2Link || getSetting(s, 'hero_btn_2_link', '/about-jesse')}
               className="btn-ghost-custom"
             >
-              {hasDynamic ? dynamicSlides[current]?.btn2Text || getSetting(s, 'hero_btn_2_text', 'Meet Jesse Falodun') : getSetting(s, 'hero_btn_2_text', 'Meet Jesse Falodun')}
+              {slides[current]?.btn2Text || getSetting(s, 'hero_btn_2_text', 'Meet Jesse Falodun')}
             </Link>
           </div>
         </div>

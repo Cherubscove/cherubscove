@@ -43,31 +43,41 @@ export function useDynamicManifest() {
       document.head.appendChild(themeMeta);
     }
 
+    // ── Convert relative URLs to absolute URLs ──────────────────────────
+    // Blob-served manifests can have issues resolving relative paths,
+    // so we always use the full origin for start_url, scope, and icons.
+    const origin = window.location.origin;
+    const toAbsolute = (url: string) => {
+      if (!url) return url;
+      if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('//')) return url;
+      return origin + (url.startsWith('/') ? url : '/' + url);
+    };
+
     // ── Generate & inject dynamic manifest.webmanifest ────────────────────
     const manifest: Record<string, any> = {
       name: fullName,
       short_name: name,
       description,
-      start_url: '/',
+      start_url: origin + '/',
       display: 'standalone',
       background_color: bgColor,
       theme_color: themeColor,
       lang: 'en',
-      scope: '/',
+      scope: origin + '/',
       orientation: 'portrait-primary',
       icons: [
         {
-          src: icon192,
+          src: toAbsolute(icon192),
           sizes: '192x192',
           type: 'image/png',
         },
         {
-          src: icon512,
+          src: toAbsolute(icon512),
           sizes: '512x512',
           type: 'image/png',
         },
         {
-          src: icon512,
+          src: toAbsolute(icon512),
           sizes: '512x512',
           type: 'image/png',
           purpose: 'maskable',

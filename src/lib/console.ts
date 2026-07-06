@@ -94,6 +94,20 @@ export async function initializeConsoleLoggingPreference() {
     return getConsoleLoggingEnabled();
   }
 
+  // ── Step 1: Silence immediately based on local preference ──────────────
+  // This prevents startup warnings/logs from showing while we fetch remote
+  // settings. If developer mode is locally disabled, silence right away.
+  const localDevMode = window.localStorage.getItem(DEV_MODE_STORAGE_KEY);
+  if (localDevMode !== "true") {
+    silenceConsole();
+  } else {
+    const localLogging = window.localStorage.getItem(STORAGE_KEY);
+    if (localLogging !== "true") {
+      silenceConsole();
+    }
+  }
+
+  // ── Step 2: Fetch remote settings in background ───────────────────────
   try {
     const { supabase } = await import("@/lib/supabaseClient");
     const [{ data: devData, error: devError }, { data: logData, error: logError }] = await Promise.all([
