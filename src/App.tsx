@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -41,8 +41,26 @@ function useDynamicThemeColor() {
 }
 
 const AppContent = () => {
+  const location = useLocation();
   useDynamicThemeColor();
   useDynamicManifest();
+
+  useEffect(() => {
+    const trackView = async () => {
+      try {
+        const { supabase } = await import("@/lib/supabaseClient");
+        await supabase.from("analytics_events").insert({
+          event_type: "page_view",
+          page_path: location.pathname,
+          metadata: { pathname: location.pathname },
+        });
+      } catch {
+        // Ignore analytics failures so the app stays responsive.
+      }
+    };
+
+    void trackView();
+  }, [location.pathname]);
 
   return (
     <>

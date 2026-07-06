@@ -13,6 +13,20 @@ import { supabase } from '@/lib/supabaseClient';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
+const trackDownloadClick = async (resourceId: string, title: string) => {
+  try {
+    await supabase.from('analytics_events').insert({
+      event_type: 'download_click',
+      page_path: '/resources',
+      resource_id: resourceId,
+      resource_type: 'download',
+      metadata: { title },
+    });
+  } catch {
+    // Ignore analytics failures so the download experience stays intact.
+  }
+};
+
 type ResType = 'audio' | 'video' | 'pdf';
 
 interface Resource {
@@ -274,6 +288,7 @@ export default function ResourcesPage() {
                       href={res.href}
                       target="_blank"
                       rel="noreferrer"
+                      onClick={() => trackDownloadClick(res.title, res.title)}
                       className="mt-auto pt-4 border-t border-border text-[10.5px] font-bold tracking-[2px] uppercase text-primary inline-flex items-center gap-1.5 hover:gap-3 transition-all duration-200"
                     >
                       {res.action} <ArrowRight size={12} />
