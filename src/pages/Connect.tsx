@@ -173,9 +173,9 @@ export default function ConnectPage() {
                 <p className="text-[13px] text-muted-foreground leading-relaxed mb-6">
                   {getSetting(s, 'connect_newsletter_text', 'Subscribe for conference updates, ministry resources, and devotional content delivered straight to your inbox.')}
                 </p>
-                <form onSubmit={handleNewsletter} className="flex border-[1.5px] border-border rounded-md overflow-hidden transition-colors focus-within:border-primary">
+                <form onSubmit={handleNewsletter} className="flex flex-col sm:flex-row border-[1.5px] border-border rounded-md overflow-hidden transition-colors focus-within:border-primary">
                   <input type="email" placeholder="Enter your email address" required className="flex-1 px-3.5 py-3 bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground" />
-                  <button type="submit" className={`px-5 py-3 font-body text-[10.5px] font-bold tracking-[1.5px] uppercase transition-colors border-none cursor-pointer text-white ${nlStatus === 'success' ? 'bg-emerald-600' : 'bg-primary hover:bg-primary/90'}`}>
+                  <button type="submit" className={`w-full sm:w-auto px-5 py-3 font-body text-[10.5px] font-bold tracking-[1.5px] uppercase transition-colors border-none cursor-pointer text-white ${nlStatus === 'success' ? 'bg-emerald-600' : 'bg-primary hover:bg-primary/90'}`}>
                     {nlStatus === 'success' ? 'Subscribed ✓' : 'Subscribe'}
                   </button>
                 </form>
