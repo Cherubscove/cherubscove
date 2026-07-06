@@ -334,13 +334,15 @@ export default function AdminPage() {
   const loadAllData = async () => {
     setIsLoading(true);
     try {
-      const [ev, dl, gal, st, reg] = await Promise.all([
+      const [ev, dl, gal, st, reg, nl] = await Promise.all([
         supabase.from('events').select('*').order('date', { ascending: false }),
         supabase.from('downloads').select('*').order('title'),
         supabase.from('gallery').select('*').order('created_at', { ascending: false }),
         supabase.from('site_settings').select('*'),
         supabase.from('registrations').select('*').order('created_at', { ascending: false }),
+        supabase.from('newsletter').select('*').order('created_at', { ascending: false }),
       ]);
+
 
       // Auto-seed events if empty
       if (!ev.data?.length) {
