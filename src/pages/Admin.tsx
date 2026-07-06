@@ -11,13 +11,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import {
-  Calendar, Download, Image, Settings, Users, LogOut, Plus, Trash2, Edit2, Save, X, Eye, EyeOff, FileDown, ArrowUpDown, ClipboardList, FileText, ToggleLeft, ToggleRight, CheckSquare, Square, FolderInput, Star, RefreshCw,
+  Calendar, Download, Image, Settings, Users, LogOut, Plus, Trash2, Edit2, Save, X, Eye, EyeOff, FileDown, ArrowUpDown, ClipboardList, FileText, ToggleLeft, ToggleRight, CheckSquare, Square, FolderInput, Star, RefreshCw, Mail, Send,
 } from 'lucide-react';
 import FormFieldBuilder from '@/components/admin/FormFieldBuilder';
 import HeroSlidesManager from '@/components/admin/HeroSlidesManager';
 import { SEED_EVENTS, SEED_DOWNLOADS, SEED_GALLERIES } from '@/lib/seedData';
 import type {
   EventRecord, DownloadRecord, GalleryRecord, RegistrationRecord, FormFieldConfig, GalleryCollection,
+  NewsletterSubscriber,
   emptyEvent as _ee, emptyDownload as _ed, emptyGallery as _eg,
 } from '@/lib/adminTypes';
 import { emptyEvent, emptyDownload, emptyGallery, formatEventDateRange, validateEventDateTime, buildEventRegistrationLink, generateNextImageTitle, generateGalleryAbbreviation } from '@/lib/adminTypes';
@@ -255,6 +256,17 @@ export default function AdminPage() {
   const [regSort, setRegSort] = useState<{ col: keyof RegistrationRecord; asc: boolean }>({ col: 'created_at', asc: false });
   const [regSearch, setRegSearch] = useState('');
   const [regSelectedGroupKey, setRegSelectedGroupKey] = useState<string | null>(null);
+
+  // Newsletter
+  const [subscribers, setSubscribers] = useState<NewsletterSubscriber[]>([]);
+  const [subSearch, setSubSearch] = useState('');
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [composeMode, setComposeMode] = useState<'bulk' | 'individual'>('bulk');
+  const [composeTargets, setComposeTargets] = useState<string[]>([]);
+  const [composeSubject, setComposeSubject] = useState('');
+  const [composeBody, setComposeBody] = useState('');
+  const [composeSending, setComposeSending] = useState(false);
+
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingGalleryImage, setUploadingGalleryImage] = useState(false);
   const [bulkAddMode, setBulkAddMode] = useState(false);
@@ -322,13 +334,15 @@ export default function AdminPage() {
   const loadAllData = async () => {
     setIsLoading(true);
     try {
-      const [ev, dl, gal, st, reg] = await Promise.all([
+      const [ev, dl, gal, st, reg, nl] = await Promise.all([
         supabase.from('events').select('*').order('date', { ascending: false }),
         supabase.from('downloads').select('*').order('title'),
         supabase.from('gallery').select('*').order('created_at', { ascending: false }),
         supabase.from('site_settings').select('*'),
         supabase.from('registrations').select('*').order('created_at', { ascending: false }),
+        supabase.from('newsletter').select('*').order('created_at', { ascending: false }),
       ]);
+
 
       // Auto-seed events if empty
       if (!ev.data?.length) {
@@ -350,6 +364,8 @@ export default function AdminPage() {
 
       setGallery(gal.data ?? []);
       setRegistrations(reg.data ?? []);
+      setSubscribers((nl.data as NewsletterSubscriber[]) ?? []);
+
 
       const settings = st.data ?? [];
       setSettingsMeta(settings.map((r: any) => ({ id: r.id, key: r.key, label: r.label, type: r.type })));
@@ -413,7 +429,9 @@ export default function AdminPage() {
       registration_enabled: editEvent.registration_enabled ?? false,
       form_fields: editEvent.form_fields ?? '[]',
       completion_message: editEvent.completion_message || null,
+      newsletter_opt_in_enabled: editEvent.newsletter_opt_in_enabled ?? true,
     };
+
 
     try {
       if (editEvent.id) {
@@ -1089,7 +1107,86 @@ export default function AdminPage() {
     loadAllData();
   };
 
-  /* ── Helper: parse form fields from event ──────────────────────────── */
+  /* ── Newsletter subscribers ──────────────────────────────────────────── */
+
+  const filteredSubscribers = useMemo(() => {
+    if (!subSearch.trim()) return subscribers;
+    const q = subSearch.toLowerCase();
+    return subscribers.filter(s =>
+      `${s.email || ''} ${s.phone || ''} ${s.source || ''}`.toLowerCase().includes(q)
+    );
+  }, [subscribers, subSearch]);
+
+  const deleteSubscriber = async (id: string) => {
+    if (!confirm('Remove this subscriber from the newsletter list?')) return;
+    const { error } = await supabase.from('newsletter').delete().eq('id', id);
+    if (error) { toast.error(error.message); return; }
+    toast.success('Subscriber removed.');
+    loadAllData();
+  };
+
+  const exportSubscribersCSV = () => {
+    if (!filteredSubscribers.length) { toast.error('No subscribers to export.'); return; }
+    const headers = ['Email', 'Phone', 'Source', 'Subscribed At'];
+    const rows = filteredSubscribers.map(s => [
+      s.email || '', s.phone || '', s.source || '',
+      new Date(s.created_at).toLocaleString(),
+    ]);
+    const esc = (v: string) => `"${String(v).replace(/"/g, '""')}"`;
+    const csv = [headers.map(esc).join(','), ...rows.map(r => r.map(esc).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `newsletter-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+    URL.revokeObjectURL(url);
+    toast.success('CSV exported.');
+  };
+
+  const openBulkCompose = () => {
+    const targets = filteredSubscribers.map(s => s.email).filter(Boolean);
+    if (!targets.length) { toast.error('No subscribers to email.'); return; }
+    setComposeMode('bulk');
+    setComposeTargets(targets);
+    setComposeSubject('');
+    setComposeBody('');
+    setComposeOpen(true);
+  };
+
+  const openIndividualCompose = (email: string) => {
+    setComposeMode('individual');
+    setComposeTargets([email]);
+    setComposeSubject('');
+    setComposeBody('');
+    setComposeOpen(true);
+  };
+
+  const sendComposedEmail = async () => {
+    if (!composeSubject.trim()) { toast.error('Subject is required.'); return; }
+    if (!composeBody.trim()) { toast.error('Message body is required.'); return; }
+    if (!composeTargets.length) { toast.error('No recipients.'); return; }
+    setComposeSending(true);
+    try {
+      const html = composeBody.includes('<') && composeBody.includes('>')
+        ? composeBody
+        : `<p>${composeBody.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>')}</p>`;
+      const { data, error } = await supabase.functions.invoke('send-newsletter-email', {
+        body: { subject: composeSubject.trim(), html, recipients: composeTargets },
+      });
+      if (error) throw error;
+      if (data?.success === false) {
+        toast.error(`Sent ${data.sent}/${data.total}. Errors: ${(data.errors || []).join('; ').slice(0, 200)}`);
+      } else {
+        toast.success(`Email sent to ${data?.sent ?? composeTargets.length} recipient(s).`);
+        setComposeOpen(false);
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send email.');
+    } finally {
+      setComposeSending(false);
+    }
+  };
+
+
 
   const getFormFields = (ev: EventRecord): FormFieldConfig[] => {
     try { return JSON.parse(ev.form_fields || '[]'); } catch { return []; }
@@ -1150,12 +1247,13 @@ export default function AdminPage() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-7 gap-4 mb-8">
           {[
             { icon: Calendar, label: 'Events', count: events.length, color: '#E8620A' },
             { icon: Download, label: 'Downloads', count: downloads.length, color: '#B07D35' },
             { icon: Image, label: 'Gallery', count: gallery.length, color: '#6B8F71' },
             { icon: ClipboardList, label: 'Registrations', count: registrations.length, color: '#5B8DEF' },
+            { icon: Mail, label: 'Subscribers', count: subscribers.length, color: '#22C55E' },
             { icon: FileText, label: 'Content', count: CONTENT_DEFAULTS.length, color: '#D97706' },
             { icon: Settings, label: 'Settings', count: settingsMeta.filter(m => !CONTENT_DEFAULTS.some(cd => cd.key === m.key)).length, color: '#7B68AE' },
           ].map(s => (
@@ -1179,10 +1277,12 @@ export default function AdminPage() {
             <TabsTrigger value="downloads" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><Download size={14} className="mr-1.5" />Downloads</TabsTrigger>
             <TabsTrigger value="gallery" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><Image size={14} className="mr-1.5" />Gallery</TabsTrigger>
             <TabsTrigger value="registrations" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><ClipboardList size={14} className="mr-1.5" />Registrations</TabsTrigger>
+            <TabsTrigger value="newsletter" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><Mail size={14} className="mr-1.5" />Newsletter</TabsTrigger>
             <TabsTrigger value="content" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><FileText size={14} className="mr-1.5" />Content</TabsTrigger>
             <TabsTrigger value="settings" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><Settings size={14} className="mr-1.5" />Settings</TabsTrigger>
             <TabsTrigger value="admins" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><Users size={14} className="mr-1.5" />Admins</TabsTrigger>
           </TabsList>
+
 
           {/* ── Events Tab ───────────────────────────────────────────────── */}
           <TabsContent value="events" className="space-y-4">
@@ -1307,9 +1407,24 @@ export default function AdminPage() {
                             </div>
                           )}
                         </div>
+
+                        {/* ── Newsletter opt-in toggle ─────────────────── */}
+                        <div className="border border-[#2A2520] rounded-lg p-4 flex items-center justify-between gap-3">
+                          <div>
+                            <label className="text-sm font-medium text-[#B5A898]">Ask registrants to join newsletter</label>
+                            <p className="text-xs text-[#6B5E50]">Shows an opt-in checkbox on this event's form. Opted-in emails (and phone if provided) are saved to the Newsletter list.</p>
+                          </div>
+                          <button
+                            onClick={() => setEditEvent({ ...editEvent, newsletter_opt_in_enabled: !(editEvent.newsletter_opt_in_enabled ?? true) })}
+                            className={`transition-colors ${(editEvent.newsletter_opt_in_enabled ?? true) ? 'text-green-400' : 'text-[#6B5E50]'}`}
+                          >
+                            {(editEvent.newsletter_opt_in_enabled ?? true) ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
+                          </button>
+                        </div>
                       </>
                     )}
                   </div>
+
 
                   <div className="flex gap-2">
                     <Button onClick={saveEvent} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><Save size={14} className="mr-1" /> Save</Button>
@@ -2030,7 +2145,87 @@ export default function AdminPage() {
             )}
           </TabsContent>
 
+          {/* ── Newsletter Tab ───────────────────────────────────────────── */}
+          <TabsContent value="newsletter" className="space-y-4">
+            <div className="flex justify-between items-center flex-wrap gap-3">
+              <div>
+                <h2 className="text-xl font-semibold">Newsletter Subscribers</h2>
+                <p className="text-sm text-[#6B5E50]">Email captured from the Connect page and every event form with opt-in enabled.</p>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <Button onClick={loadAllData} variant="outline" className="border-[#2A2520] text-[#B5A898] hover:bg-[#1A1814]" title="Refresh data"><RefreshCw size={14} /></Button>
+                <Input placeholder="Search email, phone, source…" value={subSearch} onChange={e => setSubSearch(e.target.value)} className={`${inputCls} w-64`} />
+                <Button onClick={exportSubscribersCSV} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><FileDown size={14} className="mr-1" /> CSV</Button>
+                <Button onClick={openBulkCompose} className="bg-emerald-700 hover:bg-emerald-800 text-white"><Send size={14} className="mr-1" /> Send Bulk Email ({filteredSubscribers.length})</Button>
+              </div>
+            </div>
+
+            {filteredSubscribers.length === 0 && (
+              <p className="text-[#6B5E50] text-center py-8">No subscribers{subSearch ? ' match your search.' : ' yet.'}</p>
+            )}
+
+            <div className="space-y-2">
+              {filteredSubscribers.map(s => (
+                <Card key={s.id} className="bg-[#1A1814] border-[#2A2520]">
+                  <CardContent className="p-4 flex items-center justify-between gap-3 flex-wrap">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-white font-medium truncate">{s.email}</span>
+                        {s.source && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#E8620A]/20 text-[#E8620A] font-bold tracking-wider uppercase">{s.source}</span>
+                        )}
+                      </div>
+                      <div className="text-xs text-[#6B5E50] mt-1 flex flex-wrap gap-3">
+                        {s.phone && <span>📞 {s.phone}</span>}
+                        <span>{new Date(s.created_at).toLocaleString()}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button size="sm" variant="ghost" onClick={() => openIndividualCompose(s.email)} className="text-emerald-400 hover:text-emerald-300" title="Send email"><Send size={14} /></Button>
+                      <Button size="sm" variant="ghost" onClick={() => deleteSubscriber(s.id)} className="text-red-400 hover:text-red-300" title="Remove"><Trash2 size={14} /></Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* Compose dialog */}
+            {composeOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => !composeSending && setComposeOpen(false)}>
+                <Card className="w-full max-w-2xl bg-[#1A1814] border-[#E8620A]/40" onClick={e => e.stopPropagation()}>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                    <div>
+                      <CardTitle className="text-white text-lg">
+                        {composeMode === 'bulk' ? `Bulk Email — ${composeTargets.length} recipient(s)` : `Email — ${composeTargets[0]}`}
+                      </CardTitle>
+                      <p className="text-xs text-[#6B5E50] mt-1">Sent from <code className="text-[#E8620A]">noreply@cherubscove.net</code>{composeMode === 'bulk' ? ' via BCC — recipients won\'t see each other.' : ''}</p>
+                    </div>
+                    <Button size="sm" variant="ghost" onClick={() => !composeSending && setComposeOpen(false)} className="text-[#B5A898]"><X size={16} /></Button>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <Field label="Subject">
+                      <Input placeholder="e.g. Quiver's 2026 — Registration is now open" value={composeSubject} onChange={e => setComposeSubject(e.target.value)} className={inputCls} disabled={composeSending} />
+                    </Field>
+                    <Field label="Message" hint="Plain text is fine — line breaks are preserved. You may also paste HTML.">
+                      <Textarea placeholder="Write your message here…" value={composeBody} onChange={e => setComposeBody(e.target.value)} className={inputCls} rows={10} disabled={composeSending} />
+                    </Field>
+                    {composeMode === 'bulk' && composeTargets.length > 20 && (
+                      <p className="text-xs text-[#6B5E50]">Recipients will be split into batches of 45 (Resend BCC limit).</p>
+                    )}
+                    <div className="flex justify-end gap-2 pt-2">
+                      <Button variant="outline" onClick={() => setComposeOpen(false)} disabled={composeSending} className="border-[#2A2520] text-[#B5A898]">Cancel</Button>
+                      <Button onClick={sendComposedEmail} disabled={composeSending} className="bg-[#E8620A] hover:bg-[#cf5709] text-white">
+                        {composeSending ? 'Sending…' : <><Send size={14} className="mr-1" /> Send</>}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+          </TabsContent>
+
           {/* ── Content Tab ──────────────────────────────────────────────── */}
+
           <TabsContent value="content" className="space-y-4">
             <div className="flex flex-wrap justify-between items-center gap-3">
               <div>
