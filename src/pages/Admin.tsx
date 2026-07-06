@@ -1483,6 +1483,32 @@ export default function AdminPage() {
     try { return JSON.parse(ev.form_fields || '[]'); } catch { return []; }
   };
 
+  /* ── Render preparation (moved before early return to comply with Rules of Hooks) ── */
+
+  const inputCls = "bg-[#0F0D0A] border-[#2A2520] text-white placeholder:text-[#6B5E50] focus:border-[#E8620A]";
+  const eventValidation = editEvent ? validateEventDateTime(editEvent) : { isValid: true };
+  const summary = useMemo(() => summarizeAnalytics(analyticsEvents), [analyticsEvents]);
+  const series = useMemo(() => aggregateAnalyticsSeries(analyticsEvents, analyticsGranularity), [analyticsEvents, analyticsGranularity]);
+  const growth = useMemo(() => {
+    const previousWindow = analyticsEvents.filter((event) => {
+      if (!event.created_at) return false;
+      const createdAt = new Date(event.created_at);
+      const now = new Date();
+      const rangeDays = analyticsRange === '7d' ? 7 : analyticsRange === '30d' ? 30 : analyticsRange === '90d' ? 90 : 30;
+      const start = new Date(now);
+      start.setDate(now.getDate() - rangeDays * 2);
+      return createdAt >= start && createdAt < new Date(now.getTime() - rangeDays * 24 * 60 * 60 * 1000);
+    });
+
+    return getGrowthComparison(analyticsEvents, previousWindow);
+  }, [analyticsEvents, analyticsRange]);
+
+  const SortBtn = ({ col, label }: { col: keyof RegistrationRecord; label: string }) => (
+    <button onClick={() => toggleSort(col)} className={`text-[10px] font-bold tracking-[1.5px] uppercase inline-flex items-center gap-1 ${regSort.col === col ? 'text-[#E8620A]' : 'text-[#6B5E50]'}`}>
+      {label} <ArrowUpDown size={10} />
+    </button>
+  );
+
   /* ── Render: Auth Screen ─────────────────────────────────────────────── */
 
   if (!session) {
@@ -1514,30 +1540,6 @@ export default function AdminPage() {
   }
 
   /* ── Render: Dashboard ───────────────────────────────────────────────── */
-
-  const inputCls = "bg-[#0F0D0A] border-[#2A2520] text-white placeholder:text-[#6B5E50] focus:border-[#E8620A]";
-  const eventValidation = editEvent ? validateEventDateTime(editEvent) : { isValid: true };
-  const summary = useMemo(() => summarizeAnalytics(analyticsEvents), [analyticsEvents]);
-  const series = useMemo(() => aggregateAnalyticsSeries(analyticsEvents, analyticsGranularity), [analyticsEvents, analyticsGranularity]);
-  const growth = useMemo(() => {
-    const previousWindow = analyticsEvents.filter((event) => {
-      if (!event.created_at) return false;
-      const createdAt = new Date(event.created_at);
-      const now = new Date();
-      const rangeDays = analyticsRange === '7d' ? 7 : analyticsRange === '30d' ? 30 : analyticsRange === '90d' ? 90 : 30;
-      const start = new Date(now);
-      start.setDate(now.getDate() - rangeDays * 2);
-      return createdAt >= start && createdAt < new Date(now.getTime() - rangeDays * 24 * 60 * 60 * 1000);
-    });
-
-    return getGrowthComparison(analyticsEvents, previousWindow);
-  }, [analyticsEvents, analyticsRange]);
-
-  const SortBtn = ({ col, label }: { col: keyof RegistrationRecord; label: string }) => (
-    <button onClick={() => toggleSort(col)} className={`text-[10px] font-bold tracking-[1.5px] uppercase inline-flex items-center gap-1 ${regSort.col === col ? 'text-[#E8620A]' : 'text-[#6B5E50]'}`}>
-      {label} <ArrowUpDown size={10} />
-    </button>
-  );
 
   return (
     <AdminErrorBoundary>
