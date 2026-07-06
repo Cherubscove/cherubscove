@@ -429,7 +429,9 @@ export default function AdminPage() {
       registration_enabled: editEvent.registration_enabled ?? false,
       form_fields: editEvent.form_fields ?? '[]',
       completion_message: editEvent.completion_message || null,
+      newsletter_opt_in_enabled: editEvent.newsletter_opt_in_enabled ?? true,
     };
+
 
     try {
       if (editEvent.id) {
