@@ -364,6 +364,8 @@ export default function AdminPage() {
 
       setGallery(gal.data ?? []);
       setRegistrations(reg.data ?? []);
+      setSubscribers((nl.data as NewsletterSubscriber[]) ?? []);
+
 
       const settings = st.data ?? [];
       setSettingsMeta(settings.map((r: any) => ({ id: r.id, key: r.key, label: r.label, type: r.type })));
