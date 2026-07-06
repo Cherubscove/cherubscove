@@ -1,5 +1,6 @@
 import { useScrollReveal } from '@/hooks/useScrollReveal';
 import { useSiteSettings, getSetting } from '@/hooks/useSiteSettings';
+import SEO, { breadcrumbJsonLd } from '@/components/SEO';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ScrollToTop from '@/components/ScrollToTop';
@@ -16,6 +17,13 @@ export default function AboutJessePage() {
 
   return (
     <>
+      <SEO
+        title={getSetting(s, 'seo_about_title', 'About Jesse Falodun — President, Cherubs Cove Ministry')}
+        description={getSetting(s, 'seo_about_description', 'Meet Jesse Falodun, President of Cherubs Cove Ministry. OAP, Spoken Word Artist, and convener of the International Quivers Conference.')}
+        image={getSetting(s, 'seo_about_image', '') || undefined}
+        path="/about-jesse"
+        jsonLd={breadcrumbJsonLd([{ name: 'Home', url: '/' }, { name: 'About Jesse Falodun', url: '/about-jesse' }])}
+      />
       <Navbar />
       <div className="pt-[70px] min-h-screen bg-background" ref={ref}>
         <div className="page-header">
@@ -37,7 +45,7 @@ export default function AboutJessePage() {
                 />
               </div>
               <div className="mt-5 text-center">
-                <h3 className="font-heading text-[22px] font-medium text-foreground">{getSetting(s, 'about_name', 'Jesse Falodun')}</h3>
+                <h2 className="font-heading text-[22px] font-medium text-foreground">{getSetting(s, 'about_name', 'Jesse Falodun')}</h2>
                 <p className="text-[10.5px] tracking-[2.5px] uppercase text-primary mt-1">
                   {getSetting(s, 'about_title', 'President, Cherubs Cove')}
                 </p>
@@ -84,7 +92,7 @@ export default function AboutJessePage() {
               </div>
 
               <div className="mt-12 p-8 bg-card border border-border rounded-lg reveal card-lift">
-                <h3 className="font-heading text-xl font-medium mb-2 text-foreground">{getSetting(s, 'about_cta_title', 'Connect with Jesse')}</h3>
+                <h2 className="font-heading text-xl font-medium mb-2 text-foreground">{getSetting(s, 'about_cta_title', 'Connect with Jesse')}</h2>
                 <p className="body-text mb-6">{getSetting(s, 'about_cta_text', 'Want to invite Jesse to speak at your event or learn more about Cherubs Cove Ministry?')}</p>
                 <div className="flex gap-4 flex-wrap">
                   <a href="/connect" className="btn-solid-custom">Get in Touch</a>

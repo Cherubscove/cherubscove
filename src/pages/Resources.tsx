@@ -6,6 +6,7 @@ import {
 import ShareButton from '@/components/ShareButton';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
 import { useSiteSettings, getSetting } from '@/hooks/useSiteSettings';
+import SEO from '@/components/SEO';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ScrollToTop from '@/components/ScrollToTop';
@@ -154,6 +155,12 @@ export default function ResourcesPage() {
 
   return (
     <>
+      <SEO
+        title={getSetting(s, 'seo_resources_title', 'Sermons & Downloads — Cherubs Cove Ministry')}
+        description={getSetting(s, 'seo_resources_description', 'Download sermon audio, video teachings, and study documents from Cherubs Cove Ministry and the International Quivers Conference.')}
+        image={getSetting(s, 'seo_resources_image', '') || undefined}
+        path="/resources"
+      />
       <Navbar />
       <div className="pt-[70px] min-h-screen bg-background" ref={ref}>
         <div className="page-header">

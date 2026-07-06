@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
 import { useSiteSettings, getSetting } from '@/hooks/useSiteSettings';
+import SEO from '@/components/SEO';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ScrollToTop from '@/components/ScrollToTop';
@@ -658,6 +659,12 @@ export default function RegisterPage() {
      ═══════════════════════════════════════════════════════════════════ */
   return (
     <>
+      <SEO
+        title={getSetting(s, 'seo_register_title', 'Register for Events — Cherubs Cove Ministry')}
+        description={getSetting(s, 'seo_register_description', 'Register for upcoming events at Cherubs Cove Ministry. Free registration for the International Quivers Conference and other gatherings.')}
+        image={getSetting(s, 'seo_register_image', '') || undefined}
+        path={eventId ? `/register/${encodeURIComponent(eventId)}` : '/register'}
+      />
       <Navbar />
       <div className="pt-[70px] min-h-screen bg-background" ref={ref}>
         {/* Hero Banner */}

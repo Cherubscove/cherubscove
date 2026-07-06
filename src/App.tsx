@@ -40,9 +40,49 @@ function useDynamicThemeColor() {
   }, [settings]);
 }
 
+/** Dynamically update favicon, apple-touch-icon, and mask-icon from admin settings */
+function useDynamicFavicon() {
+  const settings = useSiteSettings();
+  useEffect(() => {
+    const faviconUrl = getSetting(settings, "seo_favicon_url", "/favicon.png");
+    const appleIconUrl = getSetting(settings, "seo_favicon_apple_url", "/apple-touch-icon.png");
+    const maskIconUrl = getSetting(settings, "seo_favicon_mask_url", "/favicon.png");
+    const maskColor = getSetting(settings, "pwa_theme_color", "#0f172a");
+
+    // Standard favicon
+    let iconLink = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+    if (!iconLink) {
+      iconLink = document.createElement("link");
+      iconLink.rel = "icon";
+      document.head.appendChild(iconLink);
+    }
+    iconLink.href = faviconUrl;
+
+    // Apple touch icon
+    let appleLink = document.querySelector<HTMLLinkElement>('link[rel="apple-touch-icon"]');
+    if (!appleLink) {
+      appleLink = document.createElement("link");
+      appleLink.rel = "apple-touch-icon";
+      document.head.appendChild(appleLink);
+    }
+    appleLink.href = appleIconUrl;
+
+    // Mask icon (for Safari pinned tabs)
+    let maskLink = document.querySelector<HTMLLinkElement>('link[rel="mask-icon"]');
+    if (!maskLink) {
+      maskLink = document.createElement("link");
+      maskLink.rel = "mask-icon";
+      document.head.appendChild(maskLink);
+    }
+    maskLink.href = maskIconUrl;
+    maskLink.setAttribute("color", maskColor);
+  }, [settings]);
+}
+
 const AppContent = () => {
   const location = useLocation();
   useDynamicThemeColor();
+  useDynamicFavicon();
   useDynamicManifest();
 
   useEffect(() => {

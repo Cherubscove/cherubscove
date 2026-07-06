@@ -1,0 +1,48 @@
+# Cherubs Cove Ministry — The Making Place
+
+> An interdenominational ministry raising burning youths for the Lord. Home of the International Quivers Conference.
+
+## About
+
+Cherubs Cove is an interdenominational ministry committed to raising a generation on fire for God. We exist to equip, ignite, and release burning youths into every sphere of society, with the Gospel of Jesus Christ as our foundation and compass.
+
+## Leadership
+
+- **President**: Jesse Falodun — An OAP (On-Air Personality), Spoken Word Artist, and conference convener. Graduated from the International School of Ministry (2021) and Mass Communication from Kogi State University.
+
+## Key Events
+
+- **International Quivers Conference** — Annual flagship conference. Past themes: Arrows (2023), Awakening (2024), Forge (2024), Immersion (2025), Envoys of Light (2026).
+- **First Saturday Service** — Monthly gathering (every 1st Saturday).
+- **Mid-Week Gathering** — Prayer & fellowship (every Wednesday).
+
+## Key Pages
+
+- **Home** (`/`): Ministry introduction, hero section with scripture (Psalm 127:4), upcoming events preview.
+- **About Jesse Falodun** (`/about-jesse`): Biography, ministry background, speaking engagements.
+- **Events & Conferences** (`/events-conferences`): Upcoming, past, and recurring events with registration.
+- **Past Conferences Archive** (`/past-conferences`): Photo galleries from past conference editions.
+- **Resources** (`/resources`): Sermon audio, video teachings, and downloadable PDF study documents.
+- **Connect** (`/connect`): Contact information, social media links, newsletter subscription.
+- **Register** (`/register/:eventId?`): Event registration with custom form fields per event.
+
+## Contact
+
+- **Email**: cherubscove@gmail.com
+- **Phone**: +234 817 930 3228
+- **Location**: Nigeria
+- **Facebook**: https://www.facebook.com/share/182S9YeQMr/
+- **YouTube**: https://www.youtube.com/@jefaldera
+- **WhatsApp**: https://wa.me/2348179303228
+
+## Core Beliefs
+
+Interdenominational ministry focused on raising burning youths for the Lord. Part of the Cherubim and Seraphim Church tradition.
+
+## Technical
+
+- Built with React + TypeScript + Vite
+- UI: Tailwind CSS + shadcn/ui components
+- Backend: Supabase (PostgreSQL, Auth, Storage, Edge Functions)
+- PWA-enabled with offline support
+- Admin panel at `/quiveradminconsole007`

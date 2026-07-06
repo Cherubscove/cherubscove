@@ -101,6 +101,7 @@ export default function ShareButton({ title, text, url, className = '', variant 
             : 'inline-flex items-center gap-1.5 text-[10px] font-bold tracking-[2px] uppercase text-muted-foreground hover:text-primary'
         }`}
         title="Share"
+        aria-label="Share this page"
       >
         <Share2 size={variant === 'icon' ? 14 : 12} />
         {variant === 'button' && <span>Share</span>}

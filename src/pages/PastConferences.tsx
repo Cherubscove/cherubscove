@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
 import { useSiteSettings, getSetting } from '@/hooks/useSiteSettings';
+import SEO from '@/components/SEO';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ScrollToTop from '@/components/ScrollToTop';
@@ -164,6 +165,12 @@ export default function PastConferencesPage() {
 
   return (
     <>
+      <SEO
+        title={getSetting(settings, 'seo_pastconferences_title', 'Past Conferences Archive — Cherubs Cove Ministry')}
+        description={getSetting(settings, 'seo_pastconferences_description', 'Photo galleries from past editions of the International Quivers Conference — a visual journey through years of encounter.')}
+        image={getSetting(settings, 'seo_pastconferences_image', '') || undefined}
+        path="/past-conferences"
+      />
       <Navbar />
       <div className="pt-[70px] min-h-screen bg-background" ref={ref}>
         {/* Hero Banner */}

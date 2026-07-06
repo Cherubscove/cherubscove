@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
 import { useSiteSettings, getSetting } from '@/hooks/useSiteSettings';
+import SEO from '@/components/SEO';
 import { Calendar, MapPin, Users, Sparkles, ArrowRight } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -65,6 +66,12 @@ export default function EventsConferencesPage() {
 
   return (
     <>
+      <SEO
+        title={getSetting(s, 'seo_events_title', 'Events & Conferences — Cherubs Cove Ministry')}
+        description={getSetting(s, 'seo_events_description', 'Join us at the International Quivers Conference and other gatherings. Annual conferences, monthly services, and mid-week fellowships.')}
+        image={getSetting(s, 'seo_events_image', '') || undefined}
+        path="/events-conferences"
+      />
       <Navbar />
       <div className="pt-[70px] min-h-screen bg-background" ref={ref}>
         {/* Hero Banner */}

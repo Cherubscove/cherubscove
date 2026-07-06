@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import {
-  Calendar, Download, Image, Settings, Users, LogOut, Plus, Trash2, Edit2, Save, X, Eye, EyeOff, FileDown, ArrowUpDown, ClipboardList, FileText, ToggleLeft, ToggleRight, CheckSquare, Square, FolderInput, Star, RefreshCw, Mail, Send, History, BarChart3,
+  Calendar, Download, Image, Settings, Users, LogOut, Plus, Trash2, Edit2, Save, X, Eye, EyeOff, FileDown, ArrowUpDown, ClipboardList, FileText, ToggleLeft, ToggleRight, CheckSquare, Square, FolderInput, Star, RefreshCw, Mail, Send, History, BarChart3, Search,
 } from 'lucide-react';
 import FormFieldBuilder from '@/components/admin/FormFieldBuilder';
 import HeroSlidesManager from '@/components/admin/HeroSlidesManager';
@@ -161,6 +161,43 @@ const CONTENT_DEFAULTS: { key: string; label: string; value: string; group: stri
   { key: 'pwa_icon_192_url', label: 'PWA — Icon 192×192 URL', value: '/pwa-192x192.png', group: 'PWA' },
   { key: 'pwa_icon_512_url', label: 'PWA — Icon 512×512 URL', value: '/pwa-512x512.png', group: 'PWA' },
   { key: 'pwa_icon_apple_url', label: 'PWA — Apple Touch Icon URL', value: '/apple-touch-icon.png', group: 'PWA' },
+
+  // ── SEO / Meta ──────────────────────────────────────────────────────────
+  { key: 'seo_default_title', label: 'SEO — Default Site Title', value: 'Cherubs Cove Ministry — The Making Place', group: 'SEO' },
+  { key: 'seo_default_description', label: 'SEO — Default Description', value: 'An interdenominational ministry raising burning youths for the Lord. Home of the International Quivers Conference.', group: 'SEO' },
+  { key: 'seo_default_image', label: 'SEO — Default OG Image URL', value: 'https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/521415bc-95f5-45dd-8ba6-a559b83800b0/id-preview-f8413c32--4c3af28d-7334-4cb2-a015-3cd76b4f1c68.lovable.app-1775261401832.png', group: 'SEO' },
+  { key: 'seo_favicon_url', label: 'SEO — Favicon URL', value: '/favicon.png', group: 'SEO' },
+  { key: 'seo_favicon_apple_url', label: 'SEO — Apple Touch Icon URL', value: '/apple-touch-icon.png', group: 'SEO' },
+  { key: 'seo_favicon_mask_url', label: 'SEO — Mask Icon URL', value: '/favicon.png', group: 'SEO' },
+
+  // Per-page meta
+  { key: 'seo_home_title', label: 'SEO — Home Page Title', value: 'Cherubs Cove Ministry — The Making Place', group: 'SEO Per-Page' },
+  { key: 'seo_home_description', label: 'SEO — Home Page Description', value: 'An interdenominational ministry raising burning youths for the Lord. Home of the International Quivers Conference.', group: 'SEO Per-Page' },
+  { key: 'seo_home_image', label: 'SEO — Home Page OG Image', value: '', group: 'SEO Per-Page' },
+
+  { key: 'seo_about_title', label: 'SEO — About Page Title', value: 'About Jesse Falodun — President, Cherubs Cove Ministry', group: 'SEO Per-Page' },
+  { key: 'seo_about_description', label: 'SEO — About Page Description', value: 'Meet Jesse Falodun, President of Cherubs Cove Ministry. OAP, Spoken Word Artist, and convener of the International Quivers Conference.', group: 'SEO Per-Page' },
+  { key: 'seo_about_image', label: 'SEO — About Page OG Image', value: '', group: 'SEO Per-Page' },
+
+  { key: 'seo_events_title', label: 'SEO — Events Page Title', value: 'Events & Conferences — Cherubs Cove Ministry', group: 'SEO Per-Page' },
+  { key: 'seo_events_description', label: 'SEO — Events Page Description', value: 'Join us at the International Quivers Conference and other gatherings. Annual conferences, monthly services, and mid-week fellowships.', group: 'SEO Per-Page' },
+  { key: 'seo_events_image', label: 'SEO — Events Page OG Image', value: '', group: 'SEO Per-Page' },
+
+  { key: 'seo_pastconferences_title', label: 'SEO — Past Conferences Title', value: 'Past Conferences Archive — Cherubs Cove Ministry', group: 'SEO Per-Page' },
+  { key: 'seo_pastconferences_description', label: 'SEO — Past Conferences Description', value: 'Photo galleries from past editions of the International Quivers Conference — a visual journey through years of encounter.', group: 'SEO Per-Page' },
+  { key: 'seo_pastconferences_image', label: 'SEO — Past Conferences OG Image', value: '', group: 'SEO Per-Page' },
+
+  { key: 'seo_resources_title', label: 'SEO — Resources Page Title', value: 'Sermons & Downloads — Cherubs Cove Ministry', group: 'SEO Per-Page' },
+  { key: 'seo_resources_description', label: 'SEO — Resources Page Description', value: 'Download sermon audio, video teachings, and study documents from Cherubs Cove Ministry and the International Quivers Conference.', group: 'SEO Per-Page' },
+  { key: 'seo_resources_image', label: 'SEO — Resources Page OG Image', value: '', group: 'SEO Per-Page' },
+
+  { key: 'seo_connect_title', label: 'SEO — Connect Page Title', value: 'Connect — Cherubs Cove Ministry', group: 'SEO Per-Page' },
+  { key: 'seo_connect_description', label: 'SEO — Connect Page Description', value: 'Get in touch with Cherubs Cove Ministry. Subscribe to our newsletter, follow us on social media, or send us a message.', group: 'SEO Per-Page' },
+  { key: 'seo_connect_image', label: 'SEO — Connect Page OG Image', value: '', group: 'SEO Per-Page' },
+
+  { key: 'seo_register_title', label: 'SEO — Register Page Title', value: 'Register for Events — Cherubs Cove Ministry', group: 'SEO Per-Page' },
+  { key: 'seo_register_description', label: 'SEO — Register Page Description', value: 'Register for upcoming events at Cherubs Cove Ministry. Free registration for the International Quivers Conference and other gatherings.', group: 'SEO Per-Page' },
+  { key: 'seo_register_image', label: 'SEO — Register Page OG Image', value: '', group: 'SEO Per-Page' },
 ];
 
 /* ── Component ──────────────────────────────────────────────────────────── */
@@ -1622,6 +1659,7 @@ export default function AdminPage() {
             <TabsTrigger value="content" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><FileText size={14} className="mr-1.5" />Content</TabsTrigger>
             <TabsTrigger value="analytics" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><BarChart3 size={14} className="mr-1.5" />Analytics</TabsTrigger>
             <TabsTrigger value="settings" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><Settings size={14} className="mr-1.5" />Settings</TabsTrigger>
+            <TabsTrigger value="seo" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><Search size={14} className="mr-1.5" />SEO</TabsTrigger>
             <TabsTrigger value="admins" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><Users size={14} className="mr-1.5" />Admins</TabsTrigger>
           </TabsList>
 
@@ -2904,6 +2942,270 @@ export default function AdminPage() {
                 </Card>
               ))}
             </div>
+          </TabsContent>
+
+          {/* ── SEO Tab ─────────────────────────────────────────────────── */}
+          <TabsContent value="seo" className="space-y-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-semibold">SEO & Meta Settings</h2>
+                <p className="text-sm text-[#6B5E50]">Manage search engine optimisation — meta tags, social previews, favicons, and per-page titles &amp; descriptions.</p>
+              </div>
+              <Button onClick={loadAllData} variant="outline" className="border-[#2A2520] text-[#B5A898] hover:bg-[#1A1814]" title="Refresh data"><RefreshCw size={14} /></Button>
+            </div>
+
+            {/* ── Global Defaults ──────────────────────────────────────── */}
+            <Card className="bg-[#1A1814] border-[#2A2520]">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-white text-base flex items-center gap-2">
+                  <Search size={16} /> Global Defaults
+                </CardTitle>
+                <p className="text-xs text-[#6B5E50]">Used as fallback when a page does not have its own meta configured.</p>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {[
+                  { key: 'seo_default_title', label: 'Default Site Title', hint: 'Used as the browser tab title and fallback og:title' },
+                  { key: 'seo_default_description', label: 'Default Meta Description', hint: 'Shown in search results when a page-specific description is missing' },
+                  { key: 'seo_default_image', label: 'Default OG Image URL', hint: 'Social preview image — recommended 1200×630px' },
+                ].map(field => (
+                  <div key={field.key}>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-sm font-medium text-[#B5A898]">{field.label}</label>
+                      <span className="text-[9px] tracking-[1px] uppercase text-[#6B5E50]">Global</span>
+                    </div>
+                    <div className="flex gap-2">
+                      {(contentValues[field.key] ?? '').length > 80 ? (
+                        <Textarea
+                          value={contentValues[field.key] ?? ''}
+                          onChange={e => setContentValues(prev => ({ ...prev, [field.key]: e.target.value }))}
+                          className={`flex-1 ${inputCls}`}
+                          rows={3}
+                        />
+                      ) : (
+                        <Input
+                          value={contentValues[field.key] ?? ''}
+                          onChange={e => setContentValues(prev => ({ ...prev, [field.key]: e.target.value }))}
+                          className={`flex-1 ${inputCls}`}
+                        />
+                      )}
+                      <Button onClick={() => saveContentSetting(field.key)} className="bg-[#E8620A] hover:bg-[#cf5709] text-white self-start"><Save size={14} /></Button>
+                    </div>
+                    {field.hint && <p className="text-[10px] text-[#6B5E50] mt-1">{field.hint}</p>}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            {/* ── Social Preview Card ──────────────────────────────────── */}
+            {(() => {
+              const previewTitle = contentValues['seo_default_title'] || 'Cherubs Cove Ministry — The Making Place';
+              const previewDesc = contentValues['seo_default_description'] || 'An interdenominational ministry raising burning youths for the Lord...';
+              const previewUrl = 'https://cherubscove.net/';
+              const previewImg = contentValues['seo_default_image'] || '';
+              return (
+                <Card className="bg-[#1A1814] border-[#2A2520]">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-white text-base flex items-center gap-2">
+                      <Eye size={16} /> Social Preview (Google / Facebook / Twitter)
+                    </CardTitle>
+                    <p className="text-xs text-[#6B5E50]">How your default page will look when shared on social media or shown in search results.</p>
+                  </CardHeader>
+                  <CardContent>
+                    {previewImg && (
+                      <img
+                        src={previewImg}
+                        alt="OG Preview"
+                        className="w-full max-w-[600px] h-auto rounded-t-lg border border-[#2A2520] object-cover"
+                        style={{ aspectRatio: '1200/630' }}
+                        onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    )}
+                    <div className="bg-[#0F0D0A] border border-[#2A2520] border-t-0 rounded-b-lg p-4 max-w-[600px]">
+                      <div className="text-[10px] text-[#6B5E50] uppercase tracking-[1px] truncate">{previewUrl}</div>
+                      <div className="text-sm font-semibold text-white mt-0.5 truncate">{previewTitle}</div>
+                      <div className="text-xs text-[#B5A898] mt-0.5 line-clamp-2">{previewDesc}</div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })()}
+
+            {/* ── Favicon URLs ─────────────────────────────────────────── */}
+            <Card className="bg-[#1A1814] border-[#2A2520]">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-white text-base flex items-center gap-2">
+                  <Image size={16} /> Favicon &amp; Browser Icons
+                </CardTitle>
+                <p className="text-xs text-[#6B5E50]">Upload or paste URLs for browser tab icons and pinned tab icons.</p>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {[
+                  { key: 'seo_favicon_url', label: 'Favicon URL', hint: 'Standard browser tab icon (.png / .ico / .svg)' },
+                  { key: 'seo_favicon_apple_url', label: 'Apple Touch Icon URL', hint: 'Used when saving to iPhone/iPad home screen' },
+                  { key: 'seo_favicon_mask_url', label: 'Mask Icon URL (Safari)', hint: 'For Safari pinned tabs — solid SVG recommended' },
+                ].map(field => (
+                  <div key={field.key}>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-sm font-medium text-[#B5A898]">{field.label}</label>
+                      <span className="text-[9px] tracking-[1px] uppercase text-[#6B5E50]">Favicon</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Input
+                        value={siteSettings[field.key] ?? contentValues[field.key] ?? ''}
+                        onChange={e => {
+                          setContentValues(prev => ({ ...prev, [field.key]: e.target.value }));
+                          setSiteSettings(prev => ({ ...prev, [field.key]: e.target.value }));
+                        }}
+                        className={`flex-1 ${inputCls}`}
+                      />
+                      <Button onClick={() => saveContentSetting(field.key)} className="bg-[#E8620A] hover:bg-[#cf5709] text-white self-start"><Save size={14} /></Button>
+                      <div className="relative self-start">
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                          className="absolute inset-0 opacity-0 cursor-pointer w-full"
+                          title={`Upload ${field.label}`}
+                          onChange={async e => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const ext = file.name.split('.').pop() || 'png';
+                            const path = `icons/${field.key}-${Date.now()}.${ext}`;
+                            let bucket = 'gallery-images';
+                            let { error: upErr } = await supabase.storage.from(bucket).upload(path, file, { upsert: false });
+                            if (upErr) {
+                              bucket = 'event-images';
+                              ({ error: upErr } = await supabase.storage.from(bucket).upload(path, file, { upsert: false }));
+                            }
+                            if (upErr) { toast.error(`Upload failed: ${upErr.message}`); return; }
+                            const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
+                            if (urlData) {
+                              setContentValues(prev => ({ ...prev, [field.key]: urlData.publicUrl }));
+                              setSiteSettings(prev => ({ ...prev, [field.key]: urlData.publicUrl }));
+                              toast.success('Icon uploaded. Click Save to persist.');
+                            }
+                          }}
+                        />
+                        <div className="flex items-center gap-1.5 rounded-md bg-[#2A2520] px-3 py-2 text-xs text-[#B5A898] hover:bg-[#3A3530] transition-colors pointer-events-none">
+                          <Download size={14} /> Upload
+                        </div>
+                      </div>
+                    </div>
+                    {field.hint && <p className="text-[10px] text-[#6B5E50] mt-1">{field.hint}</p>}
+                    {(siteSettings[field.key] || contentValues[field.key]) && (
+                      <div className="flex items-center gap-3 mt-2">
+                        <img
+                          src={siteSettings[field.key] || contentValues[field.key]}
+                          alt=""
+                          className="h-10 w-10 rounded-lg object-cover border border-[#2A2520] bg-[#0F0D0A]"
+                          onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                        <span className="text-[10px] text-[#6B5E50] truncate max-w-[300px]">{siteSettings[field.key] || contentValues[field.key]}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            {/* ── Per-Page SEO ─────────────────────────────────────────── */}
+            <Card className="bg-[#1A1814] border-[#2A2520]">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-white text-base flex items-center gap-2">
+                  <FileText size={16} /> Per-Page Meta
+                </CardTitle>
+                <p className="text-xs text-[#6B5E50]">Customise the title, description, and social preview image for every route on the site.</p>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {[
+                  { prefix: 'seo_home', page: 'Home', path: '/', icon: '🏠' },
+                  { prefix: 'seo_about', page: 'About Jesse', path: '/about-jesse', icon: '👤' },
+                  { prefix: 'seo_events', page: 'Events & Conferences', path: '/events-conferences', icon: '📅' },
+                  { prefix: 'seo_pastconferences', page: 'Past Conferences', path: '/past-conferences', icon: '📷' },
+                  { prefix: 'seo_resources', page: 'Resources', path: '/resources', icon: '📖' },
+                  { prefix: 'seo_connect', page: 'Connect', path: '/connect', icon: '📬' },
+                  { prefix: 'seo_register', page: 'Register', path: '/register/:eventId?', icon: '📝' },
+                ].map(({ prefix, page, path: pagePath, icon }) => {
+                  const titleKey = `${prefix}_title`;
+                  const descKey = `${prefix}_description`;
+                  const imgKey = `${prefix}_image`;
+                  return (
+                    <details key={prefix} className="group border border-[#2A2520] rounded-lg overflow-hidden">
+                      <summary className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-[#2A2520]/50 transition-colors list-none">
+                        <span className="text-lg">{icon}</span>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm font-medium text-white">{page}</span>
+                          <span className="text-[10px] text-[#6B5E50] block truncate">{pagePath}</span>
+                        </div>
+                        <span className="text-xs text-[#6B5E50] opacity-0 group-open:opacity-100 transition-opacity">▼</span>
+                      </summary>
+                      <div className="px-4 pb-4 space-y-3 border-t border-[#2A2520] pt-3">
+                        <div>
+                          <label className="text-xs font-medium text-[#B5A898] block mb-1">Meta Title</label>
+                          <div className="flex gap-2">
+                            <Input
+                              value={contentValues[titleKey] ?? ''}
+                              onChange={e => setContentValues(prev => ({ ...prev, [titleKey]: e.target.value }))}
+                              className={`flex-1 ${inputCls}`}
+                            />
+                            <Button onClick={() => saveContentSetting(titleKey)} className="bg-[#E8620A] hover:bg-[#cf5709] text-white self-start"><Save size={14} /></Button>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-[#B5A898] block mb-1">Meta Description</label>
+                          <div className="flex gap-2">
+                            <Textarea
+                              value={contentValues[descKey] ?? ''}
+                              onChange={e => setContentValues(prev => ({ ...prev, [descKey]: e.target.value }))}
+                              className={`flex-1 ${inputCls}`}
+                              rows={2}
+                            />
+                            <Button onClick={() => saveContentSetting(descKey)} className="bg-[#E8620A] hover:bg-[#cf5709] text-white self-start"><Save size={14} /></Button>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-[#B5A898] block mb-1">OG Image URL</label>
+                          <div className="flex gap-2">
+                            <Input
+                              value={contentValues[imgKey] ?? ''}
+                              onChange={e => setContentValues(prev => ({ ...prev, [imgKey]: e.target.value }))}
+                              className={`flex-1 ${inputCls}`}
+                              placeholder="Leave blank to use default OG image"
+                            />
+                            <Button onClick={() => saveContentSetting(imgKey)} className="bg-[#E8620A] hover:bg-[#cf5709] text-white self-start"><Save size={14} /></Button>
+                          </div>
+                          {contentValues[imgKey] && (
+                            <img
+                              src={contentValues[imgKey]}
+                              alt={`${page} OG preview`}
+                              className="mt-2 h-16 w-auto rounded border border-[#2A2520] object-cover"
+                              onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    </details>
+                  );
+                })}
+              </CardContent>
+            </Card>
+
+            {/* ── Structured Data Info ─────────────────────────────────── */}
+            <Card className="bg-[#1A1814] border-[#2A2520]">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-white text-base flex items-center gap-2">
+                  <FileText size={16} /> Structured Data (JSON-LD)
+                </CardTitle>
+                <p className="text-xs text-[#6B5E50]">Schema.org structured data is automatically injected on every page. You do not need to configure anything here.</p>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-[#0F0D0A] border border-[#2A2520] rounded-lg p-4 text-xs text-[#B5A898] space-y-2">
+                  <p><span className="text-primary font-medium">Organization</span> — Home page (Organization + WebSite schemas)</p>
+                  <p><span className="text-primary font-medium">BreadcrumbList</span> — About Jesse and Connect pages</p>
+                  <p><span className="text-primary font-medium">Event</span> — Event schemas are dynamically generated on event/conference pages</p>
+                  <p className="text-[#6B5E50] mt-2">Data is sourced from your site settings and cannot be edited directly here. Update your content and contact settings to reflect in structured data.</p>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* ── Admins Tab ───────────────────────────────────────────────── */}

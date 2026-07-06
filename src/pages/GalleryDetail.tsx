@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
 import { useSiteSettings, getSetting } from '@/hooks/useSiteSettings';
+import SEO from '@/components/SEO';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ScrollToTop from '@/components/ScrollToTop';
@@ -117,6 +118,11 @@ export default function GalleryDetailPage() {
 
   return (
     <>
+      <SEO
+        title={currentGallery ? `${currentGallery.name} — Past Conferences Archive` : 'Gallery — Cherubs Cove Ministry'}
+        description={currentGallery?.description || 'Photo gallery from past conferences at Cherubs Cove Ministry.'}
+        path={`/past-conferences/${encodeURIComponent(decodedId)}`}
+      />
       <Navbar />
       <div className="pt-[70px] min-h-screen bg-background" ref={ref}>
         {/* Header */}

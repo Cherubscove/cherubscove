@@ -3,6 +3,7 @@ import { Mail, Phone, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
 import { useSiteSettings, getSetting } from '@/hooks/useSiteSettings';
+import SEO, { breadcrumbJsonLd } from '@/components/SEO';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ScrollToTop from '@/components/ScrollToTop';
@@ -137,6 +138,13 @@ export default function ConnectPage() {
 
   return (
     <>
+      <SEO
+        title={getSetting(s, 'seo_connect_title', 'Connect — Cherubs Cove Ministry')}
+        description={getSetting(s, 'seo_connect_description', 'Get in touch with Cherubs Cove Ministry. Subscribe to our newsletter, follow us on social media, or send us a message.')}
+        image={getSetting(s, 'seo_connect_image', '') || undefined}
+        path="/connect"
+        jsonLd={breadcrumbJsonLd([{ name: 'Home', url: '/' }, { name: 'Connect', url: '/connect' }])}
+      />
       <Navbar />
       <div className="pt-[70px] min-h-screen bg-background" ref={ref}>
         <div className="page-header">
@@ -171,7 +179,7 @@ export default function ConnectPage() {
             {/* Newsletter */}
             <div className="reveal">
               <div className="bg-card border border-border rounded-lg p-8 card-lift">
-                <h3 className="font-heading text-2xl font-medium mb-1.5 text-foreground">{getSetting(s, 'connect_newsletter_heading', 'Stay in the Loop')}</h3>
+                <h2 className="font-heading text-2xl font-medium mb-1.5 text-foreground">{getSetting(s, 'connect_newsletter_heading', 'Stay in the Loop')}</h2>
                 <p className="text-[13px] text-muted-foreground leading-relaxed mb-6">
                   {getSetting(s, 'connect_newsletter_text', 'Subscribe for conference updates, ministry resources, and devotional content delivered straight to your inbox.')}
                 </p>
