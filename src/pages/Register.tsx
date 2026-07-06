@@ -265,13 +265,45 @@ function RegistrationForm({
       },
     }).catch(err => console.error('Failed to send form email:', err));
 
+    // Newsletter opt-in — non-blocking, never fails the registration UX
+    let newsletterNote = '';
+    if (showNewsletterOptIn && optIntoNewsletter && payload.email) {
+      try {
+        const emailKey = payload.email.toLowerCase();
+        const { data: existing } = await supabase
+          .from('newsletter')
+          .select('id')
+          .ilike('email', emailKey)
+          .maybeSingle();
+
+        const nlPayload: Record<string, any> = {
+          email: emailKey,
+          phone: payload.phone || null,
+          source: event.title,
+          event_id: event.id,
+          updated_at: new Date().toISOString(),
+        };
+
+        if (existing) {
+          await supabase.from('newsletter').update(nlPayload).eq('id', existing.id);
+          newsletterNote = "<p style=\"margin-top:8px;font-size:12px;opacity:.85\">You were already subscribed to our updates — we've refreshed your details.</p>";
+        } else {
+          await supabase.from('newsletter').insert(nlPayload);
+          newsletterNote = "<p style=\"margin-top:8px;font-size:12px;opacity:.85\">You've been added to our updates list.</p>";
+        }
+      } catch (err) {
+        console.error('Newsletter opt-in failed (non-blocking):', err);
+      }
+    }
+
     setRegStatus('success');
-    setMessage(completionMessage || 'Registration submitted successfully. Thank you!');
+    setMessage((completionMessage || 'Registration submitted successfully. Thank you!') + newsletterNote);
     setFormValues({});
     formRef.current?.reset();
     onSuccess?.();
     setIsSubmitting(false);
   };
+
 
   const inputClass =
     'w-full px-3.5 py-2.5 rounded-md border-[1.5px] border-border bg-card text-sm text-foreground outline-none transition-all focus:border-primary focus:shadow-[0_0_0_3px_hsl(var(--orange)/0.1)] placeholder:text-muted-foreground';
