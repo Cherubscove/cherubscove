@@ -3430,7 +3430,7 @@ export default function AdminPage() {
             )}
           </TabsContent>
         </Tabs>
-      </div>
+      </main>
       <Footer />
       <ScrollToTop />
     </div>
