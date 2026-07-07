@@ -46,7 +46,7 @@ export default function SEO({
   const defaultImage = getSetting(
     settings,
     'seo_default_image',
-    'https://cherubscove.net/og-image.jpg',
+    'https://cherubscove.net/Cherubscove-ogimage.png',
   );
 
   const effectiveTitle = title || defaultTitle;

@@ -165,7 +165,7 @@ const CONTENT_DEFAULTS: { key: string; label: string; value: string; group: stri
   // ── SEO / Meta ──────────────────────────────────────────────────────────
   { key: 'seo_default_title', label: 'SEO — Default Site Title', value: 'Cherubs Cove Ministry — The Making Place', group: 'SEO' },
   { key: 'seo_default_description', label: 'SEO — Default Description', value: 'An interdenominational ministry raising burning youths for the Lord. Home of the International Quivers Conference.', group: 'SEO' },
-  { key: 'seo_default_image', label: 'SEO — Default OG Image URL', value: 'https://cherubscove.net/og-image.jpg', group: 'SEO' },
+  { key: 'seo_default_image', label: 'SEO — Default OG Image URL', value: 'https://cherubscove.net/Cherubscove-ogimage.png', group: 'SEO' },
   { key: 'seo_favicon_url', label: 'SEO — Favicon URL', value: '/favicon.png', group: 'SEO' },
   { key: 'seo_favicon_apple_url', label: 'SEO — Apple Touch Icon URL', value: '/apple-touch-icon.png', group: 'SEO' },
   { key: 'seo_favicon_mask_url', label: 'SEO — Mask Icon URL', value: '/favicon.png', group: 'SEO' },
@@ -3269,6 +3269,36 @@ export default function AdminPage() {
                               placeholder="Leave blank to use default OG image"
                             />
                             <Button onClick={() => saveContentSetting(imgKey)} className="bg-[#E8620A] hover:bg-[#cf5709] text-white self-start"><Save size={14} /></Button>
+                            <div className="relative self-start">
+                              <input
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp"
+                                className="absolute inset-0 opacity-0 cursor-pointer w-full"
+                                title={`Upload ${page} OG Image`}
+                                onChange={async e => {
+                                  const file = e.target.files?.[0];
+                                  if (!file) return;
+                                  const ext = file.name.split('.').pop() || 'png';
+                                  const path = `og/${prefix}-${Date.now()}.${ext}`;
+                                  let bucket = 'gallery-images';
+                                  let { error: upErr } = await supabase.storage.from(bucket).upload(path, file, { upsert: false });
+                                  if (upErr) {
+                                    bucket = 'event-images';
+                                    ({ error: upErr } = await supabase.storage.from(bucket).upload(path, file, { upsert: false }));
+                                  }
+                                  if (upErr) { toast.error(`Upload failed: ${upErr.message}`); return; }
+                                  const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
+                                  if (urlData) {
+                                    setContentValues(prev => ({ ...prev, [imgKey]: urlData.publicUrl }));
+                                    setSiteSettings(prev => ({ ...prev, [imgKey]: urlData.publicUrl }));
+                                    toast.success('OG image uploaded. Click Save to persist.');
+                                  }
+                                }}
+                              />
+                              <div className="flex items-center gap-1.5 rounded-md bg-[#2A2520] px-3 py-2 text-xs text-[#B5A898] hover:bg-[#3A3530] transition-colors pointer-events-none">
+                                <Download size={14} /> Upload
+                              </div>
+                            </div>
                           </div>
                           {contentValues[imgKey] && (
                             <img

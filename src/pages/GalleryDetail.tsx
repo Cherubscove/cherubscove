@@ -71,6 +71,41 @@ export default function GalleryDetailPage() {
     });
   }, [items, decodedId, currentGallery]);
 
+  // Structured data for JSON-LD
+  const pageJsonLd = useMemo(() => {
+    const schemas: Record<string, any>[] = [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'ImageGallery',
+        name: currentGallery ? `${currentGallery.name} — Past Conferences Archive` : 'Gallery — Cherubs Cove Ministry',
+        description: currentGallery?.description || 'Photo gallery from past conferences at Cherubs Cove Ministry.',
+        url: `https://cherubscove.net/past-conferences/${encodeURIComponent(decodedId)}`,
+        isPartOf: {
+          '@type': 'CollectionPage',
+          name: 'Past Conferences Archive — Cherubs Cove Ministry',
+          url: 'https://cherubscove.net/past-conferences',
+        },
+      },
+    ];
+
+    if (images.length > 0) {
+      schemas.push({
+        '@context': 'https://schema.org',
+        '@type': 'ItemList',
+        name: currentGallery?.name || decodedId,
+        itemListElement: images.map((img, i) => ({
+          '@type': 'ListItem',
+          position: i + 1,
+          name: img.title || `Photo ${i + 1}`,
+          description: img.caption || '',
+          image: img.image_url ? normalizeImageUrl(img.image_url) : undefined,
+        })),
+      });
+    }
+
+    return schemas;
+  }, [currentGallery, decodedId, images]);
+
   const openLightbox = useCallback(async (index: number) => {
     setLightbox({ images, index });
 
@@ -125,6 +160,7 @@ export default function GalleryDetailPage() {
         title={currentGallery ? `${currentGallery.name} — Past Conferences Archive` : 'Gallery — Cherubs Cove Ministry'}
         description={currentGallery?.description || 'Photo gallery from past conferences at Cherubs Cove Ministry.'}
         path={`/past-conferences/${encodeURIComponent(decodedId)}`}
+        jsonLd={pageJsonLd}
       />
       <Navbar />
       <main className="pt-[70px] min-h-screen bg-background" ref={ref}>

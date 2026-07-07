@@ -163,6 +163,41 @@ export default function PastConferencesPage() {
     return result;
   }, [items, galleries]);
 
+  // Structured data for JSON-LD
+  const pageJsonLd = useMemo(() => {
+    const schemas: Record<string, any>[] = [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'CollectionPage',
+        name: getSetting(settings, 'seo_pastconferences_title', 'Past Conferences Archive — Cherubs Cove Ministry'),
+        description: getSetting(settings, 'seo_pastconferences_description', 'Photo galleries from past editions of the International Quivers Conference — a visual journey through years of encounter.'),
+        url: 'https://cherubscove.net/past-conferences',
+        isPartOf: { '@type': 'WebSite', name: 'Cherubs Cove Ministry — The Making Place', url: 'https://cherubscove.net' },
+        mainEntity: {
+          '@type': 'ItemList',
+          itemListElement: collections.map((col, i) => ({
+            '@type': 'ListItem',
+            position: i + 1,
+            name: col.name,
+            description: col.description || '',
+            url: `https://cherubscove.net/past-conferences/${encodeURIComponent(col.id)}`,
+            image: col.images[0]?.image_url ? normalizeImageUrl(col.images[0].image_url) : undefined,
+          })),
+        },
+      },
+      ...pastEvents.map(ev => ({
+        '@context': 'https://schema.org',
+        '@type': 'Event',
+        name: `International Quivers Conference ${ev.year} — ${ev.theme}`,
+        description: ev.desc,
+        startDate: ev.year,
+        eventStatus: 'https://schema.org/EventMovedOnline',
+        organizer: { '@type': 'Organization', name: 'Cherubs Cove Ministry', url: 'https://cherubscove.net' },
+      })),
+    ];
+    return schemas;
+  }, [collections, pastEvents, settings]);
+
   return (
     <>
       <SEO
@@ -170,6 +205,7 @@ export default function PastConferencesPage() {
         description={getSetting(settings, 'seo_pastconferences_description', 'Photo galleries from past editions of the International Quivers Conference — a visual journey through years of encounter.')}
         image={getSetting(settings, 'seo_pastconferences_image', '') || undefined}
         path="/past-conferences"
+        jsonLd={pageJsonLd}
       />
       <Navbar />
       <main className="pt-[70px] min-h-screen bg-background" ref={ref}>
