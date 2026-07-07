@@ -1586,7 +1586,7 @@ export default function AdminPage() {
     <AdminErrorBoundary>
       <div className="min-h-screen bg-[#0F0D0A] text-white">
       <Navbar />
-      <div className="pt-20 md:pt-24 pb-16 px-3 sm:px-4 max-w-6xl mx-auto">
+      <main className="pt-20 md:pt-24 pb-16 px-3 sm:px-4 max-w-6xl mx-auto">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 md:mb-8">
           <div>
             <h1 className="text-2xl md:text-3xl font-['Playfair_Display'] text-white">Admin Dashboard</h1>
