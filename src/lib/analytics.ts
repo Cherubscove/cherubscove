@@ -287,7 +287,6 @@ export function summarizeAnalytics(events: AnalyticsEvent[]): AnalyticsSummary {
   // Exit pages sorted by count
   const exitPages: ExitPage[] = Array.from(exitCounter.entries())
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
     .map(([path, count]) => ({ path, count }));
 
   const chartSeries = Array.from(
@@ -312,9 +311,9 @@ export function summarizeAnalytics(events: AnalyticsEvent[]): AnalyticsSummary {
     deviceBreakdown,
     exitPages,
     userActivities,
-    topPages: Array.from(topPages.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([path, count]) => ({ path, count })),
-    topDownloads: Array.from(topDownloads.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([id, count]) => ({ id, count })),
-    topGalleries: Array.from(topGalleries.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([id, count]) => ({ id, count })),
+    topPages: Array.from(topPages.entries()).sort((a, b) => b[1] - a[1]).map(([path, count]) => ({ path, count })),
+    topDownloads: Array.from(topDownloads.entries()).sort((a, b) => b[1] - a[1]).map(([id, count]) => ({ id, count })),
+    topGalleries: Array.from(topGalleries.entries()).sort((a, b) => b[1] - a[1]).map(([id, count]) => ({ id, count })),
     chartSeries,
     growth: {
       pageViewsGrowth: 0,

@@ -281,6 +281,12 @@ export default function AdminPage() {
   const [analyticsCustomStart, setAnalyticsCustomStart] = useState('');
   const [analyticsCustomEnd, setAnalyticsCustomEnd] = useState('');
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [showAllTrend, setShowAllTrend] = useState(false);
+  const [showAllTopPages, setShowAllTopPages] = useState(false);
+  const [showAllExitPages, setShowAllExitPages] = useState(false);
+  const [showAllActivities, setShowAllActivities] = useState(false);
+  const [showAllDownloads, setShowAllDownloads] = useState(false);
+  const [showAllGalleries, setShowAllGalleries] = useState(false);
 
   // ── Audit Log ─────────────────────────────────────────────────────────
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
@@ -1155,21 +1161,8 @@ export default function AdminPage() {
       try { parsed = JSON.parse(row.value); } catch { parsed = []; }
     }
 
-    let authUsers: { email: string }[] = [];
-    try {
-      const { data: rpcData, error: rpcErr } = await supabase.rpc('list_auth_users');
-      if (!rpcErr && Array.isArray(rpcData)) {
-        authUsers = rpcData
-          .filter((u: any) => u?.email)
-          .map((u: any) => ({ email: String(u.email).toLowerCase() }));
-      }
-    } catch (error) {
-      console.error('Unable to load auth users for admin list:', error);
-    }
-
     const byEmail = new Map<string, { email: string; role: 'super_admin' | 'admin' }>();
-    for (const a of parsed) byEmail.set(a.email.toLowerCase(), { email: a.email.toLowerCase(), role: a.role });
-    for (const u of authUsers) if (!byEmail.has(u.email)) byEmail.set(u.email, { email: u.email, role: 'admin' });
+    for (const a of parsed) byEmail.set(a.email.toLowerCase(), a);
 
     // Super admin always present + always super
     byEmail.set(SUPER_ADMIN_EMAIL, { email: SUPER_ADMIN_EMAIL, role: 'super_admin' });
@@ -2186,7 +2179,7 @@ export default function AdminPage() {
                   <span className="text-xs text-[#6B5E50]">{analyticsGranularity === 'day' ? 'Daily' : analyticsGranularity === 'week' ? 'Weekly' : 'Monthly'} view</span>
                 </div>
                 <div className="space-y-2">
-                  {series.map((point) => (
+                  {(showAllTrend ? series : series.slice(0, 10)).map((point) => (
                     <div key={point.date} className="rounded-lg border border-[#2A2520] bg-[#0F0D0A] p-3">
                       <div className="flex items-center justify-between text-sm text-[#B5A898] gap-3">
                         <span>{point.date}</span>
@@ -2195,6 +2188,14 @@ export default function AdminPage() {
                     </div>
                   ))}
                 </div>
+                {series.length > 10 && (
+                  <button
+                    onClick={() => setShowAllTrend(!showAllTrend)}
+                    className="w-full text-center text-xs text-[#E8620A] hover:text-[#ff7a22] transition-colors pt-1"
+                  >
+                    {showAllTrend ? 'Show less' : `View all (${series.length})`}
+                  </button>
+                )}
               </CardContent>
             </Card>
 
@@ -2204,12 +2205,24 @@ export default function AdminPage() {
                   <CardTitle className="text-white">Top pages</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {summary.topPages.length ? summary.topPages.map((item) => (
-                    <div key={item.path} className="flex items-center justify-between rounded-lg border border-[#2A2520] bg-[#0F0D0A] px-3 py-2 text-sm text-[#B5A898]">
-                      <span>{item.path}</span>
-                      <span className="text-white">{item.count}</span>
-                    </div>
-                  )) : <p className="text-sm text-[#6B5E50]">No page data yet.</p>}
+                  {summary.topPages.length ? (
+                    <>
+                      {(showAllTopPages ? summary.topPages : summary.topPages.slice(0, 5)).map((item) => (
+                        <div key={item.path} className="flex items-center justify-between rounded-lg border border-[#2A2520] bg-[#0F0D0A] px-3 py-2 text-sm text-[#B5A898]">
+                          <span>{item.path}</span>
+                          <span className="text-white">{item.count}</span>
+                        </div>
+                      ))}
+                      {summary.topPages.length > 5 && (
+                        <button
+                          onClick={() => setShowAllTopPages(!showAllTopPages)}
+                          className="w-full text-center text-xs text-[#E8620A] hover:text-[#ff7a22] transition-colors pt-1"
+                        >
+                          {showAllTopPages ? 'Show less' : `View all (${summary.topPages.length})`}
+                        </button>
+                      )}
+                    </>
+                  ) : <p className="text-sm text-[#6B5E50]">No page data yet.</p>}
                 </CardContent>
               </Card>
               <Card className="bg-[#1A1814] border-[#2A2520]">
@@ -2217,12 +2230,24 @@ export default function AdminPage() {
                   <CardTitle className="text-white">Exit pages</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {summary.exitPages.length ? summary.exitPages.map((item) => (
-                    <div key={item.path} className="flex items-center justify-between rounded-lg border border-[#2A2520] bg-[#0F0D0A] px-3 py-2 text-sm text-[#B5A898]">
-                      <span>{item.path}</span>
-                      <span className="text-white">{item.count} exits</span>
-                    </div>
-                  )) : <p className="text-sm text-[#6B5E50]">Not enough data yet (requires session tracking).</p>}
+                  {summary.exitPages.length ? (
+                    <>
+                      {(showAllExitPages ? summary.exitPages : summary.exitPages.slice(0, 10)).map((item) => (
+                        <div key={item.path} className="flex items-center justify-between rounded-lg border border-[#2A2520] bg-[#0F0D0A] px-3 py-2 text-sm text-[#B5A898]">
+                          <span>{item.path}</span>
+                          <span className="text-white">{item.count} exits</span>
+                        </div>
+                      ))}
+                      {summary.exitPages.length > 10 && (
+                        <button
+                          onClick={() => setShowAllExitPages(!showAllExitPages)}
+                          className="w-full text-center text-xs text-[#E8620A] hover:text-[#ff7a22] transition-colors pt-1"
+                        >
+                          {showAllExitPages ? 'Show less' : `View all (${summary.exitPages.length})`}
+                        </button>
+                      )}
+                    </>
+                  ) : <p className="text-sm text-[#6B5E50]">Not enough data yet (requires session tracking).</p>}
                 </CardContent>
               </Card>
             </div>
@@ -2246,7 +2271,7 @@ export default function AdminPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {summary.userActivities.slice(0, 20).map((act) => (
+                        {(showAllActivities ? summary.userActivities : summary.userActivities.slice(0, 20)).map((act) => (
                           <tr key={act.session_id} className="border-b border-[#2A2520]/50 text-[#B5A898]">
                             <td className="py-2 pr-3 font-mono text-[10px]">{act.session_id.slice(0, 16)}…</td>
                             <td className="py-2 pr-3">{act.pages.slice(0, 3).join(', ')}{act.pages.length > 3 ? ` +${act.pages.length - 3} more` : ''}</td>
@@ -2266,6 +2291,14 @@ export default function AdminPage() {
                         ))}
                       </tbody>
                     </table>
+                    {summary.userActivities.length > 20 && (
+                      <button
+                        onClick={() => setShowAllActivities(!showAllActivities)}
+                        className="w-full text-center text-xs text-[#E8620A] hover:text-[#ff7a22] transition-colors pt-2"
+                      >
+                        {showAllActivities ? 'Show less' : `View all (${summary.userActivities.length})`}
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <p className="text-sm text-[#6B5E50]">No session data yet. Session IDs will be tracked from now on.</p>
@@ -2281,21 +2314,45 @@ export default function AdminPage() {
                 <CardContent className="space-y-3">
                   <div>
                     <p className="text-[10px] uppercase tracking-[2px] text-[#6B5E50] mb-2">Popular downloads</p>
-                    {summary.topDownloads.length ? summary.topDownloads.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between rounded-lg border border-[#2A2520] bg-[#0F0D0A] px-3 py-2 text-sm text-[#B5A898]">
-                        <span>{item.id}</span>
-                        <span className="text-white">{item.count}</span>
-                      </div>
-                    )) : <p className="text-sm text-[#6B5E50]">No downloads yet.</p>}
+                    {summary.topDownloads.length ? (
+                      <>
+                        {(showAllDownloads ? summary.topDownloads : summary.topDownloads.slice(0, 5)).map((item) => (
+                          <div key={item.id} className="flex items-center justify-between rounded-lg border border-[#2A2520] bg-[#0F0D0A] px-3 py-2 text-sm text-[#B5A898]">
+                            <span>{item.id}</span>
+                            <span className="text-white">{item.count}</span>
+                          </div>
+                        ))}
+                        {summary.topDownloads.length > 5 && (
+                          <button
+                            onClick={() => setShowAllDownloads(!showAllDownloads)}
+                            className="w-full text-center text-xs text-[#E8620A] hover:text-[#ff7a22] transition-colors pt-1"
+                          >
+                            {showAllDownloads ? 'Show less' : `View all (${summary.topDownloads.length})`}
+                          </button>
+                        )}
+                      </>
+                    ) : <p className="text-sm text-[#6B5E50]">No downloads yet.</p>}
                   </div>
                   <div>
                     <p className="text-[10px] uppercase tracking-[2px] text-[#6B5E50] mb-2">Popular galleries</p>
-                    {summary.topGalleries.length ? summary.topGalleries.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between rounded-lg border border-[#2A2520] bg-[#0F0D0A] px-3 py-2 text-sm text-[#B5A898]">
-                        <span>{item.id}</span>
-                        <span className="text-white">{item.count}</span>
-                      </div>
-                    )) : <p className="text-sm text-[#6B5E50]">No gallery data yet.</p>}
+                    {summary.topGalleries.length ? (
+                      <>
+                        {(showAllGalleries ? summary.topGalleries : summary.topGalleries.slice(0, 5)).map((item) => (
+                          <div key={item.id} className="flex items-center justify-between rounded-lg border border-[#2A2520] bg-[#0F0D0A] px-3 py-2 text-sm text-[#B5A898]">
+                            <span>{item.id}</span>
+                            <span className="text-white">{item.count}</span>
+                          </div>
+                        ))}
+                        {summary.topGalleries.length > 5 && (
+                          <button
+                            onClick={() => setShowAllGalleries(!showAllGalleries)}
+                            className="w-full text-center text-xs text-[#E8620A] hover:text-[#ff7a22] transition-colors pt-1"
+                          >
+                            {showAllGalleries ? 'Show less' : `View all (${summary.topGalleries.length})`}
+                          </button>
+                        )}
+                      </>
+                    ) : <p className="text-sm text-[#6B5E50]">No gallery data yet.</p>}
                   </div>
                 </CardContent>
               </Card>
