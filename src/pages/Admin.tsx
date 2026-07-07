@@ -18,12 +18,13 @@ import HeroSlidesManager from '@/components/admin/HeroSlidesManager';
 import { SEED_EVENTS, SEED_DOWNLOADS, SEED_GALLERIES } from '@/lib/seedData';
 import type {
   EventRecord, DownloadRecord, GalleryRecord, RegistrationRecord, FormFieldConfig, GalleryCollection,
-  NewsletterSubscriber, NewsletterSendLog,
+  NewsletterSubscriber, NewsletterSendLog, AuditLogEntry,
   emptyEvent as _ee, emptyDownload as _ed, emptyGallery as _eg,
 } from '@/lib/adminTypes';
 import { emptyEvent, emptyDownload, emptyGallery, formatEventDateRange, validateEventDateTime, buildEventRegistrationLink, generateNextImageTitle, generateGalleryAbbreviation } from '@/lib/adminTypes';
 import { getConsoleLoggingEnabled, getDeveloperModeEnabled, persistConsoleLoggingPreference, persistDeveloperModePreference, setConsoleLoggingEnabled as applyConsoleLoggingPreference } from '@/lib/console';
 import { aggregateAnalyticsSeries, getAnalyticsDateRange, getGrowthComparison, summarizeAnalytics, detectDevice, type AnalyticsEvent, type AnalyticsGranularity, type AnalyticsRange, type DeviceBreakdown, type UserActivity, type ExitPage } from '@/lib/analytics';
+import { logAuditAction, AUDIT_ACTIONS } from '@/lib/auditLogger';
 
 /* ── Content Keys (seed defaults for every editable frontend text) ────── */
 
@@ -281,6 +282,14 @@ export default function AdminPage() {
   const [analyticsCustomEnd, setAnalyticsCustomEnd] = useState('');
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
+  // ── Audit Log ─────────────────────────────────────────────────────────
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
+  const [auditLogsLoading, setAuditLogsLoading] = useState(false);
+  const [auditSort, setAuditSort] = useState<{ col: keyof AuditLogEntry; asc: boolean }>({ col: 'created_at', asc: false });
+  const [auditSearch, setAuditSearch] = useState('');
+  const [auditFilterAction, setAuditFilterAction] = useState<string>('all');
+  const [auditFilterEntity, setAuditFilterEntity] = useState<string>('all');
+
   // ── Password Change ───────────────────────────────────────────────────
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [changePwCurrent, setChangePwCurrent] = useState('');
@@ -428,6 +437,9 @@ export default function AdminPage() {
         applyConsoleLoggingPreference(false);
       }
       toast.success(nextValue ? 'Developer mode enabled.' : 'Developer mode disabled.');
+      void logAuditAction(session?.user?.email ?? '', AUDIT_ACTIONS.DEVELOPER_MODE_TOGGLED, 'preferences', undefined, {
+        enabled: nextValue,
+      });
     } catch (err: any) {
       toast.error(err.message ?? 'Unable to update developer mode.');
     } finally {
@@ -444,6 +456,9 @@ export default function AdminPage() {
       setConsoleLoggingEnabledState(nextValue);
       applyConsoleLoggingPreference(nextValue);
       toast.success(nextValue ? 'Console logs enabled.' : 'Console logs silenced.');
+      void logAuditAction(session?.user?.email ?? '', AUDIT_ACTIONS.CONSOLE_LOGGING_TOGGLED, 'preferences', undefined, {
+        enabled: nextValue,
+      });
     } catch (err: any) {
       toast.error(err.message ?? 'Unable to update console logging preference.');
     } finally {
@@ -510,6 +525,24 @@ export default function AdminPage() {
   useEffect(() => {
     void loadAnalytics();
   }, [analyticsRange, analyticsCustomStart, analyticsCustomEnd]);
+
+  const loadAuditLogs = async () => {
+    setAuditLogsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(500);
+      if (!error) {
+        setAuditLogs((data as AuditLogEntry[]) ?? []);
+      }
+    } catch {
+      // swallow
+    } finally {
+      setAuditLogsLoading(false);
+    }
+  };
 
   const loadAllData = async () => {
     setIsLoading(true);
@@ -597,6 +630,7 @@ export default function AdminPage() {
 
       await loadAdminList(finalSettings);
       await loadGalleries(finalSettings);
+      void loadAuditLogs();
     } catch (error) {
       console.error('Admin data load failed:', error);
       toast.error('The admin dashboard could not load all data. Please refresh the page.');
@@ -613,6 +647,10 @@ export default function AdminPage() {
     const { error } = await supabase.from('site_settings').update({ value: contentValues[key] }).eq('id', meta.id);
     if (error) { toast.error(error.message); return; }
     toast.success('Saved.');
+    void logAuditAction(session?.user?.email ?? '', AUDIT_ACTIONS.CONTENT_UPDATED, 'site_settings', meta.id, {
+      key: meta.key,
+      label: meta.label,
+    });
   };
 
   /* ── CRUD: Events ────────────────────────────────────────────────────── */
@@ -645,14 +683,24 @@ export default function AdminPage() {
 
 
     try {
+      const adminEmail = session?.user?.email ?? '';
       if (editEvent.id) {
         const { error } = await supabase.from('events').update(payload).eq('id', editEvent.id);
         if (error) throw error;
         toast.success('Event updated.');
+        void logAuditAction(adminEmail, AUDIT_ACTIONS.EVENT_UPDATED, 'events', editEvent.id, {
+          title: editEvent.title,
+          status: editEvent.status,
+          date: editEvent.date,
+        });
       } else {
         const { error } = await supabase.from('events').insert(payload);
         if (error) throw error;
         toast.success('Event created.');
+        void logAuditAction(adminEmail, AUDIT_ACTIONS.EVENT_CREATED, 'events', undefined, {
+          title: editEvent.title,
+          status: editEvent.status,
+        });
       }
       setEditEvent(null);
       await loadAllData();
@@ -680,8 +728,12 @@ export default function AdminPage() {
 
   const deleteEvent = async (id: string) => {
     if (!confirm('Delete this event?')) return;
+    const ev = events.find(e => e.id === id);
     await supabase.from('events').delete().eq('id', id);
     toast.success('Event deleted.');
+    void logAuditAction(session?.user?.email ?? '', AUDIT_ACTIONS.EVENT_DELETED, 'events', id, {
+      title: ev?.title,
+    });
     loadAllData();
   };
 
@@ -690,6 +742,10 @@ export default function AdminPage() {
     const { error } = await supabase.from('events').update({ registration_enabled: newVal }).eq('id', ev.id);
     if (error) { toast.error(error.message); return; }
     toast.success(newVal ? 'Registration enabled.' : 'Registration disabled.');
+    void logAuditAction(session?.user?.email ?? '', AUDIT_ACTIONS.EVENT_REGISTRATION_TOGGLED, 'events', ev.id, {
+      registration_enabled: newVal,
+      title: ev.title,
+    });
     loadAllData();
   };
 
@@ -699,14 +755,23 @@ export default function AdminPage() {
     if (!editDownload) return;
     if (!editDownload.title || !editDownload.url) { toast.error('Title and URL are required.'); return; }
     const payload = { title: editDownload.title, url: editDownload.url, description: editDownload.description, category: editDownload.category, type: editDownload.type };
+    const adminEmail = session?.user?.email ?? '';
     if (editDownload.id) {
       const { error } = await supabase.from('downloads').update(payload).eq('id', editDownload.id);
       if (error) { toast.error(error.message); return; }
       toast.success('Download updated.');
+      void logAuditAction(adminEmail, AUDIT_ACTIONS.DOWNLOAD_UPDATED, 'downloads', editDownload.id, {
+        title: editDownload.title,
+        category: editDownload.category,
+      });
     } else {
       const { error } = await supabase.from('downloads').insert(payload);
       if (error) { toast.error(error.message); return; }
       toast.success('Download created.');
+      void logAuditAction(adminEmail, AUDIT_ACTIONS.DOWNLOAD_CREATED, 'downloads', undefined, {
+        title: editDownload.title,
+        category: editDownload.category,
+      });
     }
     setEditDownload(null);
     loadAllData();
@@ -714,8 +779,12 @@ export default function AdminPage() {
 
   const deleteDownload = async (id: string) => {
     if (!confirm('Delete this download?')) return;
+    const dl = downloads.find(d => d.id === id);
     await supabase.from('downloads').delete().eq('id', id);
     toast.success('Download deleted.');
+    void logAuditAction(session?.user?.email ?? '', AUDIT_ACTIONS.DOWNLOAD_DELETED, 'downloads', id, {
+      title: dl?.title,
+    });
     loadAllData();
   };
 
@@ -827,10 +896,22 @@ export default function AdminPage() {
     }
 
     if (error) { toast.error(error.message || 'Unable to save gallery item.'); return; }
+    const adminEmail = session?.user?.email ?? '';
     if (!payload.category) {
       toast.success(editGallery.id ? 'Gallery item updated without category.' : 'Gallery item created without category.');
     } else {
       toast.success(editGallery.id ? 'Gallery item updated.' : 'Gallery item created.');
+    }
+    if (editGallery.id) {
+      void logAuditAction(adminEmail, AUDIT_ACTIONS.GALLERY_IMAGE_UPDATED, 'gallery', editGallery.id, {
+        title: payload.title,
+        category: payload.category,
+      });
+    } else {
+      void logAuditAction(adminEmail, AUDIT_ACTIONS.GALLERY_IMAGE_CREATED, 'gallery', undefined, {
+        title: payload.title,
+        category: payload.category,
+      });
     }
     setEditGallery(null);
     loadAllData();
@@ -862,8 +943,12 @@ export default function AdminPage() {
 
   const deleteGallery = async (id: string) => {
     if (!confirm('Delete this gallery item?')) return;
+    const img = gallery.find(g => g.id === id);
     await supabase.from('gallery').delete().eq('id', id);
     toast.success('Gallery item deleted.');
+    void logAuditAction(session?.user?.email ?? '', AUDIT_ACTIONS.GALLERY_IMAGE_DELETED, 'gallery', id, {
+      title: img?.title,
+    });
     loadAllData();
   };
 
@@ -894,6 +979,10 @@ export default function AdminPage() {
     const { error } = await supabase.from('gallery').delete().in('id', ids);
     if (error) { toast.error(error.message); return; }
     toast.success(`${ids.length} image(s) deleted.`);
+    void logAuditAction(session?.user?.email ?? '', AUDIT_ACTIONS.GALLERY_IMAGE_DELETED, 'gallery', undefined, {
+      count: ids.length,
+      image_ids: ids,
+    });
     setSelectedImageIds(new Set());
     loadAllData();
   };
@@ -944,6 +1033,11 @@ export default function AdminPage() {
       }
     }
     toast.success(`${ids.length} image(s) moved to "${catName}".`);
+    void logAuditAction(session?.user?.email ?? '', AUDIT_ACTIONS.GALLERY_IMAGE_MOVED, 'gallery', undefined, {
+      count: ids.length,
+      target_category: catName,
+      image_ids: ids,
+    });
     setSelectedImageIds(new Set());
     setBulkCategoryTarget('');
     loadAllData();
@@ -1013,6 +1107,10 @@ export default function AdminPage() {
     const migrated = gallery.filter(g => oldTitlePattern.test(g.title || '') || !(g.title || '').match(/-(\d{3})$/)).length;
     if (migrated > 0) {
       toast.success(`Re-titled ${migrated} existing image(s) to gallery-based naming.`);
+      void logAuditAction(session?.user?.email ?? '', AUDIT_ACTIONS.IMAGE_MIGRATION_RUN, 'gallery', undefined, {
+        migrated_count: migrated,
+        total_images: gallery.length,
+      });
       loadAllData();
     }
   };
@@ -1037,6 +1135,10 @@ export default function AdminPage() {
     const { error } = await supabase.from('site_settings').update({ value: siteSettings[key] }).eq('id', meta.id);
     if (error) { toast.error(error.message); return; }
     toast.success(`${meta.label} saved.`);
+    void logAuditAction(session?.user?.email ?? '', AUDIT_ACTIONS.SETTING_UPDATED, 'site_settings', meta.id, {
+      key: meta.key,
+      label: meta.label,
+    });
   };
 
   /* ── Admin Invite & Management ───────────────────────────────────────── */
@@ -1110,6 +1212,10 @@ export default function AdminPage() {
       : [...adminList, { email, role: inviteRole }];
     await persistAdminList(next);
     toast.success(`${email} added as ${inviteRole === 'super_admin' ? 'super admin' : 'admin'}.`);
+    void logAuditAction(session?.user?.email ?? '', AUDIT_ACTIONS.ADMIN_INVITED, 'admin_users', undefined, {
+      target_email: email,
+      role: inviteRole,
+    });
     setInviteEmail('');
     setInvitePassword('');
   };
@@ -1120,6 +1226,9 @@ export default function AdminPage() {
     if (!confirm(`Remove ${email} from admins?`)) return;
     await persistAdminList(adminList.filter(a => a.email.toLowerCase() !== email.toLowerCase()));
     toast.success('Admin removed.');
+    void logAuditAction(session?.user?.email ?? '', AUDIT_ACTIONS.ADMIN_REMOVED, 'admin_users', undefined, {
+      target_email: email,
+    });
   };
 
   const changeAdminRole = async (email: string, role: 'admin' | 'super_admin') => {
@@ -1127,6 +1236,10 @@ export default function AdminPage() {
     if (!isSuperAdmin) { toast.error('Only the super admin can change roles.'); return; }
     await persistAdminList(adminList.map(a => a.email.toLowerCase() === email.toLowerCase() ? { ...a, role } : a));
     toast.success('Role updated.');
+    void logAuditAction(session?.user?.email ?? '', AUDIT_ACTIONS.ADMIN_ROLE_CHANGED, 'admin_users', undefined, {
+      target_email: email,
+      new_role: role,
+    });
   };
 
   /* ── Password Change ───────────────────────────────────────────────── */
@@ -1141,6 +1254,7 @@ export default function AdminPage() {
       const { error } = await supabase.auth.updateUser({ password: changePwNew });
       if (error) throw error;
       toast.success('Your password has been changed successfully.');
+      void logAuditAction(session?.user?.email ?? '', AUDIT_ACTIONS.ADMIN_PASSWORD_CHANGED, 'auth', session?.user?.id);
       setShowChangePassword(false);
       setChangePwCurrent('');
       setChangePwNew('');
@@ -1166,6 +1280,9 @@ export default function AdminPage() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       toast.success(`Password updated for ${adminPwTargetEmail}`);
+      void logAuditAction(session?.user?.email ?? '', AUDIT_ACTIONS.ADMIN_PASSWORD_CHANGED_BY_SUPER, 'auth', undefined, {
+        target_email: adminPwTargetEmail,
+      });
       setAdminPwDialogOpen(false);
       setAdminPwTargetEmail('');
       setAdminPwNewPassword('');
@@ -1388,6 +1505,10 @@ export default function AdminPage() {
       }
 
       toast.success(`Created ${testEvents.length} new test events with diverse arbitrary form fields.`);
+      void logAuditAction(session?.user?.email ?? '', AUDIT_ACTIONS.SEED_DATA_ADDED, 'events', undefined, {
+        type: 'test_events',
+        titles: testEvents.map(e => e.title),
+      });
       await loadAllData();
     } catch (err: any) {
       toast.error(err.message || 'Failed to seed test events.');
@@ -1423,13 +1544,24 @@ export default function AdminPage() {
     const { error } = await supabase.from('registrations').insert(payload);
     if (error) { toast.error(`Seed failed: ${error.message}`); return; }
     toast.success('5 test registrations added.');
+    void logAuditAction(session?.user?.email ?? '', AUDIT_ACTIONS.SEED_DATA_ADDED, 'registrations', undefined, {
+      type: 'test_registrations',
+      event_id: eventId,
+      event_title: eventTitle,
+      count: 5,
+    });
     loadAllData();
   };
 
   const deleteRegistration = async (id: string) => {
     if (!confirm('Delete this registration?')) return;
+    const reg = registrations.find(r => r.id === id);
     await supabase.from('registrations').delete().eq('id', id);
     toast.success('Registration deleted.');
+    void logAuditAction(session?.user?.email ?? '', AUDIT_ACTIONS.REGISTRATION_DELETED, 'registrations', id, {
+      event_title: reg?.event_title,
+      email: reg?.email,
+    });
     loadAllData();
   };
 
@@ -1445,9 +1577,13 @@ export default function AdminPage() {
 
   const deleteSubscriber = async (id: string) => {
     if (!confirm('Remove this subscriber from the newsletter list?')) return;
+    const sub = subscribers.find(s => s.id === id);
     const { error } = await supabase.from('newsletter').delete().eq('id', id);
     if (error) { toast.error(error.message); return; }
     toast.success('Subscriber removed.');
+    void logAuditAction(session?.user?.email ?? '', AUDIT_ACTIONS.NEWSLETTER_SUBSCRIBER_DELETED, 'newsletter', id, {
+      email: sub?.email,
+    });
     loadAllData();
   };
 
@@ -1508,6 +1644,12 @@ export default function AdminPage() {
         toast.success(`Email sent to ${data?.sent ?? composeTargets.length} recipient(s).`);
         setComposeOpen(false);
       }
+      void logAuditAction(session?.user?.email ?? '', AUDIT_ACTIONS.NEWSLETTER_SENT, 'newsletter', undefined, {
+        mode: composeMode,
+        recipient_count: composeTargets.length,
+        subject: composeSubject.trim(),
+        campaign_id: `bulk-${Date.now()}`,
+      });
       loadAllData(); // refresh send logs
     } catch (err: any) {
       toast.error(err.message || 'Failed to send email.');
@@ -1558,6 +1700,10 @@ export default function AdminPage() {
       .eq('id', sub.id);
     if (error) { toast.error(error.message); return; }
     toast.success(newVal ? 'Subscriber unsubscribed.' : 'Subscriber re-activated.');
+    void logAuditAction(session?.user?.email ?? '', AUDIT_ACTIONS.NEWSLETTER_SUBSCRIBER_TOGGLED, 'newsletter', sub.id, {
+      email: sub.email,
+      now_unsubscribed: newVal,
+    });
     loadAllData();
   };
 
@@ -1576,6 +1722,9 @@ export default function AdminPage() {
       .eq('id', subscriberEdit.id);
     if (error) { toast.error(error.message); return; }
     toast.success('Subscriber updated.');
+    void logAuditAction(session?.user?.email ?? '', AUDIT_ACTIONS.NEWSLETTER_SUBSCRIBER_UPDATED, 'newsletter', subscriberEdit.id, {
+      email: subscriberEdit.email,
+    });
     setSubscriberEdit(null);
     loadAllData();
   };
@@ -1723,6 +1872,7 @@ export default function AdminPage() {
             { icon: Image, label: 'Gallery', count: gallery.length, color: '#6B8F71' },
             { icon: ClipboardList, label: 'Registrations', count: registrations.length, color: '#5B8DEF' },
             { icon: Mail, label: 'Subscribers', count: subscribers.length, color: '#22C55E' },
+            { icon: History, label: 'Audit Logs', count: auditLogs.length, color: '#7B68AE' },
             { icon: FileText, label: 'Content', count: CONTENT_DEFAULTS.length, color: '#D97706' },
             { icon: Settings, label: 'Settings', count: settingsMeta.filter(m => !CONTENT_DEFAULTS.some(cd => cd.key === m.key)).length, color: '#7B68AE' },
           ].map(s => (
@@ -1749,6 +1899,7 @@ export default function AdminPage() {
             <TabsTrigger value="newsletter" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898] text-xs md:text-sm whitespace-nowrap"><Mail size={12} className="mr-1 md:mr-1.5 shrink-0" />Newsletter</TabsTrigger>
             <TabsTrigger value="content" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898] text-xs md:text-sm whitespace-nowrap"><FileText size={12} className="mr-1 md:mr-1.5 shrink-0" />Content</TabsTrigger>
             <TabsTrigger value="analytics" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898] text-xs md:text-sm whitespace-nowrap"><BarChart3 size={12} className="mr-1 md:mr-1.5 shrink-0" />Analytics</TabsTrigger>
+            <TabsTrigger value="audit" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898] text-xs md:text-sm whitespace-nowrap"><History size={12} className="mr-1 md:mr-1.5 shrink-0" />Audit Log</TabsTrigger>
             <TabsTrigger value="settings" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898] text-xs md:text-sm whitespace-nowrap"><Settings size={12} className="mr-1 md:mr-1.5 shrink-0" />Settings</TabsTrigger>
             <TabsTrigger value="seo" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898] text-xs md:text-sm whitespace-nowrap"><Search size={12} className="mr-1 md:mr-1.5 shrink-0" />SEO</TabsTrigger>
             <TabsTrigger value="admins" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898] text-xs md:text-sm whitespace-nowrap"><Users size={12} className="mr-1 md:mr-1.5 shrink-0" />Admins</TabsTrigger>
@@ -2275,6 +2426,10 @@ export default function AdminPage() {
                           setEditCollection(null);
                           loadAllData();
                           toast.success('Gallery saved.');
+                          void logAuditAction(session?.user?.email ?? '', editCollection.id ? AUDIT_ACTIONS.GALLERY_UPDATED : AUDIT_ACTIONS.GALLERY_CREATED, 'galleries', editCollection.id || undefined, {
+                            name: editCollection.name,
+                            description: editCollection.description,
+                          });
                         }} className="bg-[#E8620A] hover:bg-[#cf5709] text-white"><Save size={14} className="mr-1" /> Save</Button>
                         <Button variant="outline" onClick={() => setEditCollection(null)} className="border-[#2A2520] text-[#B5A898]"><X size={14} className="mr-1" /> Cancel</Button>
                       </div>
@@ -2313,6 +2468,9 @@ export default function AdminPage() {
                             if (!confirm(`Delete gallery "${col.name}"? Images inside will become uncategorized.`)) return;
                             await persistGalleries(galleries.filter(g => g.id !== col.id));
                             toast.success('Gallery deleted.');
+                            void logAuditAction(session?.user?.email ?? '', AUDIT_ACTIONS.GALLERY_DELETED, 'galleries', col.id, {
+                              name: col.name,
+                            });
                           }} className="text-red-400 hover:text-red-300 h-7 px-2"><Trash2 size={12} /></Button>
                         </div>
                       </Card>
@@ -2696,6 +2854,10 @@ export default function AdminPage() {
                                 await supabase.from('gallery').update({ featured: false }).in('id', otherIds);
                               }
                               toast.success('Cover image updated.');
+                              void logAuditAction(session?.user?.email ?? '', AUDIT_ACTIONS.GALLERY_COVER_SET, 'gallery', g.id, {
+                                gallery_name: selectedGallery?.name,
+                                title: g.title,
+                              });
                               loadAllData();
                             }} className="text-yellow-500 hover:text-yellow-400 h-7 px-2" title="Set as gallery cover">
                               <Star size={12} />
@@ -3094,6 +3256,140 @@ export default function AdminPage() {
                 toast={toast}
               />
             )}
+          </TabsContent>
+
+          {/* ── Audit Log Tab ──────────────────────────────────────────── */}
+          <TabsContent value="audit" className="space-y-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <h2 className="text-xl font-semibold">Audit Log</h2>
+                <p className="text-sm text-[#B5A898]">Every admin action is recorded here — who did what and when.</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={loadAllData} variant="outline" className="border-[#2A2520] text-[#B5A898] hover:bg-[#1A1814]" title="Refresh data"><RefreshCw size={14} /></Button>
+                <select
+                  value={auditFilterAction}
+                  onChange={e => setAuditFilterAction(e.target.value)}
+                  className="bg-[#0F0D0A] border-[#2A2520] text-white rounded-md px-3 py-2 border text-xs"
+                >
+                  <option value="all">All Actions</option>
+                  {Array.from(new Set(auditLogs.map(l => l.action))).sort().map(a => (
+                    <option key={a} value={a}>{a}</option>
+                  ))}
+                </select>
+                <select
+                  value={auditFilterEntity}
+                  onChange={e => setAuditFilterEntity(e.target.value)}
+                  className="bg-[#0F0D0A] border-[#2A2520] text-white rounded-md px-3 py-2 border text-xs"
+                >
+                  <option value="all">All Entities</option>
+                  {Array.from(new Set(auditLogs.map(l => l.entity_type))).sort().map(e => (
+                    <option key={e} value={e}>{e}</option>
+                  ))}
+                </select>
+                <Input
+                  placeholder="Search admin email..."
+                  value={auditSearch}
+                  onChange={e => setAuditSearch(e.target.value)}
+                  className="bg-[#0F0D0A] border-[#2A2520] text-white placeholder:text-[#6B5E50] w-56 text-xs"
+                />
+              </div>
+            </div>
+
+            {(() => {
+              // Filter and sort audit logs
+              let filtered = [...auditLogs];
+              if (auditSearch.trim()) {
+                const q = auditSearch.toLowerCase();
+                filtered = filtered.filter(l => l.admin_email.toLowerCase().includes(q));
+              }
+              if (auditFilterAction !== 'all') {
+                filtered = filtered.filter(l => l.action === auditFilterAction);
+              }
+              if (auditFilterEntity !== 'all') {
+                filtered = filtered.filter(l => l.entity_type === auditFilterEntity);
+              }
+              filtered.sort((a, b) => {
+                const av = String(a[auditSort.col] ?? '');
+                const bv = String(b[auditSort.col] ?? '');
+                return auditSort.asc ? av.localeCompare(bv) : bv.localeCompare(av);
+              });
+
+              const toggleAuditSort = (col: keyof AuditLogEntry) => {
+                setAuditSort(prev => prev.col === col ? { col, asc: !prev.asc } : { col, asc: true });
+              };
+
+              const SortBtnAudit = ({ col, label }: { col: keyof AuditLogEntry; label: string }) => (
+                <button onClick={() => toggleAuditSort(col)} className={`text-[10px] font-bold tracking-[1.5px] uppercase inline-flex items-center gap-1 ${auditSort.col === col ? 'text-[#E8620A]' : 'text-[#6B5E50]'}`}>
+                  {label} <ArrowUpDown size={10} />
+                </button>
+              );
+
+              return (
+                <Card className="bg-[#1A1814] border-[#2A2520]">
+                  <CardContent className="p-0">
+                    {auditLogsLoading ? (
+                      <div className="p-6 text-center text-sm text-[#6B5E50]">Loading audit logs…</div>
+                    ) : filtered.length === 0 ? (
+                      <div className="p-6 text-center text-sm text-[#6B5E50]">
+                        {auditLogs.length === 0
+                          ? 'No audit records yet. Actions will appear here as admins manage the site.'
+                          : 'No records match your filters.'}
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead className="border-b border-[#2A2520]">
+                            <tr>
+                              <th className="px-4 py-3 text-left"><SortBtnAudit col="admin_email" label="Admin" /></th>
+                              <th className="px-4 py-3 text-left"><SortBtnAudit col="action" label="Action" /></th>
+                              <th className="px-4 py-3 text-left"><SortBtnAudit col="entity_type" label="Entity" /></th>
+                              <th className="px-4 py-3 text-left"><SortBtnAudit col="entity_id" label="Entity ID" /></th>
+                              <th className="px-4 py-3 text-left">Details</th>
+                              <th className="px-4 py-3 text-left"><SortBtnAudit col="created_at" label="Time" /></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filtered.map(log => (
+                              <tr key={log.id} className="border-b border-[#2A2520]/50 hover:bg-[#0F0D0A]/50 transition-colors">
+                                <td className="px-4 py-3 text-white whitespace-nowrap">{log.admin_email}</td>
+                                <td className="px-4 py-3">
+                                  <span className="inline-block px-2 py-0.5 rounded-full bg-[#E8620A]/15 text-[#E8620A] text-[9px] font-bold tracking-wider uppercase whitespace-nowrap">
+                                    {log.action}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-[#B5A898] capitalize">{log.entity_type}</td>
+                                <td className="px-4 py-3 text-[#6B5E50] font-mono text-[10px] max-w-[120px] truncate" title={log.entity_id || ''}>
+                                  {log.entity_id ? log.entity_id.slice(0, 16) + '…' : '—'}
+                                </td>
+                                <td className="px-4 py-3">
+                                  {log.details && Object.keys(log.details).length > 0 ? (
+                                    <details className="group">
+                                      <summary className="text-[#6B5E50] cursor-pointer hover:text-[#B5A898] text-[10px] font-medium">View</summary>
+                                      <pre className="mt-1 bg-[#0F0D0A] border border-[#2A2520] rounded p-2 text-[10px] text-[#B5A898] max-w-[300px] overflow-auto max-h-32 whitespace-pre-wrap">
+                                        {JSON.stringify(log.details, null, 2)}
+                                      </pre>
+                                    </details>
+                                  ) : (
+                                    <span className="text-[#6B5E50] text-[10px]">—</span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3 text-[#6B5E50] whitespace-nowrap text-[10px]">
+                                  {new Date(log.created_at).toLocaleString()}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        <div className="px-4 py-2 text-[10px] text-[#6B5E50] border-t border-[#2A2520]">
+                          Showing {filtered.length} of {auditLogs.length} logs
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })()}
           </TabsContent>
 
           {/* ── Settings Tab ─────────────────────────────────────────────── */}

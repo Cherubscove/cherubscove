@@ -204,6 +204,20 @@ export function generateDefaultImageTitle(
  * @param galleryName – display name of the gallery, or null for
  *   uncategorized.
  */
+/**
+ * Audit Log entry — records admin actions for accountability.
+ */
+export interface AuditLogEntry {
+  id: string;
+  admin_email: string;
+  action: string;
+  entity_type: string;
+  entity_id?: string | null;
+  details?: Record<string, any> | null;
+  ip_address?: string | null;
+  created_at: string;
+}
+
 export function generateNextImageTitle(
   existingImages: { title?: string | null }[],
   galleryName: string | null | undefined,
