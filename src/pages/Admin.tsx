@@ -1598,32 +1598,59 @@ export default function AdminPage() {
         </div>
 
         <Card className="bg-[#1A1814] border-[#2A2520] mb-6 md:mb-8">
-          <CardContent className="p-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-sm font-semibold text-white">Developer mode</h2>
-                <span className={`text-[10px] md:text-[11px] px-2 py-0.5 rounded-full ${developerModeEnabled ? 'bg-emerald-900/40 text-emerald-300' : 'bg-[#2A2520] text-[#6B5E50]'}`}>
-                  {developerModeEnabled ? 'Enabled' : 'Disabled'}
-                </span>
+          <CardContent className="p-4 space-y-4">
+            {/* ── Row 1: Developer Mode ─────────────────────────────── */}
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-sm font-semibold text-white">Developer mode</h2>
+                  <span className={`text-[10px] md:text-[11px] px-2 py-0.5 rounded-full font-semibold ${developerModeEnabled ? 'bg-emerald-900/40 text-emerald-300' : 'bg-red-900/40 text-red-300'}`}>
+                    {developerModeEnabled ? 'ON' : 'OFF'}
+                  </span>
+                </div>
+                <p className="text-xs text-[#B5A898] mt-1">
+                  {developerModeEnabled
+                    ? 'Developer tools are unlocked. The console logging switch below is now usable.'
+                    : 'Developer tools are locked. Turn this on only when you need to debug.'}
+                </p>
               </div>
-              <p className="text-xs text-[#B5A898] mt-1">Enable developer tools and expose the console logging toggle for debugging.</p>
-            </div>
-            <div className="flex flex-wrap gap-2 w-full lg:w-auto">
               <Button
-                variant={developerModeEnabled ? 'outline' : 'default'}
                 onClick={() => handleDeveloperModeToggle()}
                 disabled={developerModeSaving}
-                className={`flex-1 lg:flex-none text-xs md:text-sm ${developerModeEnabled ? 'border-[#2A2520] text-[#B5A898] hover:bg-[#1A1814] hover:text-white' : 'bg-[#E8620A] hover:bg-[#cf5709] text-white'}`}
+                className={`w-full lg:w-auto lg:min-w-[200px] text-xs md:text-sm ${developerModeEnabled ? 'bg-red-700 hover:bg-red-800 text-white' : 'bg-emerald-700 hover:bg-emerald-800 text-white'}`}
               >
-                {developerModeSaving ? 'Saving…' : developerModeEnabled ? <><EyeOff size={14} className="mr-1.5" /> Disable</> : <><Eye size={14} className="mr-1.5" /> Enable</>}
+                {developerModeSaving ? 'Saving…' : developerModeEnabled ? <><EyeOff size={14} className="mr-1.5" /> Turn OFF developer mode</> : <><Eye size={14} className="mr-1.5" /> Turn ON developer mode</>}
               </Button>
+            </div>
+
+            <div className="border-t border-[#2A2520]" />
+
+            {/* ── Row 2: Console Logging ────────────────────────────── */}
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-sm font-semibold text-white">Browser console logs</h2>
+                  <span className={`text-[10px] md:text-[11px] px-2 py-0.5 rounded-full font-semibold ${consoleLoggingEnabled ? 'bg-amber-900/40 text-amber-300' : 'bg-emerald-900/40 text-emerald-300'}`}>
+                    {consoleLoggingEnabled ? 'VISIBLE' : 'SILENCED (secure)'}
+                  </span>
+                </div>
+                <p className="text-xs text-[#B5A898] mt-1">
+                  {consoleLoggingEnabled
+                    ? 'Errors, warnings and debug messages are being printed to the browser console. Anyone opening DevTools can read them.'
+                    : 'Nothing is printed to the browser console. Errors, warnings and code details are hidden from visitors — recommended for production.'}
+                  {!developerModeEnabled && ' Enable developer mode above to change this.'}
+                </p>
+              </div>
               <Button
-                variant={consoleLoggingEnabled ? 'outline' : 'default'}
                 onClick={() => handleConsoleLoggingToggle()}
                 disabled={consoleToggleSaving || !developerModeEnabled}
-                className={`flex-1 lg:flex-none text-xs md:text-sm ${consoleLoggingEnabled ? 'border-[#2A2520] text-[#B5A898] hover:bg-[#1A1814] hover:text-white' : 'bg-[#E8620A] hover:bg-[#cf5709] text-white'}`}
+                className={`w-full lg:w-auto lg:min-w-[200px] text-xs md:text-sm ${consoleLoggingEnabled ? 'bg-emerald-700 hover:bg-emerald-800 text-white disabled:opacity-50' : 'bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-50'}`}
               >
-                {consoleToggleSaving ? 'Saving…' : consoleLoggingEnabled ? <><EyeOff size={14} className="mr-1.5" /> Silence</> : <><Eye size={14} className="mr-1.5" /> Console</>}
+                {consoleToggleSaving
+                  ? 'Saving…'
+                  : consoleLoggingEnabled
+                    ? <><EyeOff size={14} className="mr-1.5" /> Silence console (secure)</>
+                    : <><Eye size={14} className="mr-1.5" /> Show console logs</>}
               </Button>
             </div>
           </CardContent>
