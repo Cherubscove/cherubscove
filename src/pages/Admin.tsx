@@ -725,7 +725,7 @@ export default function AdminPage() {
     if (editGallery.id) {
       return supabase.from('gallery').update(data).eq('id', editGallery.id);
     }
-    return supabase.from('gallery').insert(data);
+    return supabase.from('gallery').insert(data as any);
   };
 
   const saveGallery = async () => {
