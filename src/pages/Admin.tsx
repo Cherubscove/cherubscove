@@ -725,7 +725,7 @@ export default function AdminPage() {
     if (editGallery.id) {
       return supabase.from('gallery').update(data).eq('id', editGallery.id);
     }
-    return supabase.from('gallery').insert(data);
+    return supabase.from('gallery').insert(data as any);
   };
 
   const saveGallery = async () => {
@@ -1554,7 +1554,7 @@ export default function AdminPage() {
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-[#0F0D0A] flex items-center justify-center px-4">
+      <main className="min-h-screen bg-[#0F0D0A] flex items-center justify-center px-4">
         <Card className="w-full max-w-md bg-[#1A1814] border-[#E8620A]/20">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl font-['Playfair_Display'] text-white">Admin Login</CardTitle>
@@ -1576,7 +1576,7 @@ export default function AdminPage() {
             </p>
           </CardContent>
         </Card>
-      </div>
+      </main>
     );
   }
 
@@ -1586,7 +1586,7 @@ export default function AdminPage() {
     <AdminErrorBoundary>
       <div className="min-h-screen bg-[#0F0D0A] text-white">
       <Navbar />
-      <div className="pt-20 md:pt-24 pb-16 px-3 sm:px-4 max-w-6xl mx-auto">
+      <main className="pt-20 md:pt-24 pb-16 px-3 sm:px-4 max-w-6xl mx-auto">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 md:mb-8">
           <div>
             <h1 className="text-2xl md:text-3xl font-['Playfair_Display'] text-white">Admin Dashboard</h1>
@@ -2429,7 +2429,7 @@ export default function AdminPage() {
                               if (effectiveCategory) row.category = effectiveCategory;
                               if (hasAltColumn) row.alt_text = `Photo: ${title}`;
 
-                              const tryInsert = async (data: Record<string, string>) => await supabase.from('gallery').insert(data);
+                              const tryInsert = async (data: Record<string, string>) => await supabase.from('gallery').insert(data as any);
                               let { error } = await tryInsert(row);
                               if (error && row.alt_text && error.code === '42703') {
                                 delete row.alt_text;
@@ -3430,7 +3430,7 @@ export default function AdminPage() {
             )}
           </TabsContent>
         </Tabs>
-      </div>
+      </main>
       <Footer />
       <ScrollToTop />
     </div>
