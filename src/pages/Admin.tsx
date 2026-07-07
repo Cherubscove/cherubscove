@@ -1586,50 +1586,50 @@ export default function AdminPage() {
     <AdminErrorBoundary>
       <div className="min-h-screen bg-[#0F0D0A] text-white">
       <Navbar />
-      <div className="pt-24 pb-16 px-4 max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
+      <div className="pt-20 md:pt-24 pb-16 px-3 sm:px-4 max-w-6xl mx-auto">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 md:mb-8">
           <div>
-            <h1 className="text-3xl font-['Playfair_Display'] text-white">Admin Dashboard</h1>
-            <p className="text-[#B5A898] text-sm mt-1">{session.user.email}</p>
+            <h1 className="text-2xl md:text-3xl font-['Playfair_Display'] text-white">Admin Dashboard</h1>
+            <p className="text-[#B5A898] text-xs md:text-sm mt-0.5">{session.user.email}</p>
           </div>
-          <Button variant="outline" onClick={handleSignOut} className="border-[#2A2520] text-[#B5A898] hover:bg-[#1A1814] hover:text-white">
-            <LogOut size={16} className="mr-2" /> Sign Out
+          <Button variant="outline" onClick={handleSignOut} className="border-[#2A2520] text-[#B5A898] hover:bg-[#1A1814] hover:text-white text-xs md:text-sm">
+            <LogOut size={14} className="mr-1.5" /> Sign Out
           </Button>
         </div>
 
-        <Card className="bg-[#1A1814] border-[#2A2520] mb-8">
-          <CardContent className="p-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <div className="flex items-center gap-2">
+        <Card className="bg-[#1A1814] border-[#2A2520] mb-6 md:mb-8">
+          <CardContent className="p-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-sm font-semibold text-white">Developer mode</h2>
-                <span className={`text-[11px] px-2 py-0.5 rounded-full ${developerModeEnabled ? 'bg-emerald-900/40 text-emerald-300' : 'bg-[#2A2520] text-[#6B5E50]'}`}>
+                <span className={`text-[10px] md:text-[11px] px-2 py-0.5 rounded-full ${developerModeEnabled ? 'bg-emerald-900/40 text-emerald-300' : 'bg-[#2A2520] text-[#6B5E50]'}`}>
                   {developerModeEnabled ? 'Enabled' : 'Disabled'}
                 </span>
               </div>
               <p className="text-xs text-[#B5A898] mt-1">Enable developer tools and expose the console logging toggle for debugging.</p>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 w-full lg:w-auto">
               <Button
                 variant={developerModeEnabled ? 'outline' : 'default'}
                 onClick={() => handleDeveloperModeToggle()}
                 disabled={developerModeSaving}
-                className={developerModeEnabled ? 'border-[#2A2520] text-[#B5A898] hover:bg-[#1A1814] hover:text-white' : 'bg-[#E8620A] hover:bg-[#cf5709] text-white'}
+                className={`flex-1 lg:flex-none text-xs md:text-sm ${developerModeEnabled ? 'border-[#2A2520] text-[#B5A898] hover:bg-[#1A1814] hover:text-white' : 'bg-[#E8620A] hover:bg-[#cf5709] text-white'}`}
               >
-                {developerModeSaving ? 'Saving…' : developerModeEnabled ? <><EyeOff size={16} className="mr-2" /> Disable Developer Mode</> : <><Eye size={16} className="mr-2" /> Enable Developer Mode</>}
+                {developerModeSaving ? 'Saving…' : developerModeEnabled ? <><EyeOff size={14} className="mr-1.5" /> Disable</> : <><Eye size={14} className="mr-1.5" /> Enable</>}
               </Button>
               <Button
                 variant={consoleLoggingEnabled ? 'outline' : 'default'}
                 onClick={() => handleConsoleLoggingToggle()}
                 disabled={consoleToggleSaving || !developerModeEnabled}
-                className={consoleLoggingEnabled ? 'border-[#2A2520] text-[#B5A898] hover:bg-[#1A1814] hover:text-white' : 'bg-[#E8620A] hover:bg-[#cf5709] text-white'}
+                className={`flex-1 lg:flex-none text-xs md:text-sm ${consoleLoggingEnabled ? 'border-[#2A2520] text-[#B5A898] hover:bg-[#1A1814] hover:text-white' : 'bg-[#E8620A] hover:bg-[#cf5709] text-white'}`}
               >
-                {consoleToggleSaving ? 'Saving…' : consoleLoggingEnabled ? <><EyeOff size={16} className="mr-2" /> Silence Console</> : <><Eye size={16} className="mr-2" /> Show Console</>}
+                {consoleToggleSaving ? 'Saving…' : consoleLoggingEnabled ? <><EyeOff size={14} className="mr-1.5" /> Silence</> : <><Eye size={14} className="mr-1.5" /> Console</>}
               </Button>
             </div>
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-2 md:grid-cols-7 gap-4 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-7 gap-3 md:gap-4 mb-6 md:mb-8">
           {[
             { icon: Calendar, label: 'Events', count: events.length, color: '#E8620A' },
             { icon: Download, label: 'Downloads', count: downloads.length, color: '#B07D35' },
@@ -1640,31 +1640,31 @@ export default function AdminPage() {
             { icon: Settings, label: 'Settings', count: settingsMeta.filter(m => !CONTENT_DEFAULTS.some(cd => cd.key === m.key)).length, color: '#7B68AE' },
           ].map(s => (
             <Card key={s.label} className="bg-[#1A1814] border-[#2A2520]">
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="p-2 rounded-lg" style={{ backgroundColor: s.color + '20' }}>
-                  <s.icon size={20} style={{ color: s.color }} />
+              <CardContent className="p-3 md:p-4 flex items-center gap-2 md:gap-3">
+                <div className="p-1.5 md:p-2 rounded-lg shrink-0" style={{ backgroundColor: s.color + '20' }}>
+                  <s.icon size={16} style={{ color: s.color }} />
                 </div>
-                <div>
-                  <p className="text-2xl font-bold text-white">{s.count}</p>
-                  <p className="text-xs text-[#6B5E50]">{s.label}</p>
+                <div className="min-w-0">
+                  <p className="text-lg md:text-2xl font-bold text-white leading-tight">{s.count}</p>
+                  <p className="text-[10px] md:text-xs text-[#6B5E50] truncate">{s.label}</p>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
 
-        <Tabs defaultValue="events" className="space-y-6">
-          <TabsList className="bg-[#1A1814] border border-[#2A2520] p-1 flex flex-wrap h-auto gap-1">
-            <TabsTrigger value="events" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><Calendar size={14} className="mr-1.5" />Events</TabsTrigger>
-            <TabsTrigger value="downloads" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><Download size={14} className="mr-1.5" />Downloads</TabsTrigger>
-            <TabsTrigger value="gallery" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><Image size={14} className="mr-1.5" />Gallery</TabsTrigger>
-            <TabsTrigger value="registrations" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><ClipboardList size={14} className="mr-1.5" />Registrations</TabsTrigger>
-            <TabsTrigger value="newsletter" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><Mail size={14} className="mr-1.5" />Newsletter</TabsTrigger>
-            <TabsTrigger value="content" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><FileText size={14} className="mr-1.5" />Content</TabsTrigger>
-            <TabsTrigger value="analytics" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><BarChart3 size={14} className="mr-1.5" />Analytics</TabsTrigger>
-            <TabsTrigger value="settings" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><Settings size={14} className="mr-1.5" />Settings</TabsTrigger>
-            <TabsTrigger value="seo" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><Search size={14} className="mr-1.5" />SEO</TabsTrigger>
-            <TabsTrigger value="admins" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898]"><Users size={14} className="mr-1.5" />Admins</TabsTrigger>
+        <Tabs defaultValue="events" className="space-y-4 md:space-y-6">
+          <TabsList className="bg-[#1A1814] border border-[#2A2520] p-1 flex flex-wrap h-auto gap-1 overflow-x-auto scrollbar-none">
+            <TabsTrigger value="events" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898] text-xs md:text-sm whitespace-nowrap"><Calendar size={12} className="mr-1 md:mr-1.5 shrink-0" />Events</TabsTrigger>
+            <TabsTrigger value="downloads" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898] text-xs md:text-sm whitespace-nowrap"><Download size={12} className="mr-1 md:mr-1.5 shrink-0" />Downloads</TabsTrigger>
+            <TabsTrigger value="gallery" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898] text-xs md:text-sm whitespace-nowrap"><Image size={12} className="mr-1 md:mr-1.5 shrink-0" />Gallery</TabsTrigger>
+            <TabsTrigger value="registrations" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898] text-xs md:text-sm whitespace-nowrap"><ClipboardList size={12} className="mr-1 md:mr-1.5 shrink-0" />Registrations</TabsTrigger>
+            <TabsTrigger value="newsletter" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898] text-xs md:text-sm whitespace-nowrap"><Mail size={12} className="mr-1 md:mr-1.5 shrink-0" />Newsletter</TabsTrigger>
+            <TabsTrigger value="content" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898] text-xs md:text-sm whitespace-nowrap"><FileText size={12} className="mr-1 md:mr-1.5 shrink-0" />Content</TabsTrigger>
+            <TabsTrigger value="analytics" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898] text-xs md:text-sm whitespace-nowrap"><BarChart3 size={12} className="mr-1 md:mr-1.5 shrink-0" />Analytics</TabsTrigger>
+            <TabsTrigger value="settings" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898] text-xs md:text-sm whitespace-nowrap"><Settings size={12} className="mr-1 md:mr-1.5 shrink-0" />Settings</TabsTrigger>
+            <TabsTrigger value="seo" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898] text-xs md:text-sm whitespace-nowrap"><Search size={12} className="mr-1 md:mr-1.5 shrink-0" />SEO</TabsTrigger>
+            <TabsTrigger value="admins" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898] text-xs md:text-sm whitespace-nowrap"><Users size={12} className="mr-1 md:mr-1.5 shrink-0" />Admins</TabsTrigger>
           </TabsList>
 
 
@@ -1892,7 +1892,7 @@ export default function AdminPage() {
               </div>
             )}
 
-            <div className="grid gap-4 md:grid-cols-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4">
               {[
                 { label: 'Page views', value: summary.totalPageViews, change: growth.pageViewsGrowth, accent: '#E8620A' },
                 { label: 'Unique visitors', value: summary.uniqueVisitors, change: growth.visitsGrowth, accent: '#5B8DEF' },
@@ -1900,11 +1900,11 @@ export default function AdminPage() {
                 { label: 'Gallery views', value: summary.totalGalleryViews, change: growth.galleryViewsGrowth, accent: '#6B8F71' },
               ].map((item) => (
                 <Card key={item.label} className="bg-[#1A1814] border-[#2A2520]">
-                  <CardContent className="p-4">
-                    <p className="text-[10px] uppercase tracking-[2px] text-[#6B5E50]">{item.label}</p>
-                    <p className="text-2xl font-semibold text-white mt-2">{item.value}</p>
-                    <p className={`text-xs mt-2 ${item.change >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                      {item.change >= 0 ? '+' : ''}{item.change}% vs previous period
+                  <CardContent className="p-3 md:p-4">
+                    <p className="text-[9px] md:text-[10px] uppercase tracking-[2px] text-[#6B5E50]">{item.label}</p>
+                    <p className="text-xl md:text-2xl font-semibold text-white mt-1 md:mt-2">{item.value}</p>
+                    <p className={`text-[11px] md:text-xs mt-1 md:mt-2 ${item.change >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {item.change >= 0 ? '+' : ''}{item.change}% vs previous
                     </p>
                   </CardContent>
                 </Card>

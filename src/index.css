@@ -128,6 +128,8 @@
     font-family: 'Lato', sans-serif;
     overflow-x: hidden;
     transition: background 0.35s, color 0.35s;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
   }
 
   h1, h2, h3, h4 {
@@ -235,7 +237,7 @@
 
   /* Page header */
   .page-header {
-    @apply py-16 px-8 border-b border-border;
+    @apply py-12 md:py-16 px-5 md:px-8 border-b border-border;
     background: linear-gradient(135deg, hsl(var(--bg-alt)), hsl(var(--background)));
   }
 

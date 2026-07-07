@@ -83,12 +83,12 @@ export default function Navbar() {
             </div>
           </Link>
 
-          <ul className="hidden lg:flex items-center gap-0.5">
+          <ul className="hidden lg:flex items-center gap-1">
             {navLinks.map((link) => (
               <li key={link.href}>
                 {renderLink(
                   link,
-                  `nav-link-underline px-3 py-2 rounded-md text-[11px] font-bold tracking-[1.2px] uppercase transition-all duration-250 ${
+                  `nav-link-underline px-2.5 py-2 rounded-md text-[10.5px] font-bold tracking-[1px] uppercase transition-all duration-250 ${
                     isActive(link.href)
                       ? 'text-primary bg-orange-soft'
                       : 'text-muted-foreground hover:text-primary hover:bg-orange-soft'
@@ -98,14 +98,14 @@ export default function Navbar() {
             ))}
           </ul>
 
-          <div className="flex items-center gap-3">
-            <button onClick={toggle} className="w-9 h-9 rounded-full border border-border flex items-center justify-center text-muted-foreground transition-all duration-250 hover:border-primary hover:text-primary hover:bg-orange-soft" aria-label="Toggle dark mode">
+          <div className="flex items-center gap-2">
+            <button onClick={toggle} className="w-9 h-9 rounded-full border border-border flex items-center justify-center text-muted-foreground transition-all duration-250 hover:border-primary hover:text-primary hover:bg-orange-soft shrink-0" aria-label="Toggle dark mode">
               {isDark ? <Sun size={16} /> : <Moon size={16} />}
             </button>
-            <Link to="/register" className="hidden lg:inline-block btn-solid-custom text-[10.5px] tracking-[2px]">
+            <Link to="/register" className="hidden lg:inline-block btn-solid-custom text-[10.5px] tracking-[2px] ml-2">
               Register
             </Link>
-            <button className="lg:hidden w-9 h-9 rounded-md border border-border flex items-center justify-center text-foreground transition-colors hover:border-primary hover:text-primary" onClick={() => setMobileOpen(!mobileOpen)} aria-label={mobileOpen ? 'Close menu' : 'Open menu'}>
+            <button className="lg:hidden w-9 h-9 rounded-md border border-border flex items-center justify-center text-foreground transition-colors hover:border-primary hover:text-primary shrink-0" onClick={() => setMobileOpen(!mobileOpen)} aria-label={mobileOpen ? 'Close menu' : 'Open menu'}>
               {mobileOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
           </div>
@@ -122,18 +122,18 @@ export default function Navbar() {
 
       {/* Mobile menu */}
       <div className={`fixed top-[70px] left-0 right-0 z-[998] border-b border-border bg-card transition-all duration-300 lg:hidden ${mobileOpen ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 -translate-y-3 pointer-events-none'}`}>
-        <div className="flex flex-col p-6 max-h-[calc(100vh-70px)] overflow-y-auto">
+        <div className="flex flex-col py-3 px-5 max-h-[calc(100dvh-70px)] overflow-y-auto overscroll-contain">
           {navLinks.map((link, i) => (
-            <div key={link.href} className={`py-4 ${i < navLinks.length - 1 ? 'border-b border-border' : ''}`} style={{ animationDelay: `${i * 50}ms` }}>
+            <div key={link.href} className={`py-3.5 ${i < navLinks.length - 1 ? 'border-b border-border/60' : ''}`} style={{ animationDelay: `${i * 50}ms` }}>
               {renderLink(
                 link,
-                `text-[12px] font-bold tracking-[2px] uppercase transition-colors duration-200 ${
+                `block w-full text-[13px] font-bold tracking-[2px] uppercase transition-colors duration-200 py-1 ${
                   isActive(link.href) ? 'text-primary' : 'text-foreground hover:text-primary'
                 }`
               )}
             </div>
           ))}
-          <Link to="/register" className="mt-4 btn-solid-custom text-center" onClick={() => setMobileOpen(false)}>
+          <Link to="/register" className="mt-5 btn-solid-custom text-center text-[12px] py-3.5" onClick={() => setMobileOpen(false)}>
             Register Now →
           </Link>
         </div>

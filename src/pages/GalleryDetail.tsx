@@ -130,29 +130,29 @@ export default function GalleryDetailPage() {
       <main className="pt-[70px] min-h-screen bg-background" ref={ref}>
         {/* Header */}
         <div
-          className="py-16 px-8 text-center relative overflow-hidden"
+          className="py-12 md:py-16 px-5 md:px-8 text-center relative overflow-hidden"
           style={{ background: 'linear-gradient(135deg, #1A1008, #2E1C0A)' }}
         >
           <div className="absolute inset-0 opacity-10" style={{ background: 'radial-gradient(circle at 30% 50%, #E8620A, transparent 60%), radial-gradient(circle at 70% 50%, #E8620A, transparent 60%)' }} />
           <div className="max-w-[700px] mx-auto relative z-[1]">
             <Link
               to="/past-conferences"
-              className="inline-flex items-center gap-1.5 text-[10px] font-bold tracking-[2px] uppercase text-white/50 hover:text-primary transition-colors mb-4"
+              className="inline-flex items-center gap-1.5 text-[10px] font-bold tracking-[2px] uppercase text-white/50 hover:text-primary transition-colors mb-3 md:mb-4"
             >
               <ArrowLeft size={12} /> {getSetting(settings, 'gallery_back_link', 'Back to Archive')}
             </Link>
-            <h1 className="font-heading text-[clamp(28px,5vw,48px)] font-normal leading-tight text-white">
+            <h1 className="font-heading text-[clamp(24px,5vw,48px)] font-normal leading-tight text-white">
               <em className="italic text-primary">{currentGallery?.name || decodedId}</em>
             </h1>
             {currentGallery?.description && (
-              <p className="text-[13px] font-light leading-[1.8] mt-3 text-white/55">
+              <p className="text-[12px] md:text-[13px] font-light leading-[1.8] mt-2 md:mt-3 text-white/55">
                 {currentGallery.description}
               </p>
             )}
-            <p className="text-[11px] tracking-[2px] uppercase text-white/40 mt-3">
+            <p className="text-[10px] md:text-[11px] tracking-[2px] uppercase text-white/40 mt-2 md:mt-3">
               {images.length} photo{images.length !== 1 ? 's' : ''}
             </p>
-            <div className="mt-3">
+            <div className="mt-2 md:mt-3">
               <ShareButton
                 title={`${currentGallery?.name || decodedId} Gallery — Cherubs Cove Ministry`}
                 text={`Check out the "${currentGallery?.name || decodedId}" gallery from Cherubs Cove Ministry`}

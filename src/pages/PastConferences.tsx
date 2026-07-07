@@ -175,14 +175,14 @@ export default function PastConferencesPage() {
       <main className="pt-[70px] min-h-screen bg-background" ref={ref}>
         {/* Hero Banner */}
         <div
-          className="py-20 px-8 text-center relative overflow-hidden"
+          className="py-16 md:py-20 px-5 md:px-8 text-center relative overflow-hidden"
           style={{ background: 'linear-gradient(135deg, #1A1008, #2E1C0A)' }}
         >
           <div className="absolute inset-0 opacity-10" style={{ background: 'radial-gradient(circle at 30% 50%, #E8620A, transparent 60%), radial-gradient(circle at 70% 50%, #E8620A, transparent 60%)' }} />
           <div className="max-w-[700px] mx-auto relative z-[1]">
             <div className="eyebrow justify-center text-primary/80 reveal">{getSetting(settings, 'pastconferences_eyebrow', 'Cherubs Cove Ministry')}</div>
-            <h1 className="font-heading text-[clamp(32px,5vw,56px)] font-normal leading-tight mt-4 text-white reveal" dangerouslySetInnerHTML={{ __html: getSetting(settings, 'pastconferences_heading_html', 'Past Conferences <em class="italic text-primary">Archive</em>') }} />
-            <p className="text-[14px] font-light leading-[1.8] mt-4 text-white/55 reveal">
+            <h1 className="font-heading text-[clamp(28px,5vw,56px)] font-normal leading-tight mt-3 md:mt-4 text-white reveal" dangerouslySetInnerHTML={{ __html: getSetting(settings, 'pastconferences_heading_html', 'Past Conferences <em class="italic text-primary">Archive</em>') }} />
+            <p className="text-[13px] md:text-[14px] font-light leading-[1.8] mt-3 md:mt-4 text-white/55 reveal">
               {getSetting(settings, 'pastconferences_description', 'Moments from past editions of the International Quivers Conference — a visual journey through years of encounter, worship, and transformation.')}
             </p>
           </div>
