@@ -515,12 +515,12 @@ export default function RegisterPage() {
     return (
       <>
         <Navbar />
-        <div className="pt-[70px] min-h-screen bg-background flex items-center justify-center">
+        <main className="pt-[70px] min-h-screen bg-background flex items-center justify-center">
           <div className="flex flex-col items-center gap-3">
             <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
             <p className="text-sm text-muted-foreground">Loading events…</p>
           </div>
-        </div>
+        </main>
         <Footer />
       </>
     );
@@ -537,7 +537,7 @@ export default function RegisterPage() {
     return (
       <>
         <Navbar />
-        <div className="pt-[70px] min-h-screen bg-background" ref={ref}>
+        <main className="pt-[70px] min-h-screen bg-background" ref={ref}>
           {/* ── Hero ──────────────────────────────────────────────────── */}
           <section className="relative overflow-hidden">
             <div className="relative h-[320px] sm:h-[420px]">
@@ -647,7 +647,7 @@ export default function RegisterPage() {
               </div>
             </div>
           </section>
-        </div>
+        </main>
         <Footer />
         <ScrollToTop />
       </>
@@ -666,7 +666,7 @@ export default function RegisterPage() {
         path={eventId ? `/register/${encodeURIComponent(eventId)}` : '/register'}
       />
       <Navbar />
-      <div className="pt-[70px] min-h-screen bg-background" ref={ref}>
+      <main className="pt-[70px] min-h-screen bg-background" ref={ref}>
         {/* Hero Banner */}
         <section className="relative py-20 sm:py-28 px-6 text-center overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-[#2E1C0A] via-[#1A1008] to-[#0F0D0A]" />
@@ -710,7 +710,7 @@ export default function RegisterPage() {
             </>
           )}
         </section>
-      </div>
+      </main>
       <Footer />
       <ScrollToTop />
     </>

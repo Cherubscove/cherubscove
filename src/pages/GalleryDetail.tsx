@@ -124,7 +124,7 @@ export default function GalleryDetailPage() {
         path={`/past-conferences/${encodeURIComponent(decodedId)}`}
       />
       <Navbar />
-      <div className="pt-[70px] min-h-screen bg-background" ref={ref}>
+      <main className="pt-[70px] min-h-screen bg-background" ref={ref}>
         {/* Header */}
         <div
           className="py-16 px-8 text-center relative overflow-hidden"
@@ -181,7 +181,7 @@ export default function GalleryDetailPage() {
                     <>
                       <img
                         src={normalizeImageUrl(g.image_url)}
-                        alt={g.alt_text || g.title || 'Gallery photo'}
+                        alt={g.alt_text || g.title || 'Conference gallery image from Cherubs Cove Ministry'}
                         className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                       />
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors duration-300" />
@@ -209,7 +209,7 @@ export default function GalleryDetailPage() {
             </div>
           )}
         </div>
-      </div>
+      </main>
 
       {/* Lightbox */}
       {lightbox && (
@@ -220,6 +220,7 @@ export default function GalleryDetailPage() {
           <button
             onClick={closeLightbox}
             className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+            aria-label="Close lightbox"
           >
             <X size={20} className="text-white" />
           </button>
@@ -232,6 +233,7 @@ export default function GalleryDetailPage() {
             <button
               onClick={(e) => { e.stopPropagation(); goPrev(); }}
               className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors z-10"
+              aria-label="Previous image"
             >
               <ArrowLeft size={20} className="text-white" />
             </button>
@@ -240,7 +242,7 @@ export default function GalleryDetailPage() {
           <div className="max-w-[90vw] max-h-[90vh] flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
             <img
               src={normalizeImageUrl(lightbox.images[lightbox.index].image_url!)}
-              alt={lightbox.images[lightbox.index].alt_text || lightbox.images[lightbox.index].title || 'Gallery photo'}
+              alt={lightbox.images[lightbox.index].alt_text || lightbox.images[lightbox.index].title || 'Conference gallery photo from Cherubs Cove Ministry'}
               className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
             />
           </div>
@@ -272,8 +274,7 @@ export default function GalleryDetailPage() {
           {lightbox.images.length > 1 && (
             <button
               onClick={(e) => { e.stopPropagation(); goNext(); }}
-              className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors z-10"
-            >
+              className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors z-10"              aria-label="Next image"            >
               <ArrowRight size={20} className="text-white" />
             </button>
           )}

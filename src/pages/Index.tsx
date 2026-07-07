@@ -20,10 +20,12 @@ const Index = () => {
         jsonLd={[orgJsonLd(s), websiteJsonLd()]}
       />
       <Navbar />
-      <HeroSection />
-      <WelcomeSection />
-      <InfoStrip />
-      <EventsPreview />
+      <main>
+        <HeroSection />
+        <WelcomeSection />
+        <InfoStrip />
+        <EventsPreview />
+      </main>
       <Footer />
       <ScrollToTop />
     </>

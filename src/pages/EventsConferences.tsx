@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
 import { useSiteSettings, getSetting } from '@/hooks/useSiteSettings';
-import SEO from '@/components/SEO';
+import SEO, { eventJsonLd } from '@/components/SEO';
 import { Calendar, MapPin, Users, Sparkles, ArrowRight } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -71,9 +71,27 @@ export default function EventsConferencesPage() {
         description={getSetting(s, 'seo_events_description', 'Join us at the International Quivers Conference and other gatherings. Annual conferences, monthly services, and mid-week fellowships.')}
         image={getSetting(s, 'seo_events_image', '') || undefined}
         path="/events-conferences"
+        jsonLd={[
+          {
+            '@context': 'https://schema.org',
+            '@type': 'CollectionPage',
+            name: 'Events & Conferences — Cherubs Cove Ministry',
+            description: 'Upcoming, past, and recurring events at Cherubs Cove Ministry.',
+            url: 'https://cherubscove.net/events-conferences',
+            isPartOf: { '@type': 'WebSite', name: 'Cherubs Cove Ministry — The Making Place', url: 'https://cherubscove.net' },
+          },
+          ...events.map(ev => eventJsonLd({
+            title: ev.title,
+            description: ev.description,
+            startDate: ev.date,
+            endDate: ev.end_date,
+            location: ev.location,
+            image: ev.image_url ? normalizeImageUrl(ev.image_url) : undefined,
+          })),
+        ]}
       />
       <Navbar />
-      <div className="pt-[70px] min-h-screen bg-background" ref={ref}>
+      <main className="pt-[70px] min-h-screen bg-background" ref={ref}>
         {/* Hero Banner */}
         <div
           className="py-20 px-8 text-center relative overflow-hidden"
@@ -349,7 +367,7 @@ export default function EventsConferencesPage() {
             </Link>
           </div>
         </div>
-      </div>
+      </main>
       <Footer />
       <ScrollToTop />
     </>

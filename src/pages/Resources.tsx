@@ -160,9 +160,17 @@ export default function ResourcesPage() {
         description={getSetting(s, 'seo_resources_description', 'Download sermon audio, video teachings, and study documents from Cherubs Cove Ministry and the International Quivers Conference.')}
         image={getSetting(s, 'seo_resources_image', '') || undefined}
         path="/resources"
+        jsonLd={{
+          '@context': 'https://schema.org',
+          '@type': 'CollectionPage',
+          name: 'Sermons & Downloads — Cherubs Cove Ministry',
+          description: 'Download sermon audio, video teachings, and study documents from Cherubs Cove Ministry and the International Quivers Conference.',
+          url: 'https://cherubscove.net/resources',
+          isPartOf: { '@type': 'WebSite', name: 'Cherubs Cove Ministry — The Making Place', url: 'https://cherubscove.net' },
+        }}
       />
       <Navbar />
-      <div className="pt-[70px] min-h-screen bg-background" ref={ref}>
+      <main className="pt-[70px] min-h-screen bg-background" ref={ref}>
         <div className="page-header">
           <div className="container">
             <div className="eyebrow reveal">{getSetting(s, 'resources_eyebrow', 'Ministry Resources')}</div>
@@ -186,6 +194,7 @@ export default function ResourcesPage() {
                 <button
                   onClick={() => setSearchQuery('')}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label="Clear search"
                 >
                   <X size={16} />
                 </button>
@@ -363,7 +372,7 @@ export default function ResourcesPage() {
             </div>
           )}
         </div>
-      </div>
+      </main>
       <Footer />
       <ScrollToTop />
     </>

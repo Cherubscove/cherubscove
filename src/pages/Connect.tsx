@@ -146,7 +146,7 @@ export default function ConnectPage() {
         jsonLd={breadcrumbJsonLd([{ name: 'Home', url: '/' }, { name: 'Connect', url: '/connect' }])}
       />
       <Navbar />
-      <div className="pt-[70px] min-h-screen bg-background" ref={ref}>
+      <main className="pt-[70px] min-h-screen bg-background" ref={ref}>
         <div className="page-header">
           <div className="container">
             <div className="eyebrow reveal">{getSetting(s, 'connect_eyebrow', 'Get in Touch')}</div>
@@ -203,7 +203,7 @@ export default function ConnectPage() {
             </div>
           </div>
         </div>
-      </div>
+      </main>
       <Footer />
       <ScrollToTop />
     </>

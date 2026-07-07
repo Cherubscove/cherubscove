@@ -25,7 +25,7 @@ export default function AboutJessePage() {
         jsonLd={breadcrumbJsonLd([{ name: 'Home', url: '/' }, { name: 'About Jesse Falodun', url: '/about-jesse' }])}
       />
       <Navbar />
-      <div className="pt-[70px] min-h-screen bg-background" ref={ref}>
+      <main className="pt-[70px] min-h-screen bg-background" ref={ref}>
         <div className="page-header">
           <div className="container">
             <div className="eyebrow reveal">{getSetting(s, 'about_eyebrow', 'Meet Our President')}</div>
@@ -102,7 +102,7 @@ export default function AboutJessePage() {
             </div>
           </div>
         </div>
-      </div>
+      </main>
       <Footer />
       <ScrollToTop />
     </>

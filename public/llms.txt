@@ -18,22 +18,22 @@ Cherubs Cove is an interdenominational ministry committed to raising a generatio
 
 ## Key Pages
 
-- **Home** (`/`): Ministry introduction, hero section with scripture (Psalm 127:4), upcoming events preview.
-- **About Jesse Falodun** (`/about-jesse`): Biography, ministry background, speaking engagements.
-- **Events & Conferences** (`/events-conferences`): Upcoming, past, and recurring events with registration.
-- **Past Conferences Archive** (`/past-conferences`): Photo galleries from past conference editions.
-- **Resources** (`/resources`): Sermon audio, video teachings, and downloadable PDF study documents.
-- **Connect** (`/connect`): Contact information, social media links, newsletter subscription.
-- **Register** (`/register/:eventId?`): Event registration with custom form fields per event.
+- [Home](https://cherubscove.net/) — Ministry introduction, hero section with scripture (Psalm 127:4), upcoming events preview.
+- [About Jesse Falodun](https://cherubscove.net/about-jesse) — Biography, ministry background, speaking engagements.
+- [Events & Conferences](https://cherubscove.net/events-conferences) — Upcoming, past, and recurring events with registration.
+- [Past Conferences Archive](https://cherubscove.net/past-conferences) — Photo galleries from past conference editions.
+- [Resources](https://cherubscove.net/resources) — Sermon audio, video teachings, and downloadable PDF study documents.
+- [Connect](https://cherubscove.net/connect) — Contact information, social media links, newsletter subscription.
+- [Register](https://cherubscove.net/register) — Event registration with custom form fields per event.
 
 ## Contact
 
-- **Email**: cherubscove@gmail.com
-- **Phone**: +234 817 930 3228
+- **Email**: [cherubscove@gmail.com](mailto:cherubscove@gmail.com)
+- **Phone**: [+234 817 930 3228](tel:+2348179303228)
 - **Location**: Nigeria
-- **Facebook**: https://www.facebook.com/share/182S9YeQMr/
-- **YouTube**: https://www.youtube.com/@jefaldera
-- **WhatsApp**: https://wa.me/2348179303228
+- [Facebook](https://www.facebook.com/share/182S9YeQMr/)
+- [YouTube](https://www.youtube.com/@jefaldera)
+- [WhatsApp](https://wa.me/2348179303228)
 
 ## Core Beliefs
 
@@ -45,4 +45,4 @@ Interdenominational ministry focused on raising burning youths for the Lord. Par
 - UI: Tailwind CSS + shadcn/ui components
 - Backend: Supabase (PostgreSQL, Auth, Storage, Edge Functions)
 - PWA-enabled with offline support
-- Admin panel at `/quiveradminconsole007`
+- Admin panel at [https://cherubscove.net/quiveradminconsole007](https://cherubscove.net/quiveradminconsole007)

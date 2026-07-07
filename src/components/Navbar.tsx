@@ -104,7 +104,7 @@ export default function Navbar() {
             <Link to="/register" className="hidden lg:inline-block btn-solid-custom text-[10.5px] tracking-[2px]">
               Register
             </Link>
-            <button className="lg:hidden w-9 h-9 rounded-md border border-border flex items-center justify-center text-foreground transition-colors hover:border-primary hover:text-primary" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Open menu">
+            <button className="lg:hidden w-9 h-9 rounded-md border border-border flex items-center justify-center text-foreground transition-colors hover:border-primary hover:text-primary" onClick={() => setMobileOpen(!mobileOpen)} aria-label={mobileOpen ? 'Close menu' : 'Open menu'}>
               {mobileOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
           </div>

@@ -241,7 +241,7 @@ export default function EventsPreview() {
                   className="rounded-lg overflow-hidden relative group cursor-pointer min-h-[140px] block"
                 >
                   {g.image_url ? (
-                    <img src={normalizeImageUrl(g.image_url!)} alt={g.title || 'Gallery'} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                    <img src={normalizeImageUrl(g.image_url!)} alt={g.title || 'Past conference gallery cover photo'} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                   ) : (
                     <div className="w-full h-full bg-gradient-to-br from-[hsl(var(--bg-subtle))] to-[hsl(var(--border))] flex items-center justify-center transition-transform duration-500 group-hover:scale-105 absolute inset-0">
                       <span className="text-[10px] tracking-[3px] uppercase text-muted-foreground">Gallery</span>
