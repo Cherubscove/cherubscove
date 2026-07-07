@@ -1554,7 +1554,7 @@ export default function AdminPage() {
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-[#0F0D0A] flex items-center justify-center px-4">
+      <main className="min-h-screen bg-[#0F0D0A] flex items-center justify-center px-4">
         <Card className="w-full max-w-md bg-[#1A1814] border-[#E8620A]/20">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl font-['Playfair_Display'] text-white">Admin Login</CardTitle>
@@ -1576,7 +1576,7 @@ export default function AdminPage() {
             </p>
           </CardContent>
         </Card>
-      </div>
+      </main>
     );
   }
 
