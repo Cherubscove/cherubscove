@@ -2429,7 +2429,7 @@ export default function AdminPage() {
                               if (effectiveCategory) row.category = effectiveCategory;
                               if (hasAltColumn) row.alt_text = `Photo: ${title}`;
 
-                              const tryInsert = async (data: Record<string, string>) => await supabase.from('gallery').insert(data);
+                              const tryInsert = async (data: Record<string, string>) => await supabase.from('gallery').insert(data as any);
                               let { error } = await tryInsert(row);
                               if (error && row.alt_text && error.code === '42703') {
                                 delete row.alt_text;
