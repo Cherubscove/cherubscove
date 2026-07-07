@@ -198,6 +198,10 @@ const CONTENT_DEFAULTS: { key: string; label: string; value: string; group: stri
   { key: 'seo_register_title', label: 'SEO — Register Page Title', value: 'Register for Events — Cherubs Cove Ministry', group: 'SEO Per-Page' },
   { key: 'seo_register_description', label: 'SEO — Register Page Description', value: 'Register for upcoming events at Cherubs Cove Ministry. Free registration for the International Quivers Conference and other gatherings.', group: 'SEO Per-Page' },
   { key: 'seo_register_image', label: 'SEO — Register Page OG Image', value: '', group: 'SEO Per-Page' },
+
+  { key: 'seo_support_title', label: 'SEO — Support Page Title', value: 'Support Our Ministry — Cherubs Cove', group: 'SEO Per-Page' },
+  { key: 'seo_support_description', label: 'SEO — Support Page Description', value: 'Partner with Cherubs Cove Ministry through your financial support. Your generous giving helps us continue raising burning youths for the Lord.', group: 'SEO Per-Page' },
+  { key: 'seo_support_image', label: 'SEO — Support Page OG Image', value: '', group: 'SEO Per-Page' },
 ];
 
 /* ── Component ──────────────────────────────────────────────────────────── */
@@ -3216,6 +3220,7 @@ export default function AdminPage() {
                   { prefix: 'seo_resources', page: 'Resources', path: '/resources', icon: '📖' },
                   { prefix: 'seo_connect', page: 'Connect', path: '/connect', icon: '📬' },
                   { prefix: 'seo_register', page: 'Register', path: '/register/:eventId?', icon: '📝' },
+                  { prefix: 'seo_support', page: 'Support', path: '/support', icon: '💝' },
                 ].map(({ prefix, page, path: pagePath, icon }) => {
                   const titleKey = `${prefix}_title`;
                   const descKey = `${prefix}_description`;

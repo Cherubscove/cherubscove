@@ -12,6 +12,7 @@ const navLinks = [
   { label: 'Jesse Falodun', href: '/about-jesse' },
   { label: 'Downloads', href: '/downloads' },
   { label: 'Connect', href: '/connect' },
+  { label: 'Support', href: '/support' },
 ];
 
 export default function Navbar() {

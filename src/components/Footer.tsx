@@ -9,6 +9,7 @@ const footerLinks = [
   { label: 'Events & Conferences', href: '/events-conferences' },
   { label: 'Downloads', href: '/downloads' },
   { label: 'Register', href: '/register' },
+  { label: 'Support', href: '/support' },
   { label: 'Contact', href: '/connect' },
 ];
 
