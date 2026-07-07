@@ -173,35 +173,35 @@ const CONTENT_DEFAULTS: { key: string; label: string; value: string; group: stri
   // Per-page meta
   { key: 'seo_home_title', label: 'SEO — Home Page Title', value: 'Cherubs Cove Ministry — The Making Place', group: 'SEO Per-Page' },
   { key: 'seo_home_description', label: 'SEO — Home Page Description', value: 'An interdenominational ministry raising burning youths for the Lord. Home of the International Quivers Conference.', group: 'SEO Per-Page' },
-  { key: 'seo_home_image', label: 'SEO — Home Page OG Image', value: '', group: 'SEO Per-Page' },
+  { key: 'seo_home_image', label: 'SEO — Home Page OG Image', value: 'https://cherubscove.net/Cherubscove-ogimage.png', group: 'SEO Per-Page' },
 
   { key: 'seo_about_title', label: 'SEO — About Page Title', value: 'About Jesse Falodun — President, Cherubs Cove Ministry', group: 'SEO Per-Page' },
   { key: 'seo_about_description', label: 'SEO — About Page Description', value: 'Meet Jesse Falodun, President of Cherubs Cove Ministry. OAP, Spoken Word Artist, and convener of the International Quivers Conference.', group: 'SEO Per-Page' },
-  { key: 'seo_about_image', label: 'SEO — About Page OG Image', value: '', group: 'SEO Per-Page' },
+  { key: 'seo_about_image', label: 'SEO — About Page OG Image', value: 'https://cherubscove.net/Cherubscove-ogimage.png', group: 'SEO Per-Page' },
 
   { key: 'seo_events_title', label: 'SEO — Events Page Title', value: 'Events & Conferences — Cherubs Cove Ministry', group: 'SEO Per-Page' },
   { key: 'seo_events_description', label: 'SEO — Events Page Description', value: 'Join us at the International Quivers Conference and other gatherings. Annual conferences, monthly services, and mid-week fellowships.', group: 'SEO Per-Page' },
-  { key: 'seo_events_image', label: 'SEO — Events Page OG Image', value: '', group: 'SEO Per-Page' },
+  { key: 'seo_events_image', label: 'SEO — Events Page OG Image', value: 'https://cherubscove.net/Cherubscove-ogimage.png', group: 'SEO Per-Page' },
 
   { key: 'seo_pastconferences_title', label: 'SEO — Past Conferences Title', value: 'Past Conferences Archive — Cherubs Cove Ministry', group: 'SEO Per-Page' },
   { key: 'seo_pastconferences_description', label: 'SEO — Past Conferences Description', value: 'Photo galleries from past editions of the International Quivers Conference — a visual journey through years of encounter.', group: 'SEO Per-Page' },
-  { key: 'seo_pastconferences_image', label: 'SEO — Past Conferences OG Image', value: '', group: 'SEO Per-Page' },
+  { key: 'seo_pastconferences_image', label: 'SEO — Past Conferences OG Image', value: 'https://cherubscove.net/Cherubscove-ogimage.png', group: 'SEO Per-Page' },
 
   { key: 'seo_resources_title', label: 'SEO — Resources Page Title', value: 'Sermons & Downloads — Cherubs Cove Ministry', group: 'SEO Per-Page' },
   { key: 'seo_resources_description', label: 'SEO — Resources Page Description', value: 'Download sermon audio, video teachings, and study documents from Cherubs Cove Ministry and the International Quivers Conference.', group: 'SEO Per-Page' },
-  { key: 'seo_resources_image', label: 'SEO — Resources Page OG Image', value: '', group: 'SEO Per-Page' },
+  { key: 'seo_resources_image', label: 'SEO — Resources Page OG Image', value: 'https://cherubscove.net/Cherubscove-ogimage.png', group: 'SEO Per-Page' },
 
   { key: 'seo_connect_title', label: 'SEO — Connect Page Title', value: 'Connect — Cherubs Cove Ministry', group: 'SEO Per-Page' },
   { key: 'seo_connect_description', label: 'SEO — Connect Page Description', value: 'Get in touch with Cherubs Cove Ministry. Subscribe to our newsletter, follow us on social media, or send us a message.', group: 'SEO Per-Page' },
-  { key: 'seo_connect_image', label: 'SEO — Connect Page OG Image', value: '', group: 'SEO Per-Page' },
+  { key: 'seo_connect_image', label: 'SEO — Connect Page OG Image', value: 'https://cherubscove.net/Cherubscove-ogimage.png', group: 'SEO Per-Page' },
 
   { key: 'seo_register_title', label: 'SEO — Register Page Title', value: 'Register for Events — Cherubs Cove Ministry', group: 'SEO Per-Page' },
   { key: 'seo_register_description', label: 'SEO — Register Page Description', value: 'Register for upcoming events at Cherubs Cove Ministry. Free registration for the International Quivers Conference and other gatherings.', group: 'SEO Per-Page' },
-  { key: 'seo_register_image', label: 'SEO — Register Page OG Image', value: '', group: 'SEO Per-Page' },
+  { key: 'seo_register_image', label: 'SEO — Register Page OG Image', value: 'https://cherubscove.net/Cherubscove-ogimage.png', group: 'SEO Per-Page' },
 
   { key: 'seo_support_title', label: 'SEO — Support Page Title', value: 'Support Our Ministry — Cherubs Cove', group: 'SEO Per-Page' },
   { key: 'seo_support_description', label: 'SEO — Support Page Description', value: 'Partner with Cherubs Cove Ministry through your financial support. Your generous giving helps us continue raising burning youths for the Lord.', group: 'SEO Per-Page' },
-  { key: 'seo_support_image', label: 'SEO — Support Page OG Image', value: '', group: 'SEO Per-Page' },
+  { key: 'seo_support_image', label: 'SEO — Support Page OG Image', value: 'https://cherubscove.net/Cherubscove-ogimage.png', group: 'SEO Per-Page' },
 ];
 
 /* ── Component ──────────────────────────────────────────────────────────── */
@@ -280,6 +280,19 @@ export default function AdminPage() {
   const [analyticsCustomStart, setAnalyticsCustomStart] = useState('');
   const [analyticsCustomEnd, setAnalyticsCustomEnd] = useState('');
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+
+  // ── Password Change ───────────────────────────────────────────────────
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [changePwCurrent, setChangePwCurrent] = useState('');
+  const [changePwNew, setChangePwNew] = useState('');
+  const [changePwConfirm, setChangePwConfirm] = useState('');
+  const [changePwSaving, setChangePwSaving] = useState(false);
+
+  // ── Super Admin: Change another admin's password ─────────────────────
+  const [adminPwTargetEmail, setAdminPwTargetEmail] = useState('');
+  const [adminPwNewPassword, setAdminPwNewPassword] = useState('');
+  const [adminPwSaving, setAdminPwSaving] = useState(false);
+  const [adminPwDialogOpen, setAdminPwDialogOpen] = useState(false);
 
   const parseRegistrationFormData = (raw: RegistrationRecord['form_data']) => {
     if (!raw) return null;
@@ -1114,6 +1127,53 @@ export default function AdminPage() {
     if (!isSuperAdmin) { toast.error('Only the super admin can change roles.'); return; }
     await persistAdminList(adminList.map(a => a.email.toLowerCase() === email.toLowerCase() ? { ...a, role } : a));
     toast.success('Role updated.');
+  };
+
+  /* ── Password Change ───────────────────────────────────────────────── */
+
+  /** Change the current user's own password (works for any authenticated admin). */
+  const handleChangeOwnPassword = async () => {
+    if (!changePwNew) { toast.error('Enter a new password.'); return; }
+    if (changePwNew.length < 6) { toast.error('Password must be at least 6 characters.'); return; }
+    if (changePwNew !== changePwConfirm) { toast.error('Passwords do not match.'); return; }
+    setChangePwSaving(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: changePwNew });
+      if (error) throw error;
+      toast.success('Your password has been changed successfully.');
+      setShowChangePassword(false);
+      setChangePwCurrent('');
+      setChangePwNew('');
+      setChangePwConfirm('');
+    } catch (err: any) {
+      toast.error(err.message ?? 'Failed to change password.');
+    } finally {
+      setChangePwSaving(false);
+    }
+  };
+
+  /** Super admin: change any admin's password via the edge function. */
+  const handleAdminChangePassword = async () => {
+    if (!adminPwTargetEmail) { toast.error('Select an admin to update.'); return; }
+    if (!adminPwNewPassword) { toast.error('Enter a new password.'); return; }
+    if (adminPwNewPassword.length < 6) { toast.error('Password must be at least 6 characters.'); return; }
+    if (!isSuperAdmin) { toast.error('Only the super admin can change other users\' passwords.'); return; }
+    setAdminPwSaving(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-update-password', {
+        body: { target_email: adminPwTargetEmail, new_password: adminPwNewPassword },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Password updated for ${adminPwTargetEmail}`);
+      setAdminPwDialogOpen(false);
+      setAdminPwTargetEmail('');
+      setAdminPwNewPassword('');
+    } catch (err: any) {
+      toast.error(err.message ?? 'Failed to update password.');
+    } finally {
+      setAdminPwSaving(false);
+    }
   };
 
   const GALLERIES_KEY = 'galleries_json';
@@ -3379,9 +3439,64 @@ export default function AdminPage() {
               </div>
             </div>
 
+            {/* ── Change My Password ──────────────────────────────────── */}
+            <Card className="bg-[#1A1814] border-[#2A2520]">
+              <CardContent className="p-4">
+                <button
+                  onClick={() => setShowChangePassword(!showChangePassword)}
+                  className="flex items-center justify-between w-full text-left"
+                >
+                  <div>
+                    <h3 className="text-white font-semibold text-sm">Change Your Password</h3>
+                    <p className="text-xs text-[#6B5E50] mt-0.5">Update your login password</p>
+                  </div>
+                  <span className={`text-[#6B5E50] transition-transform ${showChangePassword ? 'rotate-180' : ''}`}>▼</span>
+                </button>
+                {showChangePassword && (
+                  <div className="mt-4 space-y-3 border-t border-[#2A2520] pt-4">
+                    <Field label="Current Password">
+                      <Input
+                        type="password"
+                        placeholder="Enter your current password"
+                        value={changePwCurrent}
+                        onChange={e => setChangePwCurrent(e.target.value)}
+                        className={inputCls}
+                      />
+                    </Field>
+                    <Field label="New Password">
+                      <Input
+                        type="password"
+                        placeholder="At least 6 characters"
+                        value={changePwNew}
+                        onChange={e => setChangePwNew(e.target.value)}
+                        className={inputCls}
+                      />
+                    </Field>
+                    <Field label="Confirm New Password">
+                      <Input
+                        type="password"
+                        placeholder="Re-enter new password"
+                        value={changePwConfirm}
+                        onChange={e => setChangePwConfirm(e.target.value)}
+                        className={inputCls}
+                      />
+                    </Field>
+                    <Button
+                      onClick={handleChangeOwnPassword}
+                      disabled={changePwSaving || !changePwNew || !changePwConfirm}
+                      className="bg-[#E8620A] hover:bg-[#cf5709] text-white"
+                    >
+                      {changePwSaving ? 'Saving…' : <><Save size={14} className="mr-1" /> Update Password</>}
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             <div className="space-y-2">
               {adminList.map(a => {
                 const isSuper = a.email.toLowerCase() === SUPER_ADMIN_EMAIL;
+                const isCurrentUser = session?.user?.email?.toLowerCase() === a.email.toLowerCase();
                 return (
                   <Card key={a.email} className="bg-[#1A1814] border-[#2A2520]">
                     <CardContent className="p-4 flex items-center justify-between gap-3 flex-wrap">
@@ -3401,13 +3516,29 @@ export default function AdminPage() {
                             {a.role === 'admin' && (
                               <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-900/40 text-blue-300 font-bold tracking-wider uppercase">Admin</span>
                             )}
-                            {session?.user?.email?.toLowerCase() === a.email.toLowerCase() && (
+                            {isCurrentUser && (
                               <span className="text-[10px] text-[#6B5E50]">(you)</span>
                             )}
                           </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
+                        {/* Super admin: change another admin's password */}
+                        {isSuperAdmin && !isCurrentUser && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setAdminPwTargetEmail(a.email);
+                              setAdminPwNewPassword('');
+                              setAdminPwDialogOpen(true);
+                            }}
+                            className="text-[#B5A898] hover:text-white"
+                            title="Change this admin's password"
+                          >
+                            <Settings size={14} />
+                          </Button>
+                        )}
                         {!isSuper && isSuperAdmin && (
                           <select
                             value={a.role}
@@ -3429,6 +3560,43 @@ export default function AdminPage() {
                 );
               })}
             </div>
+
+            {/* ── Super Admin: Change Admin Password Dialog ──────────── */}
+            {adminPwDialogOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setAdminPwDialogOpen(false)}>
+                <Card className="w-full max-w-md bg-[#1A1814] border-[#E8620A]/40" onClick={e => e.stopPropagation()}>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                    <CardTitle className="text-white text-lg">Change Password</CardTitle>
+                    <Button size="sm" variant="ghost" onClick={() => setAdminPwDialogOpen(false)} className="text-[#B5A898]"><X size={16} /></Button>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <p className="text-sm text-[#B5A898]">
+                      Updating password for <strong className="text-white">{adminPwTargetEmail}</strong>
+                    </p>
+                    <Field label="New Password" hint="Must be at least 6 characters">
+                      <Input
+                        type="password"
+                        placeholder="Enter new password"
+                        value={adminPwNewPassword}
+                        onChange={e => setAdminPwNewPassword(e.target.value)}
+                        className={inputCls}
+                        autoFocus
+                      />
+                    </Field>
+                    <div className="flex justify-end gap-2 pt-2">
+                      <Button variant="outline" onClick={() => setAdminPwDialogOpen(false)} className="border-[#2A2520] text-[#B5A898]">Cancel</Button>
+                      <Button
+                        onClick={handleAdminChangePassword}
+                        disabled={adminPwSaving || adminPwNewPassword.length < 6}
+                        className="bg-[#E8620A] hover:bg-[#cf5709] text-white"
+                      >
+                        {adminPwSaving ? 'Updating…' : <><Save size={14} className="mr-1" /> Update Password</>}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
 
             {isSuperAdmin && (
               <>

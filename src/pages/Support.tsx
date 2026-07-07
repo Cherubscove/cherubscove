@@ -58,7 +58,7 @@ export default function SupportPage() {
       <SEO
         title={getSetting(s, 'seo_support_title', 'Support Our Ministry — Cherubs Cove')}
         description={getSetting(s, 'seo_support_description', 'Partner with Cherubs Cove Ministry through your financial support. Your generous giving helps us continue raising burning youths for the Lord.')}
-        image={getSetting(s, 'seo_support_image', '')}
+        image={getSetting(s, 'seo_support_image', '') || undefined}
       />
       <Navbar />
       <ScrollToTop />
