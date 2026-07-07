@@ -75,13 +75,16 @@ export default function GalleryDetailPage() {
     setLightbox({ images, index });
 
     try {
-      await supabase.from('analytics_events').insert({
-        event_type: 'gallery_view',
-        page_path: `/past-conferences/${encodeURIComponent(decodedId)}`,
-        resource_id: currentGallery?.id || decodedId,
-        resource_type: 'gallery',
-        metadata: { gallery_name: currentGallery?.name || decodedId, image_count: images.length },
-      });
+      const { buildAnalyticsPayload } = await import('@/lib/analytics');
+      await supabase.from('analytics_events').insert(
+        buildAnalyticsPayload({
+          event_type: 'gallery_view',
+          page_path: `/past-conferences/${encodeURIComponent(decodedId)}`,
+          resource_id: currentGallery?.id || decodedId,
+          resource_type: 'gallery',
+          metadata: { gallery_name: currentGallery?.name || decodedId, image_count: images.length },
+        })
+      );
     } catch {
       // Ignore analytics failures so the gallery stays usable.
     }

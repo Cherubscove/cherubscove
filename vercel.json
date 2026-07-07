@@ -2,6 +2,17 @@
   "rewrites": [
     {
       "source": "/(.*)",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(.*)(WhatsApp|facebookexternalhit|Twitterbot|LinkedInBot|Slackbot|TelegramBot|Discordbot|GoogleBot|Slurp|Bingbot|DuckDuckBot|Baiduspider|YandexBot)(.*)"
+        }
+      ],
+      "destination": "/api/preview"
+    },
+    {
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ]

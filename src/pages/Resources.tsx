@@ -16,13 +16,16 @@ import { Button } from '@/components/ui/button';
 
 const trackDownloadClick = async (resourceId: string, title: string) => {
   try {
-    await supabase.from('analytics_events').insert({
-      event_type: 'download_click',
-      page_path: '/resources',
-      resource_id: resourceId,
-      resource_type: 'download',
-      metadata: { title },
-    });
+    const { buildAnalyticsPayload } = await import('@/lib/analytics');
+    await supabase.from('analytics_events').insert(
+      buildAnalyticsPayload({
+        event_type: 'download_click',
+        page_path: '/resources',
+        resource_id: resourceId,
+        resource_type: 'download',
+        metadata: { title },
+      })
+    );
   } catch {
     // Ignore analytics failures so the download experience stays intact.
   }

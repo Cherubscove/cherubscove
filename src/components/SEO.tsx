@@ -46,7 +46,7 @@ export default function SEO({
   const defaultImage = getSetting(
     settings,
     'seo_default_image',
-    'https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/521415bc-95f5-45dd-8ba6-a559b83800b0/id-preview-f8413c32--4c3af28d-7334-4cb2-a015-3cd76b4f1c68.lovable.app-1775261401832.png',
+    'https://cherubscove.net/og-image.jpg',
   );
 
   const effectiveTitle = title || defaultTitle;

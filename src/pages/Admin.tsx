@@ -23,7 +23,7 @@ import type {
 } from '@/lib/adminTypes';
 import { emptyEvent, emptyDownload, emptyGallery, formatEventDateRange, validateEventDateTime, buildEventRegistrationLink, generateNextImageTitle, generateGalleryAbbreviation } from '@/lib/adminTypes';
 import { getConsoleLoggingEnabled, getDeveloperModeEnabled, persistConsoleLoggingPreference, persistDeveloperModePreference, setConsoleLoggingEnabled as applyConsoleLoggingPreference } from '@/lib/console';
-import { aggregateAnalyticsSeries, getAnalyticsDateRange, getGrowthComparison, summarizeAnalytics, type AnalyticsEvent, type AnalyticsGranularity, type AnalyticsRange } from '@/lib/analytics';
+import { aggregateAnalyticsSeries, getAnalyticsDateRange, getGrowthComparison, summarizeAnalytics, detectDevice, type AnalyticsEvent, type AnalyticsGranularity, type AnalyticsRange, type DeviceBreakdown, type UserActivity, type ExitPage } from '@/lib/analytics';
 
 /* ── Content Keys (seed defaults for every editable frontend text) ────── */
 
@@ -165,7 +165,7 @@ const CONTENT_DEFAULTS: { key: string; label: string; value: string; group: stri
   // ── SEO / Meta ──────────────────────────────────────────────────────────
   { key: 'seo_default_title', label: 'SEO — Default Site Title', value: 'Cherubs Cove Ministry — The Making Place', group: 'SEO' },
   { key: 'seo_default_description', label: 'SEO — Default Description', value: 'An interdenominational ministry raising burning youths for the Lord. Home of the International Quivers Conference.', group: 'SEO' },
-  { key: 'seo_default_image', label: 'SEO — Default OG Image URL', value: 'https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/521415bc-95f5-45dd-8ba6-a559b83800b0/id-preview-f8413c32--4c3af28d-7334-4cb2-a015-3cd76b4f1c68.lovable.app-1775261401832.png', group: 'SEO' },
+  { key: 'seo_default_image', label: 'SEO — Default OG Image URL', value: 'https://cherubscove.net/og-image.jpg', group: 'SEO' },
   { key: 'seo_favicon_url', label: 'SEO — Favicon URL', value: '/favicon.png', group: 'SEO' },
   { key: 'seo_favicon_apple_url', label: 'SEO — Apple Touch Icon URL', value: '/apple-touch-icon.png', group: 'SEO' },
   { key: 'seo_favicon_mask_url', label: 'SEO — Mask Icon URL', value: '/favicon.png', group: 'SEO' },
@@ -1857,7 +1857,7 @@ export default function AdminPage() {
             <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
               <div>
                 <h2 className="text-xl font-semibold">Analytics</h2>
-                <p className="text-sm text-[#B5A898]">Track downloads, gallery views, and traffic patterns with flexible time ranges.</p>
+                <p className="text-sm text-[#B5A898]">Track unique visitors, page views, device types, exit pages, and user activity with flexible time ranges.</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <select value={analyticsRange} onChange={(e) => setAnalyticsRange(e.target.value as AnalyticsRange)} className={`${inputCls} rounded-md px-3 py-2 border text-sm`}>
@@ -1891,9 +1891,9 @@ export default function AdminPage() {
             <div className="grid gap-4 md:grid-cols-4">
               {[
                 { label: 'Page views', value: summary.totalPageViews, change: growth.pageViewsGrowth, accent: '#E8620A' },
-                { label: 'Gallery views', value: summary.totalGalleryViews, change: growth.galleryViewsGrowth, accent: '#6B8F71' },
+                { label: 'Unique visitors', value: summary.uniqueVisitors, change: growth.visitsGrowth, accent: '#5B8DEF' },
                 { label: 'Downloads', value: summary.totalDownloads, change: growth.downloadsGrowth, accent: '#B07D35' },
-                { label: 'Visits', value: summary.totalVisits, change: growth.visitsGrowth, accent: '#5B8DEF' },
+                { label: 'Gallery views', value: summary.totalGalleryViews, change: growth.galleryViewsGrowth, accent: '#6B8F71' },
               ].map((item) => (
                 <Card key={item.label} className="bg-[#1A1814] border-[#2A2520]">
                   <CardContent className="p-4">
@@ -1906,6 +1906,36 @@ export default function AdminPage() {
                 </Card>
               ))}
             </div>
+
+            {/* ── Device breakdown ──────────────────────────────────── */}
+            <Card className="bg-[#1A1814] border-[#2A2520]">
+              <CardContent className="p-4">
+                <h3 className="text-lg font-semibold text-white mb-3">Devices</h3>
+                {summary.uniqueVisitors > 0 ? (
+                  <div className="flex flex-wrap gap-4">
+                    {[
+                      { label: 'Mobile', count: summary.deviceBreakdown.mobile, color: 'bg-emerald-500' },
+                      { label: 'Desktop', count: summary.deviceBreakdown.desktop, color: 'bg-blue-500' },
+                      { label: 'Tablet', count: summary.deviceBreakdown.tablet, color: 'bg-purple-500' },
+                      { label: 'Unknown', count: summary.deviceBreakdown.unknown, color: 'bg-gray-500' },
+                    ].filter(d => d.count > 0).map(d => {
+                      const total = summary.deviceBreakdown.mobile + summary.deviceBreakdown.desktop + summary.deviceBreakdown.tablet + summary.deviceBreakdown.unknown;
+                      const pct = total > 0 ? Math.round((d.count / total) * 100) : 0;
+                      return (
+                        <div key={d.label} className="flex items-center gap-2.5 rounded-lg border border-[#2A2520] bg-[#0F0D0A] px-4 py-2.5">
+                          <span className={`w-2.5 h-2.5 rounded-full ${d.color}`} />
+                          <span className="text-sm text-[#B5A898]">{d.label}</span>
+                          <span className="text-sm font-semibold text-white">{d.count}</span>
+                          <span className="text-[11px] text-[#6B5E50]">({pct}%)</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-[#6B5E50]">No device data yet.</p>
+                )}
+              </CardContent>
+            </Card>
 
             <Card className="bg-[#1A1814] border-[#2A2520]">
               <CardContent className="p-4 space-y-4">
@@ -1940,6 +1970,68 @@ export default function AdminPage() {
                   )) : <p className="text-sm text-[#6B5E50]">No page data yet.</p>}
                 </CardContent>
               </Card>
+              <Card className="bg-[#1A1814] border-[#2A2520]">
+                <CardHeader>
+                  <CardTitle className="text-white">Exit pages</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {summary.exitPages.length ? summary.exitPages.map((item) => (
+                    <div key={item.path} className="flex items-center justify-between rounded-lg border border-[#2A2520] bg-[#0F0D0A] px-3 py-2 text-sm text-[#B5A898]">
+                      <span>{item.path}</span>
+                      <span className="text-white">{item.count} exits</span>
+                    </div>
+                  )) : <p className="text-sm text-[#6B5E50]">Not enough data yet (requires session tracking).</p>}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* ── User Activities ────────────────────────────────────── */}
+            <Card className="bg-[#1A1814] border-[#2A2520]">
+              <CardHeader>
+                <CardTitle className="text-white">User activities</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {summary.userActivities.length ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-[10px] uppercase tracking-[2px] text-[#6B5E50] border-b border-[#2A2520]">
+                          <th className="text-left py-2 pr-3">Session</th>
+                          <th className="text-left py-2 pr-3">Pages visited</th>
+                          <th className="text-left py-2 pr-3">Events</th>
+                          <th className="text-left py-2 pr-3">Device</th>
+                          <th className="text-left py-2">First seen</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {summary.userActivities.slice(0, 20).map((act) => (
+                          <tr key={act.session_id} className="border-b border-[#2A2520]/50 text-[#B5A898]">
+                            <td className="py-2 pr-3 font-mono text-[10px]">{act.session_id.slice(0, 16)}…</td>
+                            <td className="py-2 pr-3">{act.pages.slice(0, 3).join(', ')}{act.pages.length > 3 ? ` +${act.pages.length - 3} more` : ''}</td>
+                            <td className="py-2 pr-3 text-white">{act.event_count}</td>
+                            <td className="py-2 pr-3">
+                              <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-medium ${
+                                act.device_type === 'mobile' ? 'bg-emerald-500/20 text-emerald-400' :
+                                act.device_type === 'desktop' ? 'bg-blue-500/20 text-blue-400' :
+                                act.device_type === 'tablet' ? 'bg-purple-500/20 text-purple-400' :
+                                'bg-gray-500/20 text-gray-400'
+                              }`}>
+                                {act.device_type}
+                              </span>
+                            </td>
+                            <td className="py-2 text-[11px]">{act.start_time ? new Date(act.start_time).toLocaleString() : '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-sm text-[#6B5E50]">No session data yet. Session IDs will be tracked from now on.</p>
+                )}
+              </CardContent>
+            </Card>
+
+            <div className="grid gap-4 lg:grid-cols-2">
               <Card className="bg-[#1A1814] border-[#2A2520]">
                 <CardHeader>
                   <CardTitle className="text-white">Top downloads & galleries</CardTitle>

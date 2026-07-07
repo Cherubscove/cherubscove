@@ -35,7 +35,7 @@ function useDynamicThemeColor() {
     meta.setAttribute("content", color);
 
     // Also update msapplication-TileColor
-    let msMeta = document.querySelector('meta[name="msapplication-TileColor"]');
+    const msMeta = document.querySelector('meta[name="msapplication-TileColor"]');
     if (msMeta) msMeta.setAttribute("content", color);
   }, [settings]);
 }
@@ -89,11 +89,13 @@ const AppContent = () => {
     const trackView = async () => {
       try {
         const { supabase } = await import("@/lib/supabaseClient");
-        await supabase.from("analytics_events").insert({
-          event_type: "page_view",
-          page_path: location.pathname,
-          metadata: { pathname: location.pathname },
-        });
+        const { buildAnalyticsPayload } = await import("@/lib/analytics");
+        await supabase.from("analytics_events").insert(
+          buildAnalyticsPayload({
+            event_type: "page_view",
+            page_path: location.pathname,
+          })
+        );
       } catch {
         // Ignore analytics failures so the app stays responsive.
       }
