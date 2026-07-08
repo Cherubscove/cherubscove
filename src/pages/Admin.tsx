@@ -1152,7 +1152,14 @@ export default function AdminPage() {
   const SUPER_ADMIN_EMAIL = 'cherubscove@gmail.com';
   const ADMIN_LIST_KEY = 'admin_users_json';
 
-  const isSuperAdmin = session?.user?.email?.toLowerCase() === SUPER_ADMIN_EMAIL;
+  /** Check whether the current session user is a super admin — either the hardcoded root super admin, or listed with super_admin role in the admin list. */
+  const isSuperAdmin =
+    session?.user?.email?.toLowerCase() === SUPER_ADMIN_EMAIL ||
+    adminList.some(
+      a =>
+        a.email.toLowerCase() === session?.user?.email?.toLowerCase() &&
+        a.role === 'super_admin',
+    );
 
   const loadAdminList = async (settingsRows: any[]) => {
     const row = settingsRows.find(r => r.key === ADMIN_LIST_KEY);
@@ -1198,8 +1205,15 @@ export default function AdminPage() {
   const inviteAdmin = async () => {
     if (!inviteEmail.trim() || !invitePassword.trim()) { toast.error('Enter email and password for the new admin.'); return; }
     const email = inviteEmail.trim().toLowerCase();
-    const { error } = await supabase.auth.signUp({ email, password: invitePassword });
-    if (error && !/already/i.test(error.message)) { toast.error(error.message); return; }
+    // Use the edge function with service_role key so the caller's session is NOT replaced
+    // (supabase.auth.signUp() would auto-sign-in as the new user when email confirmations are disabled).
+    const { data, error } = await supabase.functions.invoke('admin-create-user', {
+      body: { target_email: email, password: invitePassword },
+    });
+    if (error || data?.error) {
+      toast.error(error?.message ?? data?.error ?? 'Failed to create admin user.');
+      return;
+    }
     const next = adminList.some(a => a.email.toLowerCase() === email)
       ? adminList
       : [...adminList, { email, role: inviteRole }];
@@ -1211,14 +1225,16 @@ export default function AdminPage() {
     });
     setInviteEmail('');
     setInvitePassword('');
+    // Refresh all data to ensure the dashboard is completely in sync
+    await loadAllData();
   };
 
   const removeAdmin = async (email: string) => {
     if (email.toLowerCase() === SUPER_ADMIN_EMAIL) { toast.error('The super admin cannot be removed.'); return; }
     if (!isSuperAdmin) { toast.error('Only the super admin can remove admins.'); return; }
-    if (!confirm(`Remove ${email} from admins?`)) return;
+    if (!confirm(`Remove ${email} from admins? Their auth login will remain — remove them from the admin list only.`)) return;
     await persistAdminList(adminList.filter(a => a.email.toLowerCase() !== email.toLowerCase()));
-    toast.success('Admin removed.');
+    toast.success(`${email} removed from admin list.`);
     void logAuditAction(session?.user?.email ?? '', AUDIT_ACTIONS.ADMIN_REMOVED, 'admin_users', undefined, {
       target_email: email,
     });
