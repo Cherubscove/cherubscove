@@ -1210,13 +1210,33 @@ export default function AdminPage() {
   const inviteAdmin = async () => {
     if (!inviteEmail.trim() || !invitePassword.trim()) { toast.error('Enter email and password for the new admin.'); return; }
     const email = inviteEmail.trim().toLowerCase();
-    // Use the edge function with service_role key so the caller's session is NOT replaced
-    // (supabase.auth.signUp() would auto-sign-in as the new user when email confirmations are disabled).
-    const { data, error } = await supabase.functions.invoke('admin-create-user', {
-      body: { target_email: email, password: invitePassword },
-    });
-    if (error || data?.error) {
-      toast.error(error?.message ?? data?.error ?? 'Failed to create admin user.');
+    // Use the Vercel API route with service_role key so the caller's session is NOT replaced.
+    // (supabase.auth.signUp() would auto-sign-in as the new user when email confirmations are disabled.)
+    const {
+      data: { session: currentSession },
+    } = await supabase.auth.getSession();
+    const token = currentSession?.access_token;
+    if (!token) {
+      toast.error('Your session could not be verified. Please sign out and sign in again.');
+      return;
+    }
+    let response: Response;
+    try {
+      response = await fetch('/api/admin-create-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ target_email: email, password: invitePassword }),
+      });
+    } catch (fetchErr: any) {
+      toast.error('Network error contacting the server. Make sure the API route is deployed.');
+      return;
+    }
+    const data = await response.json();
+    if (!response.ok || data?.error) {
+      toast.error(data?.error ?? 'Failed to create admin user.');
       return;
     }
     const next = adminList.some(a => a.email.toLowerCase() === email)
@@ -1288,10 +1308,27 @@ export default function AdminPage() {
     if (!isSuperAdmin) { toast.error('Only the super admin can change other users\' passwords.'); return; }
     setAdminPwSaving(true);
     try {
-      const { data, error } = await supabase.functions.invoke('admin-update-password', {
-        body: { target_email: adminPwTargetEmail, new_password: adminPwNewPassword },
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
+      const token = currentSession?.access_token;
+      if (!token) {
+        toast.error('Your session could not be verified. Please sign out and sign in again.');
+        return;
+      }
+      const response = await fetch('/api/admin-update-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          target_email: adminPwTargetEmail,
+          new_password: adminPwNewPassword,
+        }),
       });
-      if (error) throw error;
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error ?? 'Request failed');
       if (data?.error) throw new Error(data.error);
       toast.success(`Password updated for ${adminPwTargetEmail}`);
       void logAuditAction(session?.user?.email ?? '', AUDIT_ACTIONS.ADMIN_PASSWORD_CHANGED_BY_SUPER, 'auth', undefined, {
