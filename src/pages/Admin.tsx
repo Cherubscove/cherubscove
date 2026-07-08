@@ -260,6 +260,11 @@ export default function AdminPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
+  const [showPwCurrent, setShowPwCurrent] = useState(false);
+  const [showPwNew, setShowPwNew] = useState(false);
+  const [showPwConfirm, setShowPwConfirm] = useState(false);
+  const [showAdminPwNew, setShowAdminPwNew] = useState(false);
+  const [showInvitePw, setShowInvitePw] = useState(false);
   // Sign-up is disabled — admins are provisioned via the DB / super admin only.
   const [isLoading, setIsLoading] = useState(false);
 
@@ -3824,31 +3829,46 @@ export default function AdminPage() {
                 {showChangePassword && (
                   <div className="mt-4 space-y-3 border-t border-[#2A2520] pt-4">
                     <Field label="Current Password">
-                      <Input
-                        type="password"
-                        placeholder="Enter your current password"
-                        value={changePwCurrent}
-                        onChange={e => setChangePwCurrent(e.target.value)}
-                        className={inputCls}
-                      />
+                      <div className="relative">
+                        <Input
+                          type={showPwCurrent ? 'text' : 'password'}
+                          placeholder="Enter your current password"
+                          value={changePwCurrent}
+                          onChange={e => setChangePwCurrent(e.target.value)}
+                          className={inputCls + ' pr-10'}
+                        />
+                        <button type="button" onClick={() => setShowPwCurrent(!showPwCurrent)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B5E50] hover:text-white">
+                          {showPwCurrent ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
                     </Field>
                     <Field label="New Password">
-                      <Input
-                        type="password"
-                        placeholder="At least 6 characters"
-                        value={changePwNew}
-                        onChange={e => setChangePwNew(e.target.value)}
-                        className={inputCls}
-                      />
+                      <div className="relative">
+                        <Input
+                          type={showPwNew ? 'text' : 'password'}
+                          placeholder="At least 6 characters"
+                          value={changePwNew}
+                          onChange={e => setChangePwNew(e.target.value)}
+                          className={inputCls + ' pr-10'}
+                        />
+                        <button type="button" onClick={() => setShowPwNew(!showPwNew)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B5E50] hover:text-white">
+                          {showPwNew ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
                     </Field>
                     <Field label="Confirm New Password">
-                      <Input
-                        type="password"
-                        placeholder="Re-enter new password"
-                        value={changePwConfirm}
-                        onChange={e => setChangePwConfirm(e.target.value)}
-                        className={inputCls}
-                      />
+                      <div className="relative">
+                        <Input
+                          type={showPwConfirm ? 'text' : 'password'}
+                          placeholder="Re-enter new password"
+                          value={changePwConfirm}
+                          onChange={e => setChangePwConfirm(e.target.value)}
+                          className={inputCls + ' pr-10'}
+                        />
+                        <button type="button" onClick={() => setShowPwConfirm(!showPwConfirm)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B5E50] hover:text-white">
+                          {showPwConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
                     </Field>
                     <Button
                       onClick={handleChangeOwnPassword}
@@ -3943,14 +3963,19 @@ export default function AdminPage() {
                       Updating password for <strong className="text-white">{adminPwTargetEmail}</strong>
                     </p>
                     <Field label="New Password" hint="Must be at least 6 characters">
-                      <Input
-                        type="password"
-                        placeholder="Enter new password"
-                        value={adminPwNewPassword}
-                        onChange={e => setAdminPwNewPassword(e.target.value)}
-                        className={inputCls}
-                        autoFocus
-                      />
+                      <div className="relative">
+                        <Input
+                          type={showAdminPwNew ? 'text' : 'password'}
+                          placeholder="Enter new password"
+                          value={adminPwNewPassword}
+                          onChange={e => setAdminPwNewPassword(e.target.value)}
+                          className={inputCls + ' pr-10'}
+                          autoFocus
+                        />
+                        <button type="button" onClick={() => setShowAdminPwNew(!showAdminPwNew)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B5E50] hover:text-white">
+                          {showAdminPwNew ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
                     </Field>
                     <div className="flex justify-end gap-2 pt-2">
                       <Button variant="outline" onClick={() => setAdminPwDialogOpen(false)} className="border-[#2A2520] text-[#B5A898]">Cancel</Button>
@@ -3978,7 +4003,26 @@ export default function AdminPage() {
                         <Input placeholder="name@example.com" type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} className={inputCls} />
                       </Field>
                       <Field label="Temporary Password">
-                        <Input placeholder="At least 6 characters" type="password" value={invitePassword} onChange={e => setInvitePassword(e.target.value)} className={inputCls} />
+                        <div className="relative">
+                          <Input placeholder="At least 6 characters" type={showInvitePw ? 'text' : 'password'} value={invitePassword} onChange={e => setInvitePassword(e.target.value)} className={inputCls + ' pr-10'} />
+                          <button type="button" onClick={() => setShowInvitePw(!showInvitePw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B5E50] hover:text-white">
+                            {showInvitePw ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const prefix = inviteEmail.split('@')[0];
+                            if (prefix) {
+                              const randomSuffix = Math.random().toString(36).slice(2, 6);
+                              setInvitePassword(prefix + randomSuffix);
+                            }
+                          }}
+                          className="text-[10px] text-[#E8620A] hover:text-[#cf5709] mt-1 underline underline-offset-2"
+                          disabled={!inviteEmail.includes('@')}
+                        >
+                          Generate from email
+                        </button>
                       </Field>
                       <Field label="Role">
                         <select value={inviteRole} onChange={e => setInviteRole(e.target.value as 'admin' | 'super_admin')} className={`${inputCls} rounded-md px-3 py-2 border text-sm w-full`}>
