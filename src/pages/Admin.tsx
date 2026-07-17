@@ -1400,14 +1400,58 @@ export default function AdminPage() {
     setRegSort(prev => prev.col === col ? { col, asc: !prev.asc } : { col, asc: true });
   };
 
+  // Every form field the admin defined (across all events represented in the export), keyed by
+  // field id, so no submitted answer is dropped into an unreadable JSON blob — each becomes its
+  // own column. Falls back to the raw field id as the header if the event was since deleted.
+  const getExportFieldColumns = () => {
+    const eventFieldsById = new Map<string, FormFieldConfig[]>();
+    events.forEach(ev => {
+      if (!ev.id) return;
+      try { eventFieldsById.set(ev.id, JSON.parse(ev.form_fields || '[]')); } catch { eventFieldsById.set(ev.id, []); }
+    });
+
+    const columns = new Map<string, { id: string; label: string }>();
+    sortedRegistrations.forEach(r => {
+      const fields = (r.event_id && eventFieldsById.get(r.event_id)) || [];
+      const fieldsById = new Map(fields.map(f => [f.id, f]));
+      const formData = typeof r.form_data === 'string'
+        ? (() => { try { return JSON.parse(r.form_data as string); } catch { return {}; } })()
+        : (r.form_data || {});
+      Object.keys(formData).forEach(fieldId => {
+        if (columns.has(fieldId)) return;
+        const label = fieldsById.get(fieldId)?.label || fieldId;
+        columns.set(fieldId, { id: fieldId, label });
+      });
+    });
+
+    // Disambiguate columns whose labels collide (e.g. two events both have a plain "Notes" field).
+    const labelCounts = new Map<string, number>();
+    return Array.from(columns.values()).map(col => {
+      const count = (labelCounts.get(col.label) || 0) + 1;
+      labelCounts.set(col.label, count);
+      return { ...col, header: count > 1 ? `${col.label} (${count})` : col.label };
+    });
+  };
+
   const exportRows = () => {
-    const headers = ['Name', 'Email', 'Phone', 'Event', 'State / City', 'Prayer Note', 'Date', 'Extra Data'];
-    const rows = sortedRegistrations.map(r => [
-      r.full_name || `${(r.first_name || '').trim()} ${(r.last_name || '').trim()}`.trim(),
-      r.email || '', r.phone || '',
-      r.event_title || r.program || '', r.state_city || r.location || '', r.prayer_note || r.note || '',
-      new Date(r.created_at).toLocaleString(), typeof r.form_data === 'string' ? r.form_data : JSON.stringify(r.form_data || {}, null, 2),
-    ]);
+    const fieldColumns = getExportFieldColumns();
+    const headers = ['Name', 'Email', 'Phone', 'Event', 'Date', ...fieldColumns.map(c => c.header)];
+    const rows = sortedRegistrations.map(r => {
+      const formData = typeof r.form_data === 'string'
+        ? (() => { try { return JSON.parse(r.form_data as string); } catch { return {}; } })()
+        : (r.form_data || {});
+      const fieldValues = fieldColumns.map(c => {
+        const v = formData[c.id];
+        return Array.isArray(v) ? v.join(', ') : (v ?? '');
+      });
+      return [
+        r.full_name || `${(r.first_name || '').trim()} ${(r.last_name || '').trim()}`.trim(),
+        r.email || '', r.phone || '',
+        r.event_title || r.program || '',
+        new Date(r.created_at).toLocaleString(),
+        ...fieldValues,
+      ];
+    });
     return { headers, rows };
   };
 
@@ -1449,14 +1493,8 @@ export default function AdminPage() {
     doc.text(title, 14, 14);
     doc.setFontSize(9);
     doc.text(`Exported ${new Date().toLocaleString()} · ${sortedRegistrations.length} registrations`, 14, 20);
-    const headers = ['Name', 'Email', 'Phone', 'Location', 'Note', 'Date'];
-    const rows = sortedRegistrations.map(r => [
-      `${r.first_name || ''} ${r.last_name || ''}`.trim(),
-      r.email || '', r.phone || '', r.location || '',
-      (r.note || '').slice(0, 80),
-      new Date(r.created_at).toLocaleDateString(),
-    ]);
-    autoTable(doc, { head: [headers], body: rows, startY: 26, styles: { fontSize: 8 }, headStyles: { fillColor: [232, 98, 10] } });
+    const { headers, rows } = exportRows();
+    autoTable(doc, { head: [headers], body: rows, startY: 26, styles: { fontSize: 7, overflow: 'linebreak' }, headStyles: { fillColor: [232, 98, 10] } });
     doc.save(`registrations-${new Date().toISOString().slice(0, 10)}.pdf`);
     toast.success('PDF exported.');
   };

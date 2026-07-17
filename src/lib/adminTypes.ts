@@ -1,10 +1,36 @@
+/**
+ * The field "type" is intentionally an open string, not a closed union — admins can enter
+ * any HTML input type (e.g. 'date', 'number', 'url'), not just the built-in presets.
+ * 'textarea' | 'select' | 'checkbox' | 'radio' are special-cased by the renderer; everything
+ * else falls through to a plain <input type="...">.
+ */
+export type FormFieldType = string;
+
 export interface FormFieldConfig {
   id: string;
   label: string;
-  type: 'text' | 'email' | 'tel' | 'textarea' | 'select' | 'checkbox' | 'radio';
+  type: FormFieldType;
   required: boolean;
   placeholder: string;
   options?: string[];
+}
+
+/** Curated presets shown to admins in the field-type picker; any other string is still accepted. */
+export const FORM_FIELD_TYPE_PRESETS = [
+  'text', 'email', 'tel', 'number', 'date', 'time', 'url',
+  'textarea', 'select', 'checkbox', 'radio',
+] as const;
+
+/**
+ * HTML input types that don't work with a controlled string `value` (file) or offer no way
+ * for a visitor to fill them in (button/submit/reset/image/hidden). If an admin picks one of
+ * these for a plain input field, the renderer degrades it to 'text' rather than crashing or
+ * producing an unfillable required field.
+ */
+export const UNSAFE_FORM_FIELD_TYPES = ['file', 'button', 'submit', 'reset', 'image', 'hidden'] as const;
+
+export function normalizeFieldType(type: string | undefined | null): string {
+  return (type ?? '').trim().toLowerCase() || 'text';
 }
 
 export interface EventRecord {

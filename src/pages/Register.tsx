@@ -7,7 +7,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ScrollToTop from '@/components/ScrollToTop';
 import { supabase } from '@/lib/supabaseClient';
-import { buildEventRegistrationLink, formatEventDateRange, type FormFieldConfig } from '@/lib/adminTypes';
+import { buildEventRegistrationLink, formatEventDateRange, normalizeFieldType, UNSAFE_FORM_FIELD_TYPES, type FormFieldConfig } from '@/lib/adminTypes';
 import { CalendarDays, MapPin, Clock, ArrowRight, CheckCircle, AlertTriangle } from 'lucide-react';
 
 /* ── Types ────────────────────────────────────────────────────────────── */
@@ -187,18 +187,18 @@ function RegistrationForm({
     const getFieldValue = (field: FormFieldConfig | undefined) =>
       field ? formatValue(formValues[field.id]) : null;
 
-    const findByTypeOrLabel = (type: FormFieldConfig['type'], labels: string[]) =>
-      findField(field => field.type === type && getFieldValue(field) !== null)
+    const findByTypeOrLabel = (type: string, labels: string[]) =>
+      findField(field => normalizeFieldType(field.type) === type && getFieldValue(field) !== null)
       || findField(field => matchesLabel(field, labels) && getFieldValue(field) !== null);
 
     const fullNameField = findField(field =>
-      field.type === 'text' && matchesLabel(field, ['name']) && !matchesLabel(field, ['first', 'last']) && getFieldValue(field) !== null
+      normalizeFieldType(field.type) === 'text' && matchesLabel(field, ['name']) && !matchesLabel(field, ['first', 'last']) && getFieldValue(field) !== null
     );
     const firstNameField = findField(field =>
-      field.type === 'text' && matchesLabel(field, ['first']) && matchesLabel(field, ['name']) && getFieldValue(field) !== null
+      normalizeFieldType(field.type) === 'text' && matchesLabel(field, ['first']) && matchesLabel(field, ['name']) && getFieldValue(field) !== null
     );
     const lastNameField = findField(field =>
-      field.type === 'text' && matchesLabel(field, ['last']) && matchesLabel(field, ['name']) && getFieldValue(field) !== null
+      normalizeFieldType(field.type) === 'text' && matchesLabel(field, ['last']) && matchesLabel(field, ['name']) && getFieldValue(field) !== null
     );
 
     const fullName = fullNameField ? getFieldValue(fullNameField) : [getFieldValue(firstNameField), getFieldValue(lastNameField)]
@@ -313,12 +313,15 @@ function RegistrationForm({
 
   return (
     <form onSubmit={handleRegister} ref={formRef} className="space-y-4">
-      {formFields.map((field) => (
+      {formFields.map((field) => {
+        const fieldType = normalizeFieldType(field.type);
+        const inputType = (UNSAFE_FORM_FIELD_TYPES as readonly string[]).includes(fieldType) ? 'text' : fieldType;
+        return (
         <div key={field.id} className="space-y-1.5">
           <label className="text-[9.5px] font-bold tracking-[2px] uppercase text-muted-foreground">
             {field.label} {field.required && <span className="text-rose-400">*</span>}
           </label>
-          {field.type === 'textarea' ? (
+          {fieldType === 'textarea' ? (
             <textarea
               placeholder={field.placeholder}
               required={field.required}
@@ -326,7 +329,7 @@ function RegistrationForm({
               onChange={e => setFormValues(prev => ({ ...prev, [field.id]: e.target.value }))}
               className={`${inputClass} resize-y min-h-[80px]`}
             />
-          ) : field.type === 'select' ? (
+          ) : fieldType === 'select' ? (
             <select
               required={field.required}
               value={(formValues[field.id] as string) || ''}
@@ -338,7 +341,7 @@ function RegistrationForm({
                 <option key={opt} value={opt}>{opt}</option>
               ))}
             </select>
-          ) : field.type === 'radio' ? (
+          ) : fieldType === 'radio' ? (
             <div className="space-y-2 pt-1">
               {(field.options || []).map(opt => (
                 <label key={opt} className="flex items-center gap-2.5 text-sm cursor-pointer group">
@@ -355,7 +358,7 @@ function RegistrationForm({
                 </label>
               ))}
             </div>
-          ) : field.type === 'checkbox' ? (
+          ) : fieldType === 'checkbox' ? (
             <div className="space-y-2 pt-1">
               {(field.options || []).map(opt => {
                 const raw = formValues[field.id];
@@ -379,7 +382,7 @@ function RegistrationForm({
             </div>
           ) : (
             <input
-              type={field.type}
+              type={inputType}
               placeholder={field.placeholder}
               required={field.required}
               value={(formValues[field.id] as string) || ''}
@@ -388,7 +391,8 @@ function RegistrationForm({
             />
           )}
         </div>
-      ))}
+        );
+      })}
 
       {formFields.length === 0 && (
         <p className="text-sm text-muted-foreground text-center py-6">

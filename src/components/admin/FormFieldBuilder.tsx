@@ -3,23 +3,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Plus, Trash2, Edit2, Check, X } from 'lucide-react';
-import type { FormFieldConfig } from '@/lib/adminTypes';
+import { FORM_FIELD_TYPE_PRESETS, normalizeFieldType, type FormFieldConfig } from '@/lib/adminTypes';
 
 interface Props {
   fields: FormFieldConfig[];
   onChange: (fields: FormFieldConfig[]) => void;
 }
 
-const FIELD_TYPES = ['text', 'email', 'tel', 'textarea', 'select', 'checkbox', 'radio'] as const;
-const FIELD_TYPE_LABELS: Record<typeof FIELD_TYPES[number], string> = {
-  text: 'Text',
-  email: 'Email',
-  tel: 'Phone',
-  textarea: 'Paragraph',
-  select: 'Dropdown',
-  checkbox: 'Checkboxes',
-  radio: 'Radio buttons',
-};
 const OPTION_TYPES = ['select', 'checkbox', 'radio'];
 
 const inputCls = "bg-[#0F0D0A] border-[#2A2520] text-white placeholder:text-[#6B5E50] focus:border-[#E8620A]";
@@ -76,6 +66,9 @@ export default function FormFieldBuilder({ fields, onChange }: Props) {
 
   return (
     <div className="space-y-3">
+      <datalist id="form-field-type-presets">
+        {FORM_FIELD_TYPE_PRESETS.map(t => <option key={t} value={t} />)}
+      </datalist>
       <div className="flex items-center justify-between">
         <label className="text-sm font-medium text-[#B5A898]">Registration Form Fields</label>
         <Button size="sm" onClick={addField} className="bg-[#E8620A] hover:bg-[#cf5709] text-white h-7 text-xs">
@@ -102,13 +95,14 @@ export default function FormFieldBuilder({ fields, onChange }: Props) {
                   onChange={e => updateField(i, { label: e.target.value })}
                   className={`${inputCls} h-8 text-xs`}
                 />
-                <select
+                <input
+                  list="form-field-type-presets"
+                  placeholder="Type (e.g. text, date, url…)"
                   value={field.type}
-                  onChange={e => updateField(i, { type: e.target.value as FormFieldConfig['type'] })}
-                  className={`${inputCls} rounded-md px-2 h-8 text-xs border`}
-                >
-                  {FIELD_TYPES.map(t => <option key={t} value={t}>{FIELD_TYPE_LABELS[t]}</option>)}
-                </select>
+                  onChange={e => updateField(i, { type: e.target.value })}
+                  onBlur={e => updateField(i, { type: normalizeFieldType(e.target.value) })}
+                  className={`${inputCls} h-8 text-xs`}
+                />
                 <Input
                   placeholder="Placeholder"
                   value={field.placeholder}
