@@ -20,7 +20,13 @@ const FEATURE_LABELS: { key: keyof AiFlags; label: string; hint: string }[] = [
 
 type Draft = Partial<AiProviderRow> & { api_key?: string };
 
-export default function AiSettingsTab() {
+/**
+ * The parent holds its own copy of the flags to decide which AI buttons to
+ * render, so a toggle here has to tell it. Without that, switching AI on wrote
+ * to the database and updated this tab while every button elsewhere in the
+ * console stayed hidden until a full page reload.
+ */
+export default function AiSettingsTab({ onFlagsChange }: { onFlagsChange?: (f: AiFlags) => void } = {}) {
   const [rows, setRows] = useState<AiProviderRow[]>([]);
   const [known, setKnown] = useState<string[]>([]);
   const [flags, setFlags] = useState<AiFlags>(DEFAULT_AI_FLAGS);
@@ -36,6 +42,7 @@ export default function AiSettingsTab() {
       setRows(list.providers);
       setKnown(list.known_providers);
       setFlags(f.flags);
+      onFlagsChange?.(f.flags);
       setDrafts({});
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not load AI settings.');
@@ -115,8 +122,14 @@ export default function AiSettingsTab() {
   const toggleFlag = async (key: keyof AiFlags) => {
     const next = { ...flags, [key]: !flags[key] };
     setFlags(next);
-    try { await aiAdmin.setFlags(next); }
-    catch (err) { toast.error(err instanceof Error ? err.message : 'Could not save switches.'); setFlags(flags); }
+    onFlagsChange?.(next);
+    try {
+      await aiAdmin.setFlags(next);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not save switches.');
+      setFlags(flags);
+      onFlagsChange?.(flags);
+    }
   };
 
   const resting = rows.filter(r => r.enabled && r.cooldown);

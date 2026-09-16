@@ -17,6 +17,37 @@ and plainly true rather than something fluent and made up — a flat true senten
 beats a fluent invention. Use only what you are given. British English.
 Never use the ministry's name in any other form: it is "Cherubs Cove Ministry".`;
 
+/**
+ * Facts about an event, read from the database rather than taken from the
+ * browser. The client already has these rows, but a prompt assembled from
+ * whatever the page posts is a prompt a caller can dictate — and the whole
+ * point of giving the model context is that the context is true.
+ */
+async function eventContext(db: ReturnType<typeof serviceClient>, eventId: string): Promise<string> {
+  const { data: ev } = await db
+    .from("events")
+    .select("title, theme, description, date, end_date, time, end_time, location, status, registration_enabled")
+    .eq("id", eventId)
+    .maybeSingle();
+  if (!ev) return "";
+
+  const when = [ev.date, ev.end_date && ev.end_date !== ev.date ? `to ${ev.end_date}` : "",
+                ev.time ? `at ${ev.time}` : "", ev.end_time ? `until ${ev.end_time}` : ""]
+    .filter(Boolean).join(" ");
+
+  const lines = [
+    `Name: ${ev.title}`,
+    ev.theme ? `Theme: ${ev.theme}` : "",
+    when ? `When: ${when}` : "",
+    ev.location ? `Where: ${ev.location}` : "",
+    ev.status ? `Status: ${ev.status}` : "",
+    ev.registration_enabled ? "Registration is open on the website." : "",
+    ev.description ? `Existing description:\n${ev.description}` : "",
+  ].filter(Boolean);
+
+  return `\n\nThese are the event's real details. Use them and do not contradict or embellish them:\n${lines.join("\n")}`;
+}
+
 type Task = {
   feature: AiFeature;
   system: string;
@@ -41,7 +72,7 @@ write a sign-off with a name unless one is given, and never write an unsubscribe
 line — the template already carries one.`,
     build: (i) => `Write a newsletter email about the following.\n\nBrief: ${i.brief}\n${
       i.audience ? `\nAudience: ${i.audience}` : ""}${
-      i.details ? `\nDetails that must appear:\n${i.details}` : ""}`,
+      i.details ? `\nDetails that must appear:\n${i.details}` : ""}${i.event_context ?? ""}`,
   },
 
   seo: {
@@ -126,7 +157,13 @@ Deno.serve(async (req) => {
     return json(200, { text: null, result: null, configured: false, failures: [] });
   }
 
-  const input = body.input ?? {};
+  const input = { ...(body.input ?? {}) };
+  // The client sends an event id; the facts are fetched here.
+  if (input.event_id) {
+    input.event_context = await eventContext(db, input.event_id);
+    delete input.event_id;
+  }
+
   const result = await runChain(db, task.build(input), {
     system: task.system,
     maxTokens: task.maxTokens,

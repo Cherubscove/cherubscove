@@ -388,6 +388,7 @@ export default function AdminPage() {
   const [composeTargets, setComposeTargets] = useState<string[]>([]);
   const [aiFlags, setAiFlags] = useState<AiFlags>(DEFAULT_AI_FLAGS);
   const [aiBrief, setAiBrief] = useState('');
+  const [aiEventId, setAiEventId] = useState('');
   // Stable for the life of one draft, so sending a tranche today and the
   // rest tomorrow continues the same campaign instead of mailing people twice.
   const [composeCampaignId, setComposeCampaignId] = useState('');
@@ -3330,9 +3331,12 @@ export default function AdminPage() {
 
             {/* Compose dialog */}
             {composeOpen && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => !composeSending && setComposeOpen(false)}>
-                <Card className="w-full max-w-2xl bg-[#1A1814] border-[#E8620A]/40" onClick={e => e.stopPropagation()}>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0">
+              <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto bg-black/70 p-3 sm:p-4" onClick={() => !composeSending && setComposeOpen(false)}>
+                {/* Capped to the viewport with the body scrolling inside it — the
+                    dialog grew past the screen once the drafting and batch panels
+                    were added, leaving no way to reach the Send button. */}
+                <Card className="my-auto flex max-h-[94vh] w-full max-w-2xl flex-col bg-[#1A1814] border-[#E8620A]/40" onClick={e => e.stopPropagation()}>
+                  <CardHeader className="shrink-0 flex flex-row items-center justify-between space-y-0">
                     <div>
                       <CardTitle className="text-white text-lg">
                         {composeMode === 'bulk' ? `Bulk Email — ${composeTargets.length} recipient(s)` : `Email — ${composeTargets[0]}`}
@@ -3341,10 +3345,23 @@ export default function AdminPage() {
                     </div>
                     <Button size="sm" variant="ghost" onClick={() => !composeSending && setComposeOpen(false)} className="text-[#B5A898]"><X size={16} /></Button>
                   </CardHeader>
-                  <CardContent className="space-y-3">
+                  <CardContent className="min-h-0 flex-1 space-y-3 overflow-y-auto">
                     {aiFlags.enabled && aiFlags.newsletter && (
                       <div className="rounded-lg border border-[#E8620A]/30 bg-[#E8620A]/5 p-3 space-y-2">
                         <label className="text-xs font-medium text-[#B5A898]">Draft this email from a brief</label>
+                        <select
+                          value={aiEventId}
+                          onChange={e => setAiEventId(e.target.value)}
+                          disabled={composeSending}
+                          className="h-9 w-full rounded-md border border-[#2A2520] bg-[#0F0D0A] px-2 text-sm text-[#F5EFE6]"
+                        >
+                          <option value="">No particular event — write from the brief alone</option>
+                          {events.map(ev => (
+                            <option key={ev.id} value={ev.id}>
+                              {ev.title}{formatEventDateRange(ev) ? ` — ${formatEventDateRange(ev)}` : ''}
+                            </option>
+                          ))}
+                        </select>
                         <Textarea
                           placeholder="e.g. Registration for Quivers 2026 opens on 1 March, three days in Lagos, early-bird rate until the 14th"
                           value={aiBrief}
@@ -3354,11 +3371,19 @@ export default function AdminPage() {
                           disabled={composeSending}
                         />
                         <div className="flex items-center justify-between gap-2">
-                          <p className="text-xs text-[#6B5E50]">You review and edit everything before it sends.</p>
+                          <p className="text-xs text-[#6B5E50]">
+                            {aiEventId
+                              ? "The event's real date, place and description are read from the database, not guessed."
+                              : 'You review and edit everything before it sends.'}
+                          </p>
                           <AiAssistButton
                             task="newsletter"
                             disabled={composeSending || !aiBrief.trim()}
-                            input={() => ({ brief: aiBrief.trim(), audience: 'newsletter subscribers of Cherubs Cove Ministry' })}
+                            input={() => ({
+                              brief: aiBrief.trim(),
+                              audience: 'newsletter subscribers of Cherubs Cove Ministry',
+                              ...(aiEventId ? { event_id: aiEventId } : {}),
+                            })}
                             onResult={r => {
                               if (r.subject) setComposeSubject(r.subject);
                               if (r.html) setComposeBody(r.html);
@@ -3371,7 +3396,7 @@ export default function AdminPage() {
                       <Input placeholder="e.g. Quiver's 2026 — Registration is now open" value={composeSubject} onChange={e => setComposeSubject(e.target.value)} className={inputCls} disabled={composeSending} />
                     </Field>
                     <Field label="Message" hint="Plain text is fine — line breaks are preserved. You may also paste HTML.">
-                      <Textarea placeholder="Write your message here…" value={composeBody} onChange={e => setComposeBody(e.target.value)} className={inputCls} rows={10} disabled={composeSending} />
+                      <Textarea placeholder="Write your message here…" value={composeBody} onChange={e => setComposeBody(e.target.value)} className={`${inputCls} min-h-[140px] resize-y`} rows={6} disabled={composeSending} />
                     </Field>
                     {composeMode === 'bulk' && (
                       <div className="rounded-lg border border-[#2A2520] p-3 space-y-2">
@@ -3395,7 +3420,7 @@ export default function AdminPage() {
                         </p>
                       </div>
                     )}
-                    <div className="flex justify-between items-center pt-2">
+                    <div className="sticky bottom-0 -mx-6 -mb-6 flex flex-wrap items-center justify-between gap-2 border-t border-[#2A2520] bg-[#1A1814] px-6 py-3">
                       <Button
                         onClick={sendTestEmail}
                         disabled={composeSending || testEmailSending}
@@ -3661,7 +3686,7 @@ export default function AdminPage() {
 
           {/* ── Settings Tab ─────────────────────────────────────────────── */}
           <TabsContent value="ai" className="space-y-4">
-            <AiSettingsTab />
+            <AiSettingsTab onFlagsChange={setAiFlags} />
           </TabsContent>
 
           <TabsContent value="settings" className="space-y-4">
