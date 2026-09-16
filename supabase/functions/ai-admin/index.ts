@@ -10,6 +10,28 @@ import { CORS, json, requireAdmin, serviceClient } from "../_shared/admin.ts";
 import { ALL_PROVIDERS, adapterFor, modelsUrlFor, OPENAI_COMPATIBLE } from "../_shared/ai-adapters.ts";
 import { AI_FLAGS_KEY, DEFAULT_FLAGS, readFlags } from "../_shared/ai-flags.ts";
 
+type AdminRequest = {
+  action?: string;
+  id?: string;
+  order?: string[];
+  provider?: Partial<ProviderPatch> & { id?: string; api_key?: string };
+  flags?: Record<string, boolean>;
+  // Used by "models" when checking a key before it has been saved.
+  api_key?: string;
+  base_url?: string;
+};
+
+type ProviderPatch = {
+  provider: string; model: string; base_url: string | null; label: string | null;
+  position: number; daily_limit: number | null; enabled: boolean; api_key?: string;
+};
+
+type UsageRow = { provider_id: string; calls: number; failures: number };
+type CooldownRow = { engine: string; until: string; window_kind: string | null; detail: string | null };
+type ListedProvider = {
+  id: string; api_key: string | null; [k: string]: unknown;
+};
+
 function mask(key: string | null): string | null {
   if (!key) return null;
   return key.length <= 8 ? "…" : `${key.slice(0, 3)}…${key.slice(-4)}`;
@@ -45,7 +67,7 @@ Deno.serve(async (req) => {
   const auth = await requireAdmin(req);
   if (auth instanceof Response) return auth;
 
-  let body: any;
+  let body: AdminRequest;
   try { body = await req.json(); } catch { return json(400, { error: "Invalid JSON" }); }
   const action = String(body.action || "");
   const db = serviceClient();
@@ -59,10 +81,10 @@ Deno.serve(async (req) => {
           db.from("ai_model_usage").select("provider_id, calls, failures").eq("day", today),
           db.from("ai_engine_cooldowns").select("*").gt("until", new Date().toISOString()),
         ]);
-        const used = new Map((usage ?? []).map((u: any) => [u.provider_id, u]));
-        const cool = new Map((cooldowns ?? []).map((c: any) => [c.engine, c]));
+        const used = new Map((usage ?? []).map((u: UsageRow) => [u.provider_id, u]));
+        const cool = new Map((cooldowns ?? []).map((c: CooldownRow) => [c.engine, c]));
         return json(200, {
-          providers: (rows ?? []).map((r: any) => ({
+          providers: (rows ?? []).map((r: ListedProvider) => ({
             ...r,
             api_key: mask(r.api_key),
             has_key: !!r.api_key,
@@ -76,7 +98,7 @@ Deno.serve(async (req) => {
       }
 
       case "upsert": {
-        const p = body.provider ?? {};
+        const p = body.provider ?? ({} as NonNullable<AdminRequest["provider"]>);
         if (!p.provider) return json(400, { error: "provider is required" });
         // Refuse to enable a row without both a key and a model — that is the
         // one state that produces a silent, puzzling chain.
@@ -133,7 +155,8 @@ Deno.serve(async (req) => {
 
       case "models": {
         const id = body.id;
-        let { provider, api_key, base_url } = body;
+        let { provider, api_key, base_url } = body as
+          { provider?: string; api_key?: string; base_url?: string | null };
         if (id) {
           const { data } = await db.from("ai_providers").select("provider, api_key, base_url").eq("id", id).maybeSingle();
           provider = data?.provider; api_key = data?.api_key; base_url = data?.base_url;

@@ -4,7 +4,10 @@
 // Admin console manages). The hardcoded super admin is always an admin, even if
 // the row is missing or malformed.
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+
+/** The service-role client every server-side module is handed. */
+export type Db = SupabaseClient;
 
 export const SUPER_ADMIN_EMAIL = "cherubscove@gmail.com";
 const ADMIN_LIST_KEY = "admin_users_json";
@@ -41,7 +44,7 @@ export async function requireAdmin(
   const authHeader = req.headers.get("Authorization") || "";
   if (!authHeader.trim()) return json(401, { error: "Missing Authorization" });
 
-  let db;
+  let db: Db;
   try { db = serviceClient(); } catch { return json(500, { error: "Server configuration error" }); }
 
   const caller = createClient(

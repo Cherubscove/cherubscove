@@ -6,6 +6,8 @@
 // hidden button is not a switched-off feature — the endpoint is reachable
 // directly by anyone with a session, so the server checks too.
 
+import type { Db } from "./admin.ts";
+
 export type AiFeature = "newsletter" | "seo" | "events" | "assistant";
 
 export type AiFlags = { enabled: boolean } & Record<AiFeature, boolean>;
@@ -16,7 +18,7 @@ export const DEFAULT_FLAGS: AiFlags = {
 
 export const AI_FLAGS_KEY = "ai_features_json";
 
-export async function readFlags(db: any): Promise<AiFlags> {
+export async function readFlags(db: Db): Promise<AiFlags> {
   const { data } = await db.from("site_settings").select("value").eq("key", AI_FLAGS_KEY).maybeSingle();
   return { ...DEFAULT_FLAGS, ...JSON.parse(data?.value ?? "{}") };
 }
@@ -28,7 +30,7 @@ export async function readFlags(db: any): Promise<AiFlags> {
  * ON PURPOSE, and a flag a network blip could flip makes the two
  * indistinguishable.
  */
-export async function aiFeatureOn(db: any, feature: AiFeature): Promise<boolean> {
+export async function aiFeatureOn(db: Db, feature: AiFeature): Promise<boolean> {
   try {
     const f = await readFlags(db);
     return f.enabled && !!f[feature];

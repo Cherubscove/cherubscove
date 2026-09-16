@@ -5,6 +5,7 @@
 // falling back to a template, not an error to show a user.
 
 import { adapterFor } from "./ai-adapters.ts";
+import type { Db } from "./admin.ts";
 
 export type FailureKind =
   | "auth" | "quota" | "capped" | "rate" | "refusal"
@@ -33,6 +34,10 @@ export type ChainOpts = {
   accept?: (raw: string) => boolean;
   system?: string;
   maxTokens?: number;
+};
+
+type CooldownRow = {
+  engine: string; until: string; window_kind: string | null; detail: string | null;
 };
 
 type ProviderRow = {
@@ -82,7 +87,7 @@ function summarise(raw: string): string {
 }
 
 export async function runChain(
-  db: any,
+  db: Db,
   prompt: string,
   opts: ChainOpts = {},
 ): Promise<ChainResult> {
@@ -119,7 +124,7 @@ export async function runChain(
     .from("ai_engine_cooldowns").select("engine, until, window_kind, detail")
     .gt("until", new Date().toISOString());
   const cooling = new Map<string, { until: string; window_kind: string | null; detail: string | null }>(
-    (coolRows ?? []).map((c: any) => [c.engine, c]),
+    (coolRows ?? []).map((c: CooldownRow) => [c.engine, c]),
   );
 
   for (const row of usable as ProviderRow[]) {
