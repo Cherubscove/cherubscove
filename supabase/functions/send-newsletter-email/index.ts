@@ -19,6 +19,7 @@ const FROM_ADDRESS = "Cherubs Cove Ministry <noreply@cherubscove.net>";
 // A no-reply From with nowhere to reply to is a mild spam signal and a rude one.
 // ADMIN_NOTIFY_EMAIL already exists as a project secret; reuse it.
 const REPLY_TO = Deno.env.get("ADMIN_NOTIFY_EMAIL") ?? "";
+const LOGO_URL = "https://cherubscove.net/email-logo.png";
 const BATCH_SIZE = 100; // Resend's per-call limit for /emails/batch
 // Shared with the scheduler, so "Send now" in the console and the cron pass are
 // the same code path.
@@ -82,8 +83,13 @@ function wrapHtml(subject: string, bodyHtml: string, unsubUrl: string, id: Ident
 <html lang="en"><head><meta charset="utf-8"><title>${escapeHtml(subject)}</title></head>
 <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f9fafb;margin:0;padding:24px">
   <table cellpadding="0" cellspacing="0" style="max-width:640px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1)">
-    <tr><td style="padding:28px 32px 18px;background:linear-gradient(135deg,#1e1b1a,#3a2a22)">
-      <h1 style="margin:0;font-size:20px;color:#ffffff;font-weight:600">Cherubs Cove Ministry</h1>
+    <tr><td align="center" style="padding:26px 32px 20px;background:#2a201c;background:linear-gradient(135deg,#1e1b1a,#3a2a22)">
+      <!-- Served from a fixed path, never a Vite-hashed one: a bundled asset's
+           URL changes on the next deploy and would 404 in mail already sent.
+           The alt text is the fallback, since most clients block images by
+           default and the logo carries the wordmark. -->
+      <img src="${LOGO_URL}" width="132" height="132" alt="Cherubs Cove Ministry"
+           style="display:block;margin:0 auto;border:0;outline:none;text-decoration:none;width:132px;height:132px;color:#ffffff;font-size:18px;font-weight:600" />
     </td></tr>
     <tr><td style="padding:28px 32px;color:#374151;font-size:15px;line-height:1.7">
       ${bodyHtml}
