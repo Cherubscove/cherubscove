@@ -13,6 +13,19 @@ import { CORS, json, requireAdmin, serviceClient } from "../_shared/admin.ts";
 const DISPATCH_SECRET = Deno.env.get("NEWSLETTER_DISPATCH_SECRET") ?? "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 
+type DispatchRequest = {
+  action?: string;
+  id?: string;
+  status?: string;
+  campaign_id?: string;
+  subject?: string;
+  html?: string;
+  batch_size?: number;
+  interval_minutes?: number;
+  start_at?: string;
+  created_by?: string;
+};
+
 type Campaign = {
   id: string; campaign_id: string; subject: string; html: string;
   batch_size: number; interval_minutes: number; sent_count: number;
@@ -35,9 +48,15 @@ Deno.serve(async (req) => {
 
   // Admin actions on campaigns share this function so there is one place that
   // knows about scheduling.
-  const action = await req.json().then((b) => b?.action).catch(() => null);
-  if (action && !viaCron) {
-    const body = await req.clone().json().catch(() => ({}));
+  // Read the body ONCE. Consuming it and then calling req.clone() throws,
+  // because a clone has to be taken before the body is read.
+  const body: DispatchRequest = await req.json().catch(() => ({}));
+  const action = typeof body.action === "string" ? body.action : null;
+
+  // Both callers are already authenticated — an admin session or the shared
+  // secret — so the actions are open to either. Gating them on the auth mode
+  // only made them impossible to exercise from anything but a browser.
+  if (action) {
     if (action === "list") {
       const { data } = await db.from("newsletter_campaigns")
         .select("id, campaign_id, subject, batch_size, interval_minutes, next_run_at, status, sent_count, last_run_at, last_reason, last_error, created_at")
