@@ -292,8 +292,8 @@ export default function AiSettingsTab({ onFlagsChange }: { onFlagsChange?: (f: A
                 </div>
 
                 <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 pl-8 text-xs">
-                  <span className="text-[#6B5E50]">
-                    {r.calls_today} call{r.calls_today === 1 ? '' : 's'} today
+                  <span className="text-[#6B5E50]" title="Counted per UTC day, which is when the providers reset their own free allowances — not local midnight.">
+                    {r.calls_today} call{r.calls_today === 1 ? '' : 's'} today (UTC)
                     {r.daily_limit != null && ` of ${r.daily_limit}`}
                     {r.failures_today > 0 && ` · ${r.failures_today} refused`}
                   </span>

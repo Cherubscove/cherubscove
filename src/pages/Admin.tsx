@@ -1172,6 +1172,14 @@ export default function AdminPage() {
     });
   };
 
+  /** Today as the admin's own calendar sees it. toISOString() is UTC, so in
+   *  WAT every export between midnight and 1am was named with yesterday's
+   *  date. */
+  const localDateStamp = () => {
+    const d = new Date();
+    return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
+  };
+
   /* ── Admin Invite & Management ───────────────────────────────────────── */
 
   const SUPER_ADMIN_EMAIL = 'cherubscove@gmail.com';
@@ -1483,7 +1491,7 @@ export default function AdminPage() {
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = `registrations-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+    a.href = url; a.download = `registrations-${localDateStamp()}.csv`; a.click();
     URL.revokeObjectURL(url);
     toast.success('CSV exported.');
   };
@@ -1496,7 +1504,7 @@ export default function AdminPage() {
     const wb = XLSX.utils.book_new();
     const sheetName = (regGroups.find(g => g.key === regSelectedGroupKey)?.title || 'Registrations').slice(0, 28);
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
-    XLSX.writeFile(wb, `registrations-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    XLSX.writeFile(wb, `registrations-${localDateStamp()}.xlsx`);
     toast.success('Excel exported.');
   };
 
@@ -1515,7 +1523,7 @@ export default function AdminPage() {
     doc.text(`Exported ${new Date().toLocaleString()} · ${sortedRegistrations.length} registrations`, 14, 20);
     const { headers, rows } = exportRows();
     autoTable(doc, { head: [headers], body: rows, startY: 26, styles: { fontSize: 7, overflow: 'linebreak' }, headStyles: { fillColor: [232, 98, 10] } });
-    doc.save(`registrations-${new Date().toISOString().slice(0, 10)}.pdf`);
+    doc.save(`registrations-${localDateStamp()}.pdf`);
     toast.success('PDF exported.');
   };
 
@@ -1708,7 +1716,7 @@ export default function AdminPage() {
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = `newsletter-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+    a.href = url; a.download = `newsletter-${localDateStamp()}.csv`; a.click();
     URL.revokeObjectURL(url);
     toast.success('CSV exported.');
   };
