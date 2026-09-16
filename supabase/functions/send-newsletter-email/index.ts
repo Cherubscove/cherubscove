@@ -19,7 +19,9 @@ const FROM_ADDRESS = "Cherubs Cove Ministry <noreply@cherubscove.net>";
 // A no-reply From with nowhere to reply to is a mild spam signal and a rude one.
 // ADMIN_NOTIFY_EMAIL already exists as a project secret; reuse it.
 const REPLY_TO = Deno.env.get("ADMIN_NOTIFY_EMAIL") ?? "";
-const LOGO_URL = "https://cherubscove.net/email-logo.png";
+// The apex 308-redirects to www; use the canonical host directly so no mail
+// client has to follow a redirect to show the logo.
+const LOGO_URL = "https://www.cherubscove.net/email-logo.png";
 const BATCH_SIZE = 100; // Resend's per-call limit for /emails/batch
 // Shared with the scheduler, so "Send now" in the console and the cron pass are
 // the same code path.
