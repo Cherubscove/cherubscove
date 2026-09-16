@@ -51,6 +51,18 @@ export function modelsUrlFor(provider: string, baseUrl?: string): string | null 
   return OPENAI_COMPATIBLE[provider]?.modelsUrl ?? null;
 }
 
+// A vendor that accepts the connection and then never answers is worse than
+// one that refuses: the edge function has a wall-clock limit, so one hung row
+// costs every row below it. NVIDIA's inference endpoint did exactly this while
+// its /models endpoint stayed healthy, so a key check alone will not catch it.
+const CALL_TIMEOUT_MS = 45_000;
+
+function timed(): { signal: AbortSignal; done: () => void } {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), CALL_TIMEOUT_MS);
+  return { signal: ctl.signal, done: () => clearTimeout(timer) };
+}
+
 async function failing(res: Response): Promise<never> {
   throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 600)}`);
 }
@@ -61,15 +73,22 @@ const openAiCompatible: Adapter = async ({ apiKey, model, prompt, system, baseUr
     ? [{ role: "system", content: system }, { role: "user", content: prompt }]
     : [{ role: "user", content: prompt }];
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model, messages, temperature: 0.7,
-      max_tokens: maxTokens ?? 800,
-      reasoning_effort: "low",
-    }),
-  });
+  const t = timed();
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      signal: t.signal,
+      headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model, messages, temperature: 0.7,
+        max_tokens: maxTokens ?? 800,
+        reasoning_effort: "low",
+      }),
+    });
+  } catch (err) {
+    throw new Error(t.signal.aborted ? `timeout after ${CALL_TIMEOUT_MS}ms` : String(err));
+  } finally { t.done(); }
   if (!res.ok) await failing(res);
   const data = await res.json();
   return data?.choices?.[0]?.message?.content ?? "";
@@ -78,8 +97,10 @@ const openAiCompatible: Adapter = async ({ apiKey, model, prompt, system, baseUr
 const gemini: Adapter = async ({ apiKey, model, prompt, system, maxTokens }) => {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
 
+  const t = timed();
   const call = (thinking: boolean) => fetch(url, {
     method: "POST",
+    signal: t.signal,
     headers: { "x-goog-api-key": apiKey, "Content-Type": "application/json" },
     body: JSON.stringify({
       contents: [{ role: "user", parts: [{ text: prompt }] }],
@@ -92,13 +113,18 @@ const gemini: Adapter = async ({ apiKey, model, prompt, system, maxTokens }) => 
     }),
   });
 
-  let res = await call(false);
-  // A few models (the pro tier) refuse a zero thinking budget. Try once more
-  // without the knob rather than losing the row to a 400.
-  if (res.status === 400) {
-    const body = await res.clone().text();
-    if (/thinking/i.test(body)) res = await call(true);
-  }
+  let res: Response;
+  try {
+    res = await call(false);
+    // A few models (the pro tier) refuse a zero thinking budget. Try once more
+    // without the knob rather than losing the row to a 400.
+    if (res.status === 400) {
+      const body = await res.clone().text();
+      if (/thinking/i.test(body)) res = await call(true);
+    }
+  } catch (err) {
+    throw new Error(t.signal.aborted ? `timeout after ${CALL_TIMEOUT_MS}ms` : String(err));
+  } finally { t.done(); }
   if (!res.ok) await failing(res);
   const data = await res.json();
 
@@ -113,8 +139,12 @@ const gemini: Adapter = async ({ apiKey, model, prompt, system, maxTokens }) => 
 };
 
 const anthropic: Adapter = async ({ apiKey, model, prompt, system, maxTokens }) => {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const t = timed();
+  let res: Response;
+  try {
+    res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
+    signal: t.signal,
     headers: {
       "x-api-key": apiKey,
       "anthropic-version": "2023-06-01",
@@ -126,7 +156,10 @@ const anthropic: Adapter = async ({ apiKey, model, prompt, system, maxTokens }) 
       ...(system ? { system } : {}),
       messages: [{ role: "user", content: prompt }],
     }),
-  });
+    });
+  } catch (err) {
+    throw new Error(t.signal.aborted ? `timeout after ${CALL_TIMEOUT_MS}ms` : String(err));
+  } finally { t.done(); }
   if (!res.ok) await failing(res);
   const data = await res.json();
   return (data?.content ?? [])
