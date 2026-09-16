@@ -59,12 +59,66 @@ Deno.serve(async (req) => {
   if (action) {
     if (action === "list") {
       const { data } = await db.from("newsletter_campaigns")
-        .select("id, campaign_id, subject, batch_size, interval_minutes, next_run_at, status, sent_count, last_run_at, last_reason, last_error, created_at")
+        .select("id, campaign_id, subject, html, batch_size, interval_minutes, next_run_at, status, sent_count, last_run_at, last_reason, last_error, created_at")
         .order("created_at", { ascending: false }).limit(25);
-      return json(200, { campaigns: data ?? [] });
+      const rows = data ?? [];
+
+      // Progress is counted from the log rather than trusted from sent_count,
+      // so a campaign sent by hand and one sent by the scheduler read alike.
+      const [{ count: activeCount }, { data: log }] = await Promise.all([
+        db.from("newsletter").select("email", { count: "exact", head: true }).eq("unsubscribed", false),
+        db.from("newsletter_send_log").select("campaign_id, recipient_email, status")
+          .in("campaign_id", rows.map((r: { campaign_id: string }) => r.campaign_id)),
+      ]);
+      const sentBy = new Map<string, Set<string>>();
+      const bouncedBy = new Map<string, number>();
+      for (const r of (log ?? []) as { campaign_id: string; recipient_email: string; status: string }[]) {
+        if (r.status === "sent") {
+          if (!sentBy.has(r.campaign_id)) sentBy.set(r.campaign_id, new Set());
+          sentBy.get(r.campaign_id)!.add(r.recipient_email.toLowerCase());
+        } else if (r.status === "bounced") {
+          bouncedBy.set(r.campaign_id, (bouncedBy.get(r.campaign_id) ?? 0) + 1);
+        }
+      }
+      const total = activeCount ?? 0;
+      return json(200, {
+        campaigns: rows.map((r: { campaign_id: string }) => {
+          const sent = sentBy.get(r.campaign_id)?.size ?? 0;
+          return {
+            ...r,
+            sent_actual: sent,
+            bounced: bouncedBy.get(r.campaign_id) ?? 0,
+            audience: total,
+            remaining: Math.max(0, total - sent),
+          };
+        }),
+      });
+    }
+
+    // Written on the first send, so a campaign can be reopened after a refresh
+    // and carry on with the same id — which is what makes "skip anyone already
+    // sent" work at all.
+    if (action === "save") {
+      if (!body.campaign_id || !body.subject) {
+        return json(400, { error: "campaign_id and subject are required" });
+      }
+      const { error } = await db.from("newsletter_campaigns").upsert({
+        campaign_id: body.campaign_id,
+        subject: body.subject,
+        html: body.html ?? "",
+        batch_size: Number(body.batch_size ?? 25),
+        created_by: body.created_by ?? null,
+      }, { onConflict: "campaign_id", ignoreDuplicates: false });
+      if (error) return json(400, { error: error.message });
+      return json(200, { ok: true });
+    }
+
+    if (action === "delete") {
+      await db.from("newsletter_campaigns").delete().eq("id", body.id);
+      return json(200, { ok: true });
     }
     if (action === "schedule") {
-      const { error, data } = await db.from("newsletter_campaigns").insert({
+      const { error, data } = await db.from("newsletter_campaigns").upsert({
         campaign_id: body.campaign_id,
         subject: body.subject,
         html: body.html,
@@ -72,7 +126,8 @@ Deno.serve(async (req) => {
         interval_minutes: Number(body.interval_minutes ?? 1440),
         next_run_at: body.start_at ?? now,
         created_by: body.created_by ?? null,
-      }).select("id").single();
+        status: "scheduled",
+      }, { onConflict: "campaign_id" }).select("id").single();
       if (error) return json(400, { error: error.message });
       return json(200, { ok: true, id: data.id });
     }

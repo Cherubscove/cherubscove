@@ -121,10 +121,16 @@ export type Campaign = {
   id: string;
   campaign_id: string;
   subject: string;
+  html: string;
+  /** Counted from the send log, not trusted from the campaign row. */
+  sent_actual: number;
+  bounced: number;
+  audience: number;
+  remaining: number;
   batch_size: number;
   interval_minutes: number;
   next_run_at: string;
-  status: 'scheduled' | 'paused' | 'done' | 'stopped';
+  status: 'draft' | 'scheduled' | 'paused' | 'done' | 'stopped';
   sent_count: number;
   last_run_at: string | null;
   last_reason: string | null;
@@ -152,6 +158,10 @@ export const campaigns = {
   }) => dispatch<{ ok: true; id: string }>({ action: 'schedule', ...c }),
   setStatus: (id: string, status: 'scheduled' | 'paused' | 'stopped') =>
     dispatch<{ ok: true }>({ action: 'set_status', id, status }),
+  /** Persist a draft so it survives a refresh and can be continued later. */
+  save: (c: { campaign_id: string; subject: string; html: string; batch_size: number; created_by?: string }) =>
+    dispatch<{ ok: true }>({ action: 'save', ...c }),
+  remove: (id: string) => dispatch<{ ok: true }>({ action: 'delete', id }),
   runNow: () => dispatch<{ ran: number }>({}),
 };
 

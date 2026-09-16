@@ -1741,6 +1741,25 @@ export default function AdminPage() {
     catch { /* the tab still works without the schedule list */ }
   };
 
+  /** Load a saved campaign back into the compose dialog, id and all. */
+  const reopenCampaign = (c: Campaign) => {
+    setComposeMode('bulk');
+    setComposeTargets(subscribers.filter(x => !x.unsubscribed).map(x => x.email).filter(Boolean));
+    setComposeCampaignId(c.campaign_id);
+    setComposeSubject(c.subject);
+    setComposeBody(c.html ?? '');
+    setComposeTranche(c.batch_size);
+    setScheduleOn(false);
+    setAiBrief('');
+    setComposeOpen(true);
+  };
+
+  const removeCampaign = async (c: Campaign) => {
+    if (!confirm(`Forget "${c.subject}"? The record of who already received it is kept, so nobody would be mailed twice.`)) return;
+    try { await campaignApi.remove(c.id); loadCampaigns(); }
+    catch (err) { toast.error(err instanceof Error ? err.message : 'Could not remove it.'); }
+  };
+
   const setCampaignStatus = async (c: Campaign, status: 'scheduled' | 'paused' | 'stopped') => {
     try {
       await campaignApi.setStatus(c.id, status);
@@ -1757,7 +1776,22 @@ export default function AdminPage() {
     if (!composeTargets.length) { toast.error('No recipients.'); return; }
     setComposeSending(true);
     const campaignId = composeCampaignId || `bulk-${Date.now()}`;
+    const composedHtml = composeBody.includes('<') && composeBody.includes('>')
+      ? composeBody
+      : `<p>${composeBody.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>')}</p>`;
     try {
+      // Written before the send: the campaign id is what lets a later batch
+      // skip whoever already received this, so it must survive a refresh even
+      // if the send itself goes wrong.
+      if (composeMode === 'bulk') {
+        await campaignApi.save({
+          campaign_id: campaignId,
+          subject: composeSubject.trim(),
+          html: composedHtml,
+          batch_size: composeTranche,
+          created_by: session?.user?.email ?? undefined,
+        }).catch(() => { /* a failed save must never block the send */ });
+      }
       const html = composeBody.includes('<') && composeBody.includes('>')
         ? composeBody
         : `<p>${composeBody.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>')}</p>`;
@@ -1806,6 +1840,7 @@ export default function AdminPage() {
         campaign_id: campaignId,
       });
       loadAllData(); // refresh send logs
+      void loadCampaigns();
     } catch (err: any) {
       toast.error(err.message || 'Failed to send email.');
     } finally {
@@ -3233,34 +3268,53 @@ export default function AdminPage() {
 
           {/* ── Newsletter Tab ───────────────────────────────────────────── */}
           <TabsContent value="newsletter" className="space-y-4">
-            {campaignRows.filter(c => c.status === 'scheduled' || c.status === 'paused').length > 0 && (
+            {campaignRows.length > 0 && (
               <Card className="bg-[#1A1814] border-[#2A2520]">
                 <CardHeader>
-                  <CardTitle className="text-white text-base">Sending on a schedule</CardTitle>
+                  <CardTitle className="text-white text-base">Campaigns</CardTitle>
                   <p className="text-xs text-[#6B5E50]">
-                    These keep going on their own. The list is re-read before every batch.
+                    Every campaign is kept. Continue one and it picks up where it stopped —
+                    anyone who already received it is skipped, so nobody is mailed twice.
                   </p>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {campaignRows.filter(c => c.status === 'scheduled' || c.status === 'paused').map(c => (
+                  {campaignRows.map(c => (
                     <div key={c.id} className="rounded-lg border border-[#2A2520] p-3">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="min-w-0">
-                          <p className="truncate text-sm text-[#F5EFE6]">{c.subject}</p>
+                          <p className="truncate text-sm text-[#F5EFE6]">
+                            {c.subject}
+                            {c.status === 'paused' && <span className="ml-2 text-xs text-amber-400">paused</span>}
+                            {c.status === 'stopped' && <span className="ml-2 text-xs text-red-400/80">stopped</span>}
+                            {c.remaining === 0 && c.sent_actual > 0 && <span className="ml-2 text-xs text-green-400/80">complete</span>}
+                          </p>
                           <p className="text-xs text-[#6B5E50]">
-                            {c.sent_count} sent · {c.batch_size} at a time ·{' '}
-                            {INTERVAL_CHOICES.find(i => i.minutes === c.interval_minutes)?.label
-                              ?? `every ${c.interval_minutes} minutes`}
-                            {c.status === 'scheduled' && ` · next ${new Date(c.next_run_at).toLocaleString()}`}
+                            {c.sent_actual} of {c.audience} sent
+                            {c.remaining > 0 && ` · ${c.remaining} to go`}
+                            {c.bounced > 0 && ` · ${c.bounced} bounced`}
+                            {' · '}{c.batch_size} at a time
+                            {c.status === 'scheduled' && c.next_run_at &&
+                              ` · next ${new Date(c.next_run_at).toLocaleString()}`}
                           </p>
                         </div>
-                        <div className="flex gap-2">
-                          {c.status === 'scheduled' ? (
+                        <div className="flex flex-wrap gap-2">
+                          {c.remaining > 0 && (
+                            <Button size="sm" onClick={() => reopenCampaign(c)} className="bg-[#E8620A] hover:bg-[#cf5709] text-white">
+                              Continue
+                            </Button>
+                          )}
+                          {c.status === 'scheduled' && (
                             <Button size="sm" variant="outline" onClick={() => setCampaignStatus(c, 'paused')} className="border-[#2A2520] text-[#B5A898]">Pause</Button>
-                          ) : (
+                          )}
+                          {c.status === 'paused' && (
                             <Button size="sm" variant="outline" onClick={() => setCampaignStatus(c, 'scheduled')} className="border-[#2A2520] text-[#B5A898]">Resume</Button>
                           )}
-                          <Button size="sm" variant="outline" onClick={() => setCampaignStatus(c, 'stopped')} className="border-red-500/40 text-red-400">Stop</Button>
+                          {c.status === 'scheduled' && (
+                            <Button size="sm" variant="outline" onClick={() => setCampaignStatus(c, 'stopped')} className="border-red-500/40 text-red-400">Stop</Button>
+                          )}
+                          <button onClick={() => removeCampaign(c)} title="Forget this campaign" className="p-1.5 text-[#6B5E50] hover:text-red-400">
+                            <Trash2 size={14} />
+                          </button>
                         </div>
                       </div>
                       {c.last_reason && (
