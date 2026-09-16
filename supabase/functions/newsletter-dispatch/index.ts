@@ -199,8 +199,18 @@ Deno.serve(async (req) => {
     const remaining = Number(out?.remaining ?? 0);
     const finished = remaining === 0;
 
+    // Count from the log, not from the column: a batch sent by hand from the
+    // console never touched sent_count, so the running total drifted low and
+    // the finishing message would have understated the campaign.
+    const { count: totalSent } = await db
+      .from("newsletter_send_log")
+      .select("recipient_email", { count: "exact", head: true })
+      .eq("campaign_id", c.campaign_id)
+      .eq("status", "sent");
+    const runningTotal = totalSent ?? c.sent_count + sent;
+
     await db.from("newsletter_campaigns").update({
-      sent_count: c.sent_count + sent,
+      sent_count: runningTotal,
       last_run_at: now,
       last_error: (out?.errors ?? []).length ? out.errors.join("; ").slice(0, 900) : null,
       status: finished ? "done" : "scheduled",
@@ -208,7 +218,7 @@ Deno.serve(async (req) => {
         ? now
         : new Date(Date.now() + c.interval_minutes * 60_000).toISOString(),
       last_reason: finished
-        ? `Finished — ${c.sent_count + sent} sent in total.`
+        ? `Finished — ${runningTotal} sent in total.`
         : `Sent ${sent}; ${remaining} still to go, next batch in ${c.interval_minutes} minutes.`,
     }).eq("id", c.id);
 
