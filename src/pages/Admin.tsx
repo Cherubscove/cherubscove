@@ -1719,25 +1719,27 @@ export default function AdminPage() {
     if (!composeBody.trim()) { toast.error('Message body is required.'); return; }
     if (!composeTargets.length) { toast.error('No recipients.'); return; }
     setComposeSending(true);
+    const campaignId = `bulk-${Date.now()}`;
     try {
       const html = composeBody.includes('<') && composeBody.includes('>')
         ? composeBody
         : `<p>${composeBody.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>')}</p>`;
       const { data, error } = await supabase.functions.invoke('send-newsletter-email', {
-        body: { subject: composeSubject.trim(), html, recipients: composeTargets, campaign_id: `bulk-${Date.now()}` },
+        body: { subject: composeSubject.trim(), html, recipients: composeTargets, campaign_id: campaignId },
       });
       if (error) throw error;
       if (data?.success === false) {
         toast.error(`Sent ${data.sent}/${data.total}. Errors: ${(data.errors || []).join('; ').slice(0, 200)}`);
       } else {
-        toast.success(`Email sent to ${data?.sent ?? composeTargets.length} recipient(s).`);
+        const skipped = data?.suppressed ? ` ${data.suppressed} unsubscribed recipient(s) skipped.` : '';
+        toast.success(`Email sent to ${data?.sent ?? composeTargets.length} recipient(s).${skipped}`);
         setComposeOpen(false);
       }
       void logAuditAction(session?.user?.email ?? '', AUDIT_ACTIONS.NEWSLETTER_SENT, 'newsletter', undefined, {
         mode: composeMode,
         recipient_count: composeTargets.length,
         subject: composeSubject.trim(),
-        campaign_id: `bulk-${Date.now()}`,
+        campaign_id: campaignId,
       });
       loadAllData(); // refresh send logs
     } catch (err: any) {
@@ -1760,7 +1762,7 @@ export default function AdminPage() {
         ? composeBody
         : `<p>${composeBody.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>')}</p>`;
       const { data, error } = await supabase.functions.invoke('send-newsletter-email', {
-        body: { subject: composeSubject.trim(), html, recipients: [adminEmail], campaign_id: `test-${Date.now()}` },
+        body: { subject: composeSubject.trim(), html, recipients: [adminEmail], campaign_id: `test-${Date.now()}`, is_test: true },
       });
       if (error) throw error;
       if (data?.success === false) {
