@@ -17,7 +17,7 @@ import FormFieldBuilder from '@/components/admin/FormFieldBuilder';
 import HeroSlidesManager from '@/components/admin/HeroSlidesManager';
 import AiSettingsTab from '@/components/admin/AiSettingsTab';
 import AiAssistButton from '@/components/admin/AiAssistButton';
-import { DEFAULT_AI_FLAGS, readAiFlagsPublic, type AiFlags } from '@/lib/ai';
+import { DEFAULT_AI_FLAGS, readAiFlagsPublic, campaigns as campaignApi, INTERVAL_CHOICES, type AiFlags, type Campaign } from '@/lib/ai';
 import { SEED_EVENTS, SEED_DOWNLOADS, SEED_GALLERIES } from '@/lib/seedData';
 import type {
   EventRecord, DownloadRecord, GalleryRecord, RegistrationRecord, FormFieldConfig, GalleryCollection,
@@ -389,6 +389,9 @@ export default function AdminPage() {
   const [aiFlags, setAiFlags] = useState<AiFlags>(DEFAULT_AI_FLAGS);
   const [aiBrief, setAiBrief] = useState('');
   const [aiEventId, setAiEventId] = useState('');
+  const [scheduleOn, setScheduleOn] = useState(false);
+  const [scheduleInterval, setScheduleInterval] = useState(1440);
+  const [campaignRows, setCampaignRows] = useState<Campaign[]>([]);
   // Stable for the life of one draft, so sending a tranche today and the
   // rest tomorrow continues the same campaign instead of mailing people twice.
   const [composeCampaignId, setComposeCampaignId] = useState('');
@@ -657,6 +660,7 @@ export default function AdminPage() {
       // needs them before it renders to decide which buttons exist at all.
       // The server checks them again; this copy is only ever an optimisation.
       setAiFlags(await readAiFlagsPublic(finalSettings));
+      void loadCampaigns();
       void loadAuditLogs();
     } catch (error) {
       console.error('Admin data load failed:', error);
@@ -1732,6 +1736,21 @@ export default function AdminPage() {
     setComposeOpen(true);
   };
 
+  const loadCampaigns = async () => {
+    try { setCampaignRows((await campaignApi.list()).campaigns); }
+    catch { /* the tab still works without the schedule list */ }
+  };
+
+  const setCampaignStatus = async (c: Campaign, status: 'scheduled' | 'paused' | 'stopped') => {
+    try {
+      await campaignApi.setStatus(c.id, status);
+      toast.success(status === 'scheduled' ? 'Resumed.' : status === 'paused' ? 'Paused.' : 'Stopped.');
+      loadCampaigns();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not change the schedule.');
+    }
+  };
+
   const sendComposedEmail = async () => {
     if (!composeSubject.trim()) { toast.error('Subject is required.'); return; }
     if (!composeBody.trim()) { toast.error('Message body is required.'); return; }
@@ -1758,8 +1777,27 @@ export default function AdminPage() {
           : '';
         toast.success(`Email sent to ${data?.sent ?? composeTargets.length} recipient(s).${skipped}${left}`);
         for (const w of (data?.warnings ?? [])) toast.warning(w);
-        // Keep the draft open while a campaign still has recipients waiting.
-        if (!data?.remaining) setComposeOpen(false);
+        if (data?.remaining && scheduleOn) {
+          try {
+            await campaignApi.schedule({
+              campaign_id: campaignId,
+              subject: composeSubject.trim(),
+              html,
+              batch_size: composeTranche,
+              interval_minutes: scheduleInterval,
+              start_at: new Date(Date.now() + scheduleInterval * 60000).toISOString(),
+              created_by: session?.user?.email ?? undefined,
+            });
+            toast.success(`The remaining ${data.remaining} are queued and will go out on their own.`);
+            loadCampaigns();
+            setComposeOpen(false);
+          } catch (err) {
+            toast.error(`Sent, but could not queue the rest: ${err instanceof Error ? err.message : 'unknown error'}`);
+          }
+        } else if (!data?.remaining) {
+          // Keep the draft open while a campaign still has recipients waiting.
+          setComposeOpen(false);
+        }
       }
       void logAuditAction(session?.user?.email ?? '', AUDIT_ACTIONS.NEWSLETTER_SENT, 'newsletter', undefined, {
         mode: composeMode,
@@ -3195,6 +3233,47 @@ export default function AdminPage() {
 
           {/* ── Newsletter Tab ───────────────────────────────────────────── */}
           <TabsContent value="newsletter" className="space-y-4">
+            {campaignRows.filter(c => c.status === 'scheduled' || c.status === 'paused').length > 0 && (
+              <Card className="bg-[#1A1814] border-[#2A2520]">
+                <CardHeader>
+                  <CardTitle className="text-white text-base">Sending on a schedule</CardTitle>
+                  <p className="text-xs text-[#6B5E50]">
+                    These keep going on their own. The list is re-read before every batch.
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {campaignRows.filter(c => c.status === 'scheduled' || c.status === 'paused').map(c => (
+                    <div key={c.id} className="rounded-lg border border-[#2A2520] p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm text-[#F5EFE6]">{c.subject}</p>
+                          <p className="text-xs text-[#6B5E50]">
+                            {c.sent_count} sent · {c.batch_size} at a time ·{' '}
+                            {INTERVAL_CHOICES.find(i => i.minutes === c.interval_minutes)?.label
+                              ?? `every ${c.interval_minutes} minutes`}
+                            {c.status === 'scheduled' && ` · next ${new Date(c.next_run_at).toLocaleString()}`}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          {c.status === 'scheduled' ? (
+                            <Button size="sm" variant="outline" onClick={() => setCampaignStatus(c, 'paused')} className="border-[#2A2520] text-[#B5A898]">Pause</Button>
+                          ) : (
+                            <Button size="sm" variant="outline" onClick={() => setCampaignStatus(c, 'scheduled')} className="border-[#2A2520] text-[#B5A898]">Resume</Button>
+                          )}
+                          <Button size="sm" variant="outline" onClick={() => setCampaignStatus(c, 'stopped')} className="border-red-500/40 text-red-400">Stop</Button>
+                        </div>
+                      </div>
+                      {c.last_reason && (
+                        <p className={`mt-1.5 text-xs ${c.status === 'paused' ? 'text-amber-400/80' : 'text-[#6B5E50]'}`}>
+                          {c.last_reason}
+                        </p>
+                      )}
+                      {c.last_error && <p className="mt-1 text-xs text-red-400/70">{c.last_error.slice(0, 160)}</p>}
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
             <div className="flex justify-between items-center flex-wrap gap-3">
               <div>
                 <h2 className="text-xl font-semibold">Newsletter Subscribers</h2>
@@ -3414,10 +3493,37 @@ export default function AdminPage() {
                         </div>
                         <p className="text-xs text-[#6B5E50]">
                           A domain with no sending history that mails its whole list at once is what
-                          spam filters look for. Send a batch a day for the first week and let the
-                          reputation build. Anyone already sent this draft is skipped, so you can
-                          press Send again tomorrow without mailing anyone twice.
+                          spam filters look for. Anyone already sent this draft is skipped, so no one
+                          is ever mailed twice.
                         </p>
+                        <label className="flex items-start gap-2 pt-1">
+                          <input
+                            type="checkbox"
+                            checked={scheduleOn}
+                            onChange={e => setScheduleOn(e.target.checked)}
+                            disabled={composeSending}
+                            className="mt-0.5 accent-[#E8620A]"
+                          />
+                          <span className="text-sm text-[#B5A898]">
+                            Send the rest automatically
+                            <select
+                              value={scheduleInterval}
+                              onChange={e => setScheduleInterval(Number(e.target.value))}
+                              disabled={composeSending || !scheduleOn}
+                              className="mx-2 h-7 rounded-md border border-[#2A2520] bg-[#0F0D0A] px-1.5 text-sm text-[#F5EFE6] disabled:opacity-50"
+                            >
+                              {INTERVAL_CHOICES.map(i => (
+                                <option key={i.minutes} value={i.minutes}>{i.label}</option>
+                              ))}
+                            </select>
+                            until everyone has it.
+                            <span className="mt-0.5 block text-xs text-[#6B5E50]">
+                              A background job keeps sending {composeTranche} at a time. It stops by
+                              itself if too many bounce, and it re-reads the list each time so
+                              anyone who unsubscribes meanwhile is dropped.
+                            </span>
+                          </span>
+                        </label>
                       </div>
                     )}
                     <div className="sticky bottom-0 -mx-6 -mb-6 flex flex-wrap items-center justify-between gap-2 border-t border-[#2A2520] bg-[#1A1814] px-6 py-3">

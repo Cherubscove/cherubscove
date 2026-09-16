@@ -20,6 +20,29 @@ const FROM_ADDRESS = "Cherubs Cove Ministry <noreply@cherubscove.net>";
 // ADMIN_NOTIFY_EMAIL already exists as a project secret; reuse it.
 const REPLY_TO = Deno.env.get("ADMIN_NOTIFY_EMAIL") ?? "";
 const BATCH_SIZE = 100; // Resend's per-call limit for /emails/batch
+// Shared with the scheduler, so "Send now" in the console and the cron pass are
+// the same code path.
+const DISPATCH_SECRET = Deno.env.get("NEWSLETTER_DISPATCH_SECRET") ?? "";
+// Above this, a campaign is doing more harm than good: every further message
+// deepens the damage to the domain's reputation.
+const BOUNCE_LIMIT = 0.05;
+const BOUNCE_MIN_SAMPLE = 20;
+
+/**
+ * Has this campaign started going wrong? Manual sending does not protect you
+ * if nobody reads the log, so the send itself refuses.
+ */
+async function bounceRate(db: ReturnType<typeof serviceClient>, campaignId: string) {
+  const { data } = await db
+    .from("newsletter_send_log")
+    .select("status")
+    .eq("campaign_id", campaignId);
+  const rows = data ?? [];
+  const delivered = rows.filter((r: { status: string }) => r.status === "sent").length;
+  const bad = rows.filter((r: { status: string }) => r.status === "bounced").length;
+  const sample = delivered + bad;
+  return { sample, bad, rate: sample ? bad / sample : 0 };
+}
 
 function escapeHtml(s: string) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -147,8 +170,13 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json(405, { error: "Method not allowed" });
   if (!RESEND_API_KEY) return json(500, { error: "RESEND_API_KEY not configured" });
 
-  const auth = await requireAdmin(req);
-  if (auth instanceof Response) return auth;
+  // Either the scheduler's shared secret or an admin session.
+  const presented = req.headers.get("x-dispatch-secret") ?? "";
+  const viaScheduler = !!DISPATCH_SECRET && presented === DISPATCH_SECRET;
+  if (!viaScheduler) {
+    const auth = await requireAdmin(req);
+    if (auth instanceof Response) return auth;
+  }
 
   let body: {
     subject?: string;
@@ -217,6 +245,21 @@ Deno.serve(async (req) => {
       return json(200, {
         success: true, sent: 0, total: 0, suppressed, already_sent: alreadySent,
         remaining: 0, errors: [], campaign_id,
+      });
+    }
+  }
+
+  if (!body.is_test) {
+    const health = await bounceRate(db, campaign_id);
+    if (health.sample >= BOUNCE_MIN_SAMPLE && health.rate > BOUNCE_LIMIT) {
+      return json(200, {
+        success: false, sent: 0, total: 0, suppressed, already_sent: alreadySent,
+        remaining: uniq.length, campaign_id, blocked: true,
+        errors: [
+          `Stopped: ${health.bad} of ${health.sample} messages in this campaign have bounced ` +
+          `(${Math.round(health.rate * 100)}%). Sending more would damage the domain's ` +
+          `reputation. Check the send log before continuing.`,
+        ],
       });
     }
   }

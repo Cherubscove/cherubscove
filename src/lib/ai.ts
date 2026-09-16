@@ -114,3 +114,52 @@ export async function readAiFlagsPublic(settingsRows: { key: string; value: stri
   try { return { ...DEFAULT_AI_FLAGS, ...JSON.parse(row?.value ?? '{}') }; }
   catch { return DEFAULT_AI_FLAGS; }
 }
+
+/* ── Newsletter campaign scheduling ──────────────────────────────────── */
+
+export type Campaign = {
+  id: string;
+  campaign_id: string;
+  subject: string;
+  batch_size: number;
+  interval_minutes: number;
+  next_run_at: string;
+  status: 'scheduled' | 'paused' | 'done' | 'stopped';
+  sent_count: number;
+  last_run_at: string | null;
+  last_reason: string | null;
+  last_error: string | null;
+  created_at: string;
+};
+
+async function dispatch<T>(body: unknown): Promise<T> {
+  const { data, error } = await supabase.functions.invoke('newsletter-dispatch', { body });
+  if (error) {
+    const detail = (error as { context?: { body?: string } })?.context?.body;
+    let message = error.message;
+    try { message = JSON.parse(detail ?? '')?.error ?? message; } catch { /* keep */ }
+    throw new Error(message);
+  }
+  if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
+  return data as T;
+}
+
+export const campaigns = {
+  list: () => dispatch<{ campaigns: Campaign[] }>({ action: 'list' }),
+  schedule: (c: {
+    campaign_id: string; subject: string; html: string;
+    batch_size: number; interval_minutes: number; start_at?: string; created_by?: string;
+  }) => dispatch<{ ok: true; id: string }>({ action: 'schedule', ...c }),
+  setStatus: (id: string, status: 'scheduled' | 'paused' | 'stopped') =>
+    dispatch<{ ok: true }>({ action: 'set_status', id, status }),
+  runNow: () => dispatch<{ ran: number }>({}),
+};
+
+/** Human wording for a batch cadence. */
+export const INTERVAL_CHOICES: { label: string; minutes: number }[] = [
+  { label: 'every 15 minutes', minutes: 15 },
+  { label: 'every hour', minutes: 60 },
+  { label: 'every 3 hours', minutes: 180 },
+  { label: 'every 6 hours', minutes: 360 },
+  { label: 'once a day', minutes: 1440 },
+];

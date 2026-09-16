@@ -426,7 +426,10 @@ entrypoint = "./functions/send-form-email/index.ts"
 
 [functions.send-newsletter-email]
 enabled = true
-verify_jwt = true
+# The scheduler reaches this with a shared secret and has no Supabase JWT, so
+# the gateway check is off and the function does its own auth: an admin session
+# or the dispatch secret, nothing else.
+verify_jwt = false
 
 [functions.newsletter-unsubscribe]
 enabled = true
@@ -441,5 +444,9 @@ enabled = true
 verify_jwt = true
 
 [functions.resend-webhook]
+enabled = true
+verify_jwt = false
+
+[functions.newsletter-dispatch]
 enabled = true
 verify_jwt = false
