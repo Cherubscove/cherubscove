@@ -2092,11 +2092,11 @@ export default function AdminPage() {
                             notes: editEvent.description ?? '',
                           })}
                           onResult={r => {
-                            setEditEvent(prev => ({
-                              ...prev,
-                              description: r.description || prev.description,
-                              completion_message: r.completion_message || prev.completion_message,
-                            }));
+                            setEditEvent({
+                              ...editEvent,
+                              description: r.description || editEvent.description,
+                              completion_message: r.completion_message || editEvent.completion_message,
+                            });
                           }}
                         />
                       </div>
