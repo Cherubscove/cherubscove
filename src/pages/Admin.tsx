@@ -168,6 +168,8 @@ const CONTENT_DEFAULTS: { key: string; label: string; value: string; group: stri
 
   // ── SEO / Meta ──────────────────────────────────────────────────────────
   { key: 'seo_default_title', label: 'SEO — Default Site Title', value: 'Cherubs Cove Ministry — The Making Place', group: 'SEO' },
+  { key: 'newsletter_postal_address', label: 'Newsletter — Postal Address', value: '', group: 'Newsletter' },
+  { key: 'newsletter_signature', label: 'Newsletter — Sign-off', value: 'With love,\nThe Cherubs Cove Ministry team', group: 'Newsletter' },
   { key: 'seo_default_description', label: 'SEO — Default Description', value: 'An interdenominational ministry raising burning youths for the Lord. Home of the International Quivers Conference.', group: 'SEO' },
   { key: 'seo_default_image', label: 'SEO — Default OG Image URL', value: 'https://cherubscove.net/Cherubscove-ogimage.png', group: 'SEO' },
   { key: 'seo_favicon_url', label: 'SEO — Favicon URL', value: '/favicon.png', group: 'SEO' },
@@ -386,6 +388,10 @@ export default function AdminPage() {
   const [composeTargets, setComposeTargets] = useState<string[]>([]);
   const [aiFlags, setAiFlags] = useState<AiFlags>(DEFAULT_AI_FLAGS);
   const [aiBrief, setAiBrief] = useState('');
+  // Stable for the life of one draft, so sending a tranche today and the
+  // rest tomorrow continues the same campaign instead of mailing people twice.
+  const [composeCampaignId, setComposeCampaignId] = useState('');
+  const [composeTranche, setComposeTranche] = useState(25);
   const [composeSubject, setComposeSubject] = useState('');
   const [composeBody, setComposeBody] = useState('');
   const [composeSending, setComposeSending] = useState(false);
@@ -1712,6 +1718,7 @@ export default function AdminPage() {
     setComposeTargets(targets);
     setComposeSubject('');
     setComposeBody('');
+    setComposeCampaignId(`bulk-${Date.now()}`);
     setComposeOpen(true);
   };
 
@@ -1720,6 +1727,7 @@ export default function AdminPage() {
     setComposeTargets([email]);
     setComposeSubject('');
     setComposeBody('');
+    setComposeCampaignId(`single-${Date.now()}`);
     setComposeOpen(true);
   };
 
@@ -1728,21 +1736,29 @@ export default function AdminPage() {
     if (!composeBody.trim()) { toast.error('Message body is required.'); return; }
     if (!composeTargets.length) { toast.error('No recipients.'); return; }
     setComposeSending(true);
-    const campaignId = `bulk-${Date.now()}`;
+    const campaignId = composeCampaignId || `bulk-${Date.now()}`;
     try {
       const html = composeBody.includes('<') && composeBody.includes('>')
         ? composeBody
         : `<p>${composeBody.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>')}</p>`;
       const { data, error } = await supabase.functions.invoke('send-newsletter-email', {
-        body: { subject: composeSubject.trim(), html, recipients: composeTargets, campaign_id: campaignId },
+        body: {
+          subject: composeSubject.trim(), html, recipients: composeTargets, campaign_id: campaignId,
+          max_recipients: composeMode === 'bulk' ? composeTranche : 0,
+        },
       });
       if (error) throw error;
       if (data?.success === false) {
         toast.error(`Sent ${data.sent}/${data.total}. Errors: ${(data.errors || []).join('; ').slice(0, 200)}`);
       } else {
         const skipped = data?.suppressed ? ` ${data.suppressed} unsubscribed recipient(s) skipped.` : '';
-        toast.success(`Email sent to ${data?.sent ?? composeTargets.length} recipient(s).${skipped}`);
-        setComposeOpen(false);
+        const left = data?.remaining
+          ? ` ${data.remaining} still to go — send the next batch tomorrow, this same draft picks up where it left off.`
+          : '';
+        toast.success(`Email sent to ${data?.sent ?? composeTargets.length} recipient(s).${skipped}${left}`);
+        for (const w of (data?.warnings ?? [])) toast.warning(w);
+        // Keep the draft open while a campaign still has recipients waiting.
+        if (!data?.remaining) setComposeOpen(false);
       }
       void logAuditAction(session?.user?.email ?? '', AUDIT_ACTIONS.NEWSLETTER_SENT, 'newsletter', undefined, {
         mode: composeMode,
@@ -3357,8 +3373,27 @@ export default function AdminPage() {
                     <Field label="Message" hint="Plain text is fine — line breaks are preserved. You may also paste HTML.">
                       <Textarea placeholder="Write your message here…" value={composeBody} onChange={e => setComposeBody(e.target.value)} className={inputCls} rows={10} disabled={composeSending} />
                     </Field>
-                    {composeMode === 'bulk' && composeTargets.length > 20 && (
-                      <p className="text-xs text-[#6B5E50]">Sent in batches of 100. Anyone who has unsubscribed is skipped automatically.</p>
+                    {composeMode === 'bulk' && (
+                      <div className="rounded-lg border border-[#2A2520] p-3 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <label className="text-sm text-[#B5A898]">Send to at most</label>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={composeTranche}
+                            onChange={e => setComposeTranche(Math.max(1, Number(e.target.value) || 1))}
+                            className={`w-24 ${inputCls}`}
+                            disabled={composeSending}
+                          />
+                          <span className="text-sm text-[#B5A898]">of {composeTargets.length} this time</span>
+                        </div>
+                        <p className="text-xs text-[#6B5E50]">
+                          A domain with no sending history that mails its whole list at once is what
+                          spam filters look for. Send a batch a day for the first week and let the
+                          reputation build. Anyone already sent this draft is skipped, so you can
+                          press Send again tomorrow without mailing anyone twice.
+                        </p>
+                      </div>
                     )}
                     <div className="flex justify-between items-center pt-2">
                       <Button

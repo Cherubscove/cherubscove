@@ -16,13 +16,45 @@ import { unsubscribeUrl } from "../_shared/unsubscribe.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
 const FROM_ADDRESS = "Cherubs Cove Ministry <noreply@cherubscove.net>";
+// A no-reply From with nowhere to reply to is a mild spam signal and a rude one.
+// ADMIN_NOTIFY_EMAIL already exists as a project secret; reuse it.
+const REPLY_TO = Deno.env.get("ADMIN_NOTIFY_EMAIL") ?? "";
 const BATCH_SIZE = 100; // Resend's per-call limit for /emails/batch
 
 function escapeHtml(s: string) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-function wrapHtml(subject: string, bodyHtml: string, unsubUrl: string): string {
+/**
+ * Identity shown in every newsletter, read from site_settings so an admin can
+ * change it without a deploy.
+ *
+ * The postal address is not decoration: CAN-SPAM (and its equivalents) require
+ * a real physical address in commercial mail, and filters treat its absence as
+ * a mark against you. A signed-off message from a named human also reads as
+ * correspondence rather than a broadcast, which is what you want.
+ */
+type Identity = { address: string; signature: string };
+
+async function readIdentity(db: ReturnType<typeof serviceClient>): Promise<Identity> {
+  const { data } = await db
+    .from("site_settings")
+    .select("key, value")
+    .in("key", ["newsletter_postal_address", "newsletter_signature"]);
+  const map = new Map((data ?? []).map((r: { key: string; value: string }) => [r.key, r.value]));
+  return {
+    address: (map.get("newsletter_postal_address") ?? "").trim(),
+    signature: (map.get("newsletter_signature") ?? "").trim(),
+  };
+}
+
+function wrapHtml(subject: string, bodyHtml: string, unsubUrl: string, id: Identity): string {
+  const signature = id.signature
+    ? `<p style="margin:24px 0 0;color:#374151">${escapeHtml(id.signature).replace(/\n/g, "<br/>")}</p>`
+    : "";
+  const address = id.address
+    ? `<br/><span style="color:#b6ada1">${escapeHtml(id.address).replace(/\n/g, ", ")}</span>`
+    : "";
   return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><title>${escapeHtml(subject)}</title></head>
 <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f9fafb;margin:0;padding:24px">
@@ -32,9 +64,10 @@ function wrapHtml(subject: string, bodyHtml: string, unsubUrl: string): string {
     </td></tr>
     <tr><td style="padding:28px 32px;color:#374151;font-size:15px;line-height:1.7">
       ${bodyHtml}
+      ${signature}
     </td></tr>
     <tr><td style="padding:16px 32px 28px;color:#9ca3af;font-size:12px;border-top:1px solid #f3f4f6">
-      You're receiving this because you subscribed to updates from Cherubs Cove Ministry.<br/>
+      You're receiving this because you subscribed to updates from Cherubs Cove Ministry.${address}<br/>
       <a href="${unsubUrl}" style="color:#9ca3af;text-decoration:underline">Unsubscribe</a>
     </td></tr>
   </table>
@@ -43,15 +76,38 @@ function wrapHtml(subject: string, bodyHtml: string, unsubUrl: string): string {
 
 type Outcome = { email: string; status: "sent" | "failed"; error?: string };
 
+/**
+ * A plain-text alternative. An HTML-only message is one of the oldest spam
+ * signals there is — every legitimate bulk sender ships both parts.
+ */
+function htmlToText(html: string): string {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<head[\s\S]*?<\/head>/gi, "")
+    .replace(/<li[^>]*>/gi, "\n  • ")
+    .replace(/<\/(p|div|h[1-6]|tr|ul|ol)>/gi, "\n\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi,
+      (_m, href, label) => `${String(label).replace(/<[^>]+>/g, "").trim()} (${href})`)
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/\n{3,}/g, "\n\n")
+    .split("\n").map(l => l.trimEnd()).join("\n")
+    .trim();
+}
+
 /** Send one batch of individual emails. Returns a per-recipient outcome. */
 async function resendBatch(
-  items: { email: string; subject: string; html: string; unsubUrl: string }[],
+  items: { email: string; subject: string; html: string; text: string; unsubUrl: string }[],
 ): Promise<Outcome[]> {
   const payload = items.map(i => ({
     from: FROM_ADDRESS,
+    ...(REPLY_TO ? { reply_to: REPLY_TO } : {}),
     to: [i.email],
     subject: i.subject,
     html: i.html,
+    text: i.text,
     headers: {
       "List-Unsubscribe": `<${i.unsubUrl}>`,
       "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
@@ -102,12 +158,18 @@ Deno.serve(async (req) => {
     campaign_id?: string;
     /** Test sends go to the admin only and skip the unsubscribed check. */
     is_test?: boolean;
+    /**
+     * Warm-up tranche. A domain with no sending history that suddenly emits
+     * its whole list in one burst is the exact shape reputation systems are
+     * built to catch. Send a slice a day and let the reputation build.
+     */
+    max_recipients?: number;
   };
   try { body = await req.json(); } catch { return json(400, { error: "Invalid JSON" }); }
 
   const subject = (body.subject || "").trim();
   const campaign_id = (body.campaign_id || `camp-${Date.now()}`).trim();
-  const requested = Array.from(new Set(
+  let requested = Array.from(new Set(
     (body.recipients || [])
       .map(e => (e || "").trim().toLowerCase())
       .filter(e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)),
@@ -121,9 +183,26 @@ Deno.serve(async (req) => {
 
   const db = serviceClient();
 
+  // Anyone already sent this campaign is skipped, so pressing Send again the
+  // next day continues the same campaign rather than mailing people twice.
+  let alreadySent = 0;
+  if (!body.is_test) {
+    const { data: done } = await db
+      .from("newsletter_send_log")
+      .select("recipient_email")
+      .eq("campaign_id", campaign_id)
+      .eq("status", "sent");
+    const seen = new Set((done ?? []).map((r: { recipient_email: string }) => r.recipient_email.toLowerCase()));
+    if (seen.size) {
+      const before = requested.length;
+      requested = requested.filter(e => !seen.has(e));
+      alreadySent = before - requested.length;
+    }
+  }
+
   // Honour unsubscribes server-side. The admin UI filters too, but a stale page
   // or a direct call must not reach somebody who opted out.
-  let uniq = requested;
+  let uniq: string[] = requested;
   let suppressed = 0;
   if (!body.is_test) {
     const { data: optedOut } = await db
@@ -135,13 +214,31 @@ Deno.serve(async (req) => {
     uniq = requested.filter(e => !blocked.has(e));
     suppressed = requested.length - uniq.length;
     if (!uniq.length) {
-      return json(200, { success: true, sent: 0, total: 0, suppressed, errors: [], campaign_id });
+      return json(200, {
+        success: true, sent: 0, total: 0, suppressed, already_sent: alreadySent,
+        remaining: 0, errors: [], campaign_id,
+      });
     }
   }
 
+  const cap = Number(body.max_recipients ?? 0);
+  let remaining = 0;
+  if (cap > 0 && uniq.length > cap) {
+    remaining = uniq.length - cap;
+    uniq = uniq.slice(0, cap);
+  }
+
+  const identity = await readIdentity(db);
+  const signOff = identity.signature ? `\n\n${identity.signature}` : "";
+  const postal = identity.address ? `\n${identity.address.replace(/\n/g, ", ")}` : "";
+
   const items = await Promise.all(uniq.map(async (email) => {
     const unsubUrl = await unsubscribeUrl(email);
-    return { email, subject, unsubUrl, html: wrapHtml(subject, rawHtml, unsubUrl) };
+    const html = wrapHtml(subject, rawHtml, unsubUrl, identity);
+    return {
+      email, subject, unsubUrl, html,
+      text: `${htmlToText(rawHtml)}${signOff}\n\n—\nCherubs Cove Ministry${postal}\nUnsubscribe: ${unsubUrl}`,
+    };
   }));
 
   const outcomes: Outcome[] = [];
@@ -169,6 +266,11 @@ Deno.serve(async (req) => {
     sent,
     total: uniq.length,
     suppressed,
+    already_sent: alreadySent,
+    remaining,
+    warnings: identity.address ? [] : [
+      "No postal address is set, and commercial email is required by law to carry one. Add it under Settings \u2192 Newsletter.",
+    ],
     batches: Math.ceil(items.length / BATCH_SIZE),
     errors,
     campaign_id,
