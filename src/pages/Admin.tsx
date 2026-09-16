@@ -1806,8 +1806,9 @@ export default function AdminPage() {
         toast.error(`Sent ${data.sent}/${data.total}. Errors: ${(data.errors || []).join('; ').slice(0, 200)}`);
       } else {
         const skipped = data?.suppressed ? ` ${data.suppressed} unsubscribed recipient(s) skipped.` : '';
-        const left = data?.remaining
-          ? ` ${data.remaining} still to go — send the next batch tomorrow, this same draft picks up where it left off.`
+        // Only tell them to come back if nothing is going to happen on its own.
+        const left = data?.remaining && !scheduleOn
+          ? ` ${data.remaining} still to go — open this campaign again whenever you like and it picks up where it left off.`
           : '';
         toast.success(`Email sent to ${data?.sent ?? composeTargets.length} recipient(s).${skipped}${left}`);
         for (const w of (data?.warnings ?? [])) toast.warning(w);
@@ -1822,7 +1823,12 @@ export default function AdminPage() {
               start_at: new Date(Date.now() + scheduleInterval * 60000).toISOString(),
               created_by: session?.user?.email ?? undefined,
             });
-            toast.success(`The remaining ${data.remaining} are queued and will go out on their own.`);
+            const each = INTERVAL_CHOICES.find(i => i.minutes === scheduleInterval)?.label ?? 'on schedule';
+            const batches = Math.ceil(data.remaining / composeTranche);
+            toast.success(
+              `Queued: the remaining ${data.remaining} go out ${composeTranche} at a time, ${each} — ` +
+              `about ${batches} more batch${batches === 1 ? '' : 'es'}. Nothing else to do.`,
+            );
             loadCampaigns();
             setComposeOpen(false);
           } catch (err) {
