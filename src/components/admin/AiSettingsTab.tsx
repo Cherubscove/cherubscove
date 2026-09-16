@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
   Sparkles, Plus, Trash2, Save, RefreshCw, ArrowUp, ArrowDown, Loader2,
@@ -35,7 +35,7 @@ export default function AiSettingsTab({ onFlagsChange }: { onFlagsChange?: (f: A
   const [modelLists, setModelLists] = useState<Record<string, string[]>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const [list, f] = await Promise.all([aiAdmin.list(), aiAdmin.flags()]);
@@ -49,9 +49,9 @@ export default function AiSettingsTab({ onFlagsChange }: { onFlagsChange?: (f: A
     } finally {
       setLoading(false);
     }
-  };
+  }, [onFlagsChange]);
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void load(); }, [load]);
 
   const draftFor = (r: AiProviderRow): Draft => drafts[r.id] ?? r;
   const setDraft = (id: string, patch: Draft) =>
