@@ -28,7 +28,7 @@ type Task = {
 const TASKS: Record<string, Task> = {
   newsletter: {
     feature: "newsletter",
-    maxTokens: 900,
+    maxTokens: 2400,
     json: true,
     system: `${NEVER_INVENT}
 You draft newsletter emails. Warm, direct, unhurried. No exclamation marks, no
@@ -46,7 +46,7 @@ line — the template already carries one.`,
 
   seo: {
     feature: "seo",
-    maxTokens: 300,
+    maxTokens: 1200,
     json: true,
     system: `${NEVER_INVENT}
 You write search-engine metadata. Reply with ONLY a JSON object:
@@ -60,7 +60,7 @@ page. No keyword stuffing, no ellipses, no "Welcome to".`,
 
   event: {
     feature: "events",
-    maxTokens: 500,
+    maxTokens: 1600,
     json: true,
     system: `${NEVER_INVENT}
 You write event descriptions. Reply with ONLY a JSON object:
@@ -78,7 +78,7 @@ warm sentences shown to somebody immediately after they register.`,
   // The catch-all: any field an admin is typing by hand.
   rewrite: {
     feature: "assistant",
-    maxTokens: 700,
+    maxTokens: 1800,
     system: `${NEVER_INVENT}
 You help an administrator finish a piece of text they are typing into a form.
 Reply with ONLY the finished text — no preamble, no quotation marks around it,

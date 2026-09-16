@@ -174,7 +174,9 @@ Deno.serve(async (req) => {
         try {
           const text = await found.adapter({
             apiKey: row.api_key, model: row.model, prompt: "Reply with the single word: ready",
-            baseUrl: row.base_url || found.baseUrl, maxTokens: 16,
+            // Not 16: a reasoning model spends its whole budget thinking and
+            // returns an empty answer, so a tight cap fails every good row.
+            baseUrl: row.base_url || found.baseUrl, maxTokens: 512,
           });
           const ok = !!text.trim();
           await db.from("ai_providers")

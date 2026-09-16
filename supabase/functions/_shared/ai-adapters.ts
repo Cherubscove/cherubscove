@@ -14,6 +14,14 @@ export type AdapterArgs = {
   maxTokens?: number;
 };
 
+// Most of the free tier is reasoning models now, and their thinking is billed
+// out of the SAME output budget as the answer. Left alone, gemini-3-flash spent
+// 717 of 900 tokens thinking and returned JSON truncated mid-string — which the
+// chain then correctly rejected, at every single row, so the feature looked
+// broken rather than budget-starved. We ask for minimal thinking and leave
+// plenty of headroom. Both knobs are ignored gracefully by models that have no
+// reasoning step.
+
 export type Adapter = (args: AdapterArgs) => Promise<string>;
 
 export const OPENAI_COMPATIBLE: Record<string, { baseUrl: string; modelsUrl: string }> = {
@@ -56,7 +64,11 @@ const openAiCompatible: Adapter = async ({ apiKey, model, prompt, system, baseUr
   const res = await fetch(url, {
     method: "POST",
     headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model, messages, max_tokens: maxTokens ?? 800, temperature: 0.7 }),
+    body: JSON.stringify({
+      model, messages, temperature: 0.7,
+      max_tokens: maxTokens ?? 800,
+      reasoning_effort: "low",
+    }),
   });
   if (!res.ok) await failing(res);
   const data = await res.json();
@@ -65,15 +77,28 @@ const openAiCompatible: Adapter = async ({ apiKey, model, prompt, system, baseUr
 
 const gemini: Adapter = async ({ apiKey, model, prompt, system, maxTokens }) => {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
-  const res = await fetch(url, {
+
+  const call = (thinking: boolean) => fetch(url, {
     method: "POST",
     headers: { "x-goog-api-key": apiKey, "Content-Type": "application/json" },
     body: JSON.stringify({
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}),
-      generationConfig: { maxOutputTokens: maxTokens ?? 800, temperature: 0.7 },
+      generationConfig: {
+        maxOutputTokens: maxTokens ?? 800,
+        temperature: 0.7,
+        ...(thinking ? {} : { thinkingConfig: { thinkingBudget: 0 } }),
+      },
     }),
   });
+
+  let res = await call(false);
+  // A few models (the pro tier) refuse a zero thinking budget. Try once more
+  // without the knob rather than losing the row to a 400.
+  if (res.status === 400) {
+    const body = await res.clone().text();
+    if (/thinking/i.test(body)) res = await call(true);
+  }
   if (!res.ok) await failing(res);
   const data = await res.json();
 
