@@ -431,3 +431,11 @@ verify_jwt = true
 [functions.newsletter-unsubscribe]
 enabled = true
 verify_jwt = false
+
+[functions.ai-admin]
+enabled = true
+verify_jwt = true
+
+[functions.ai-generate]
+enabled = true
+verify_jwt = true

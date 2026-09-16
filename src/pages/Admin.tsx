@@ -11,10 +11,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import {
-  Calendar, Download, Image, Settings, Users, LogOut, Plus, Trash2, Edit2, Save, X, Eye, EyeOff, FileDown, ArrowUpDown, ClipboardList, FileText, ToggleLeft, ToggleRight, CheckSquare, Square, FolderInput, Star, RefreshCw, Mail, Send, History, BarChart3, Search,
+  Sparkles, Calendar, Download, Image, Settings, Users, LogOut, Plus, Trash2, Edit2, Save, X, Eye, EyeOff, FileDown, ArrowUpDown, ClipboardList, FileText, ToggleLeft, ToggleRight, CheckSquare, Square, FolderInput, Star, RefreshCw, Mail, Send, History, BarChart3, Search,
 } from 'lucide-react';
 import FormFieldBuilder from '@/components/admin/FormFieldBuilder';
 import HeroSlidesManager from '@/components/admin/HeroSlidesManager';
+import AiSettingsTab from '@/components/admin/AiSettingsTab';
+import AiAssistButton from '@/components/admin/AiAssistButton';
+import { DEFAULT_AI_FLAGS, readAiFlagsPublic, type AiFlags } from '@/lib/ai';
 import { SEED_EVENTS, SEED_DOWNLOADS, SEED_GALLERIES } from '@/lib/seedData';
 import type {
   EventRecord, DownloadRecord, GalleryRecord, RegistrationRecord, FormFieldConfig, GalleryCollection,
@@ -381,6 +384,8 @@ export default function AdminPage() {
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeMode, setComposeMode] = useState<'bulk' | 'individual'>('bulk');
   const [composeTargets, setComposeTargets] = useState<string[]>([]);
+  const [aiFlags, setAiFlags] = useState<AiFlags>(DEFAULT_AI_FLAGS);
+  const [aiBrief, setAiBrief] = useState('');
   const [composeSubject, setComposeSubject] = useState('');
   const [composeBody, setComposeBody] = useState('');
   const [composeSending, setComposeSending] = useState(false);
@@ -641,6 +646,10 @@ export default function AdminPage() {
 
       await loadAdminList(finalSettings);
       await loadGalleries(finalSettings);
+      // Feature switches are world-readable settings, not secrets — the page
+      // needs them before it renders to decide which buttons exist at all.
+      // The server checks them again; this copy is only ever an optimisation.
+      setAiFlags(await readAiFlagsPublic(finalSettings));
       void loadAuditLogs();
     } catch (error) {
       console.error('Admin data load failed:', error);
@@ -1991,6 +2000,7 @@ export default function AdminPage() {
             <TabsTrigger value="content" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898] text-xs md:text-sm whitespace-nowrap"><FileText size={12} className="mr-1 md:mr-1.5 shrink-0" />Content</TabsTrigger>
             <TabsTrigger value="analytics" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898] text-xs md:text-sm whitespace-nowrap"><BarChart3 size={12} className="mr-1 md:mr-1.5 shrink-0" />Analytics</TabsTrigger>
             <TabsTrigger value="audit" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898] text-xs md:text-sm whitespace-nowrap"><History size={12} className="mr-1 md:mr-1.5 shrink-0" />Audit Log</TabsTrigger>
+            <TabsTrigger value="ai" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898] text-xs md:text-sm whitespace-nowrap"><Sparkles size={12} className="mr-1 md:mr-1.5 shrink-0" />AI</TabsTrigger>
             <TabsTrigger value="settings" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898] text-xs md:text-sm whitespace-nowrap"><Settings size={12} className="mr-1 md:mr-1.5 shrink-0" />Settings</TabsTrigger>
             <TabsTrigger value="seo" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898] text-xs md:text-sm whitespace-nowrap"><Search size={12} className="mr-1 md:mr-1.5 shrink-0" />SEO</TabsTrigger>
             <TabsTrigger value="admins" className="data-[state=active]:bg-[#E8620A] data-[state=active]:text-white text-[#B5A898] text-xs md:text-sm whitespace-nowrap"><Users size={12} className="mr-1 md:mr-1.5 shrink-0" />Admins</TabsTrigger>
@@ -2066,7 +2076,32 @@ export default function AdminPage() {
                     {editEvent.image_url && <img src={normalizeImageUrl(editEvent.image_url)} alt="Preview" className="w-40 h-28 object-cover rounded-md border border-[#2A2520]" />}
                   </div>
 
-                  <Textarea placeholder="Description" value={editEvent.description} onChange={e => setEditEvent({ ...editEvent, description: e.target.value })} className={inputCls} rows={3} />
+                  <div className="space-y-2">
+                    <Textarea placeholder="Description" value={editEvent.description} onChange={e => setEditEvent({ ...editEvent, description: e.target.value })} className={inputCls} rows={3} />
+                    {aiFlags.enabled && aiFlags.events && (
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs text-[#6B5E50]">Writes the description and the post-registration message from the event's own details.</p>
+                        <AiAssistButton
+                          task="event"
+                          label="Draft description"
+                          disabled={!editEvent.title?.trim()}
+                          input={() => ({
+                            name: editEvent.title ?? '',
+                            date: formatEventDateRange(editEvent) || '',
+                            location: editEvent.location ?? '',
+                            notes: editEvent.description ?? '',
+                          })}
+                          onResult={r => {
+                            setEditEvent(prev => ({
+                              ...prev,
+                              description: r.description || prev.description,
+                              completion_message: r.completion_message || prev.completion_message,
+                            }));
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
 
 
                   {/* Registration Toggle */}
@@ -3286,11 +3321,36 @@ export default function AdminPage() {
                       <CardTitle className="text-white text-lg">
                         {composeMode === 'bulk' ? `Bulk Email — ${composeTargets.length} recipient(s)` : `Email — ${composeTargets[0]}`}
                       </CardTitle>
-                      <p className="text-xs text-[#6B5E50] mt-1">Sent from <code className="text-[#E8620A]">noreply@cherubscove.net</code>{composeMode === 'bulk' ? ' via BCC — recipients won\'t see each other.' : ''}</p>
+                      <p className="text-xs text-[#6B5E50] mt-1">Sent from <code className="text-[#E8620A]">noreply@cherubscove.net</code>{composeMode === 'bulk' ? ' — one individual email each, so nobody sees another address.' : ''}</p>
                     </div>
                     <Button size="sm" variant="ghost" onClick={() => !composeSending && setComposeOpen(false)} className="text-[#B5A898]"><X size={16} /></Button>
                   </CardHeader>
                   <CardContent className="space-y-3">
+                    {aiFlags.enabled && aiFlags.newsletter && (
+                      <div className="rounded-lg border border-[#E8620A]/30 bg-[#E8620A]/5 p-3 space-y-2">
+                        <label className="text-xs font-medium text-[#B5A898]">Draft this email from a brief</label>
+                        <Textarea
+                          placeholder="e.g. Registration for Quivers 2026 opens on 1 March, three days in Lagos, early-bird rate until the 14th"
+                          value={aiBrief}
+                          onChange={e => setAiBrief(e.target.value)}
+                          className={inputCls}
+                          rows={2}
+                          disabled={composeSending}
+                        />
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs text-[#6B5E50]">You review and edit everything before it sends.</p>
+                          <AiAssistButton
+                            task="newsletter"
+                            disabled={composeSending || !aiBrief.trim()}
+                            input={() => ({ brief: aiBrief.trim(), audience: 'newsletter subscribers of Cherubs Cove Ministry' })}
+                            onResult={r => {
+                              if (r.subject) setComposeSubject(r.subject);
+                              if (r.html) setComposeBody(r.html);
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
                     <Field label="Subject">
                       <Input placeholder="e.g. Quiver's 2026 — Registration is now open" value={composeSubject} onChange={e => setComposeSubject(e.target.value)} className={inputCls} disabled={composeSending} />
                     </Field>
@@ -3298,7 +3358,7 @@ export default function AdminPage() {
                       <Textarea placeholder="Write your message here…" value={composeBody} onChange={e => setComposeBody(e.target.value)} className={inputCls} rows={10} disabled={composeSending} />
                     </Field>
                     {composeMode === 'bulk' && composeTargets.length > 20 && (
-                      <p className="text-xs text-[#6B5E50]">Recipients will be split into batches of 45 (Resend BCC limit).</p>
+                      <p className="text-xs text-[#6B5E50]">Sent in batches of 100. Anyone who has unsubscribed is skipped automatically.</p>
                     )}
                     <div className="flex justify-between items-center pt-2">
                       <Button
@@ -3359,6 +3419,23 @@ export default function AdminPage() {
                           <Input value={contentValues[cd.key] ?? ''} onChange={e => setContentValues(prev => ({ ...prev, [cd.key]: e.target.value }))} className={`flex-1 ${inputCls}`} />
                         )}
                         <Button onClick={() => saveContentSetting(cd.key)} className="bg-[#E8620A] hover:bg-[#cf5709] text-white self-start"><Save size={14} /></Button>
+                        {aiFlags.enabled && (cd.key.startsWith('seo_') ? aiFlags.seo : aiFlags.assistant) && (
+                          <AiAssistButton
+                            task="rewrite"
+                            label=""
+                            className="self-start !px-2 !py-2"
+                            input={() => ({
+                              field: cd.label,
+                              draft: contentValues[cd.key] ?? '',
+                              instruction: cd.key.startsWith('seo_')
+                                ? 'This is search-engine copy. A description must be 140-158 characters, a title at most 60. Plain sentences, no keyword stuffing.'
+                                : `This is website copy for the "${cd.group}" section. Keep roughly the same length as the draft.`,
+                            })}
+                            onResult={(_r, text) => {
+                              if (text) setContentValues(prev => ({ ...prev, [cd.key]: text }));
+                            }}
+                          />
+                        )}
                         {isPwaIcon && (
                           <div className="relative self-start">
                             <input
@@ -3548,6 +3625,10 @@ export default function AdminPage() {
           </TabsContent>
 
           {/* ── Settings Tab ─────────────────────────────────────────────── */}
+          <TabsContent value="ai" className="space-y-4">
+            <AiSettingsTab />
+          </TabsContent>
+
           <TabsContent value="settings" className="space-y-4">
             <div className="flex justify-between items-center">
               <div>
