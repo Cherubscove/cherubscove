@@ -31,24 +31,40 @@ const trackDownloadClick = async (resourceId: string, title: string) => {
   }
 };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Visitors cannot read analytics_events, so the public "most downloaded" sort
+// reads a counter on the row itself, bumped through a definer function.
+const bumpDownloadCount = async (resourceId: string) => {
+  if (!UUID_RE.test(resourceId)) return;
+  try {
+    await supabase.rpc('increment_download_count', { download_id: resourceId });
+  } catch {
+    // A missed count must never block the download.
+  }
+};
+
 type ResType = 'audio' | 'video' | 'pdf';
 
 interface Resource {
+  id: string;
   type: ResType;
   title: string;
   speaker: string;
   category: string;
   action: string;
   href: string;
+  createdAt: number;
+  downloadCount: number;
 }
 
 const fallbackResources: Resource[] = [
-  { type: 'audio', title: 'Walking in Your Kingdom Identity', speaker: "Jesse Falodun — Quiver's Immersion 2025", category: 'Sermon', action: 'Download', href: '#' },
-  { type: 'video', title: 'Arise: Walking Into Your Appointed Season', speaker: "Jesse Falodun — Quiver's Forge 2024", category: 'Teaching', action: 'Watch / Download', href: '#' },
-  { type: 'audio', title: 'The Sound That Changes Atmospheres', speaker: "Guest Minister — Quiver's Arrows 2023", category: 'Sermon', action: 'Download', href: '#' },
-  { type: 'audio', title: 'Positioned for Overflow', speaker: 'Guest Minister — Awakening 2024', category: 'Sermon', action: 'Download', href: '#' },
-  { type: 'pdf', title: 'Forge Conference Notes 2024', speaker: "Quiver's Conference Programme Manual", category: 'Manual', action: 'Download PDF', href: '#' },
-  { type: 'video', title: 'He Who Calls Is Faithful', speaker: 'Jesse Falodun — Weekly Teaching', category: 'Teaching', action: 'Watch / Download', href: '#' },
+  { id: 'fallback-1', type: 'audio', title: 'Walking in Your Kingdom Identity', speaker: "Jesse Falodun — Quiver's Immersion 2025", category: 'Sermon', action: 'Download', href: '#', createdAt: 0, downloadCount: 0 },
+  { id: 'fallback-2', type: 'video', title: 'Arise: Walking Into Your Appointed Season', speaker: "Jesse Falodun — Quiver's Forge 2024", category: 'Teaching', action: 'Watch / Download', href: '#', createdAt: 0, downloadCount: 0 },
+  { id: 'fallback-3', type: 'audio', title: 'The Sound That Changes Atmospheres', speaker: "Guest Minister — Quiver's Arrows 2023", category: 'Sermon', action: 'Download', href: '#', createdAt: 0, downloadCount: 0 },
+  { id: 'fallback-4', type: 'audio', title: 'Positioned for Overflow', speaker: 'Guest Minister — Awakening 2024', category: 'Sermon', action: 'Download', href: '#', createdAt: 0, downloadCount: 0 },
+  { id: 'fallback-5', type: 'pdf', title: 'Forge Conference Notes 2024', speaker: "Quiver's Conference Programme Manual", category: 'Manual', action: 'Download PDF', href: '#', createdAt: 0, downloadCount: 0 },
+  { id: 'fallback-6', type: 'video', title: 'He Who Calls Is Faithful', speaker: 'Jesse Falodun — Weekly Teaching', category: 'Teaching', action: 'Watch / Download', href: '#', createdAt: 0, downloadCount: 0 },
 ];
 
 const iconMap = {
@@ -59,9 +75,26 @@ const iconMap = {
 
 const tagLabelMap = { audio: 'Audio Sermon', video: 'Video Message', pdf: 'Study Document' };
 
-type SortKey = 'title-asc' | 'title-desc' | 'type';
+type SortKey =
+  | 'newest'
+  | 'oldest'
+  | 'most-downloaded'
+  | 'least-downloaded'
+  | 'title-asc'
+  | 'title-desc'
+  | 'type';
 
-const ITEMS_PER_PAGE = 6;
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: 'newest', label: 'Newest first' },
+  { value: 'oldest', label: 'Oldest first' },
+  { value: 'most-downloaded', label: 'Most downloaded' },
+  { value: 'least-downloaded', label: 'Least downloaded' },
+  { value: 'title-asc', label: 'Title A–Z' },
+  { value: 'title-desc', label: 'Title Z–A' },
+  { value: 'type', label: 'Type' },
+];
+
+const PAGE_SIZE_OPTIONS = [6, 12, 24, 48];
 
 export default function ResourcesPage() {
   const s = useSiteSettings();
@@ -69,15 +102,20 @@ export default function ResourcesPage() {
   const [resources, setResources] = useState<Resource[]>(fallbackResources);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<SortKey>('title-asc');
+  const [sortBy, setSortBy] = useState<SortKey>('newest');
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0]);
   const ref = useScrollReveal();
 
   const loadDownloads = async () => {
-    const { data, error } = await supabase.from('downloads').select('*').order('title');
+    const { data, error } = await supabase
+      .from('downloads')
+      .select('*')
+      .order('created_at', { ascending: false });
     if (!error && data?.length) {
       setResources(
         data.map((item: any) => ({
+          id: String(item.id ?? item.title ?? ''),
           type: (item.type as ResType) || 'pdf',
           title: item.title || 'Resource',
           speaker: item.description || item.category || '',
@@ -89,6 +127,8 @@ export default function ResourcesPage() {
               ? 'Download PDF'
               : 'Download',
           href: item.url || '#',
+          createdAt: item.created_at ? new Date(item.created_at).getTime() : 0,
+          downloadCount: Number(item.download_count) || 0,
         }))
       );
     }
@@ -108,7 +148,7 @@ export default function ResourcesPage() {
   }, []);
 
   // Reset to page 1 when filters change
-  useEffect(() => { setCurrentPage(1); }, [filter, searchQuery, categoryFilter, sortBy]);
+  useEffect(() => { setCurrentPage(1); }, [filter, searchQuery, categoryFilter, sortBy, pageSize]);
 
   // ── Derived data ──────────────────────────────────────────────
   const categories = useMemo(() => {
@@ -139,6 +179,12 @@ export default function ResourcesPage() {
     // Sort
     result = [...result].sort((a, b) => {
       switch (sortBy) {
+        case 'newest': return b.createdAt - a.createdAt || a.title.localeCompare(b.title);
+        case 'oldest': return a.createdAt - b.createdAt || a.title.localeCompare(b.title);
+        case 'most-downloaded':
+          return b.downloadCount - a.downloadCount || a.title.localeCompare(b.title);
+        case 'least-downloaded':
+          return a.downloadCount - b.downloadCount || a.title.localeCompare(b.title);
         case 'title-asc': return a.title.localeCompare(b.title);
         case 'title-desc': return b.title.localeCompare(a.title);
         case 'type': return a.type.localeCompare(b.type) || a.title.localeCompare(b.title);
@@ -150,11 +196,11 @@ export default function ResourcesPage() {
   }, [resources, filter, categoryFilter, searchQuery, sortBy]);
 
   // ── Pagination ────────────────────────────────────────────────
-  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(currentPage, totalPages);
-  const paginated = filtered.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE);
-  const startItem = filtered.length === 0 ? 0 : (safePage - 1) * ITEMS_PER_PAGE + 1;
-  const endItem = Math.min(safePage * ITEMS_PER_PAGE, filtered.length);
+  const paginated = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
+  const startItem = filtered.length === 0 ? 0 : (safePage - 1) * pageSize + 1;
+  const endItem = Math.min(safePage * pageSize, filtered.length);
 
   return (
     <>
@@ -212,9 +258,20 @@ export default function ResourcesPage() {
                 onChange={(e) => setSortBy(e.target.value as SortKey)}
                 className="h-11 rounded-xl border border-input bg-card px-3.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring appearance-none cursor-pointer"
               >
-                <option value="title-asc">Title A–Z</option>
-                <option value="title-desc">Title Z–A</option>
-                <option value="type">Type</option>
+                {SORT_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                className="h-11 rounded-xl border border-input bg-card px-3.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring appearance-none cursor-pointer"
+                aria-label="Resources per page"
+              >
+                {PAGE_SIZE_OPTIONS.map((size) => (
+                  <option key={size} value={size}>{size} per page</option>
+                ))}
               </select>
             </div>
           </div>
@@ -288,10 +345,10 @@ export default function ResourcesPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 reveal">
-              {paginated.map((res, i) => {
+              {paginated.map((res) => {
                 const { icon: Icon, color } = iconMap[res.type];
                 return (
-                  <div key={i} className="bg-card border border-border rounded-lg p-6 flex flex-col gap-3 card-lift group">
+                  <div key={res.id} className="bg-card border border-border rounded-lg p-6 flex flex-col gap-3 card-lift group">
                     <div className="flex items-center justify-between">
                       <div className={`w-10 h-10 rounded-lg bg-orange-soft flex items-center justify-center ${color}`}>
                         <Icon size={18} />
@@ -303,11 +360,32 @@ export default function ResourcesPage() {
                     </span>
                     <div className="font-heading text-lg font-medium leading-snug text-foreground">{res.title}</div>
                     <div className="text-xs text-gold">{res.speaker}</div>
+                    <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                      {res.createdAt > 0 && (
+                        <span>
+                          {new Date(res.createdAt).toLocaleDateString(undefined, {
+                            year: 'numeric', month: 'short', day: 'numeric',
+                          })}
+                        </span>
+                      )}
+                      <span className="inline-flex items-center gap-1">
+                        <Download size={11} />
+                        {res.downloadCount} download{res.downloadCount === 1 ? '' : 's'}
+                      </span>
+                    </div>
                     <a
                       href={res.href}
                       target="_blank"
                       rel="noreferrer"
-                      onClick={() => trackDownloadClick(res.title, res.title)}
+                      onClick={() => {
+                        trackDownloadClick(res.id, res.title);
+                        bumpDownloadCount(res.id);
+                        setResources((prev) =>
+                          prev.map((r) =>
+                            r.id === res.id ? { ...r, downloadCount: r.downloadCount + 1 } : r,
+                          ),
+                        );
+                      }}
                       className="mt-auto pt-4 border-t border-border text-[10.5px] font-bold tracking-[2px] uppercase text-primary inline-flex items-center gap-1.5 hover:gap-3 transition-all duration-200"
                     >
                       {res.action} <ArrowRight size={12} />
